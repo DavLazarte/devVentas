@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Livewire\MateriaPrima;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -17,6 +18,7 @@ Route::get('/', function () {
     return view('welcome');
 });
 
+Route::get('/materias', MateriaPrima::class)->middleware(['auth'])->name('materias');
 Route::get('/dashboard', function () {
     return view('dashboard');
 })->middleware(['auth'])->name('dashboard');

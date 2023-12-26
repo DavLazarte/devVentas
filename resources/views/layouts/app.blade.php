@@ -13,8 +13,8 @@
 
     <!-- Scripts -->
     <link href="{{ mix('css/app.css') }}" rel="stylesheet">
+    @livewireStyles
     <script src="{{ mix('js/app.js') }}"></script>
-
 </head>
 
 <body class="font-sans antialiased">
@@ -33,6 +33,9 @@
             {{ $slot }}
         </main>
     </div>
+    @stack('modals')
+
+    @livewireScripts
 </body>
 
 </html>
