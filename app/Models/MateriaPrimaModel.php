@@ -16,4 +16,9 @@ class MateriaPrimaModel extends Model
         'stock',
         // Otros campos si es necesario
     ];
+
+    public function insumos()
+    {
+        return $this->belongsToMany(Insumo::class, 'insumo_materia_prima');
+    }
 }

@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Livewire\MateriaPrima;
+use App\Http\Livewire\Admin\Recetas;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -17,6 +18,8 @@ use Illuminate\Support\Facades\Route;
 Route::get('/', function () {
     return view('welcome');
 });
+
+Route::get('/admin/recetas', Recetas::class)->middleware(['auth'])->name('admin.recetas');
 
 Route::get('/materias', MateriaPrima::class)->middleware(['auth'])->name('materias');
 Route::get('/dashboard', function () {

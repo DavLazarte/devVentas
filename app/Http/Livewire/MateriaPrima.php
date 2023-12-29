@@ -15,7 +15,6 @@ class MateriaPrima extends Component
 
     public function render()
     {
-
         return view('livewire.materia-prima',[
             'materia' => MateriaPrimaModel::paginate(10),
         ]);
