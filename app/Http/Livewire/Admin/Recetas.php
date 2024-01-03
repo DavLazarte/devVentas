@@ -18,18 +18,49 @@ class Recetas extends Component
     public $modal = false;
     public $materiaPrimaSeleccionada = [];
     public $subTotalCostoElaboracion;
-    public $id_receta;
+    public $id_receta, $busqueda;
+    public $searchMateriaPrima = '';
+    public $selectedMateriaPrima = '';
+    // public $materiaPrima;
 
 
     use WithPagination;
 
+    // public function render()
+    // {
+    //     $this->materiaPrima = MateriaPrimaModel::all();
+
+    //     return view('livewire.admin.recetas', [
+    //         'receta' => Receta::paginate(10),
+    //     ]);
+    // }
     public function render()
     {
-        $this->materiaPrima = MateriaPrimaModel::all();
+        $this->filtrarMateriaPrima();
+        // $this->materiaPrima = MateriaPrimaModel::all();
+        $query = Receta::query();
+
+        if ($this->busqueda) {
+            $query->where('id', 'like', '%' . $this->busqueda . '%')
+                ->orWhere('nombre', 'like', '%' . $this->busqueda . '%');
+        }
+
+        $receta = $query->paginate(10);
 
         return view('livewire.admin.recetas', [
-            'receta' => Receta::paginate(10),
+            'receta' => $receta,
+            'materiaPrima' => $this->materiaPrima,
         ]);
+    }
+    public function filtrarMateriaPrima()
+    {
+        $this->materiaPrima = MateriaPrimaModel::query();
+
+        if ($this->searchMateriaPrima) {
+            $this->materiaPrima->where('producto', 'like', '%' . $this->searchMateriaPrima . '%');
+        }
+
+        $this->materiaPrima = $this->materiaPrima->get();
     }
     public function mount()
     {
@@ -50,25 +81,22 @@ class Recetas extends Component
     {
         $this->modal = false;
     }
-    public function agregarMateriaPrima()
+    public function agregarMateriaPrima($id)
     {
-        if ($this->nuevaMateriaPrima) {
-            // Obtener información de la nueva materia prima desde tu modelo o fuente de datos
-            $nuevaMateria = MateriaPrimaModel::find($this->nuevaMateriaPrima);
+        // Obtener información de la materia prima seleccionada desde tu modelo o fuente de datos
+        $materiaSeleccionada = MateriaPrimaModel::find($id);
 
-            // Agregar la nueva materia prima seleccionada a la lista
-            $this->materiaPrimaSeleccionada[] = [
-                'id' => $nuevaMateria->id,
-                'producto' => $nuevaMateria->producto,
-                'peso' => $nuevaMateria->peso,
-                'precio' => $nuevaMateria->precio, // O el campo que desees mostrar
-                'stock' => $nuevaMateria->stock,
-                // Agregar otros campos según tu estructura
-            ];
+        // Agregar la materia prima seleccionada a la lista
+        $this->materiaPrimaSeleccionada[] = [
+            'id' => $materiaSeleccionada->id,
+            'producto' => $materiaSeleccionada->producto,
+            'peso' => $materiaSeleccionada->peso,
+            'precio' => $materiaSeleccionada->precio,
+            'stock' => $materiaSeleccionada->stock,
+            // Agregar otros campos según tu estructura
+        ];
+        $this->searchMateriaPrima = '';
 
-            // Limpiar la variable de selección para el próximo uso
-            $this->nuevaMateriaPrima = null;
-        }
     }
 
     public function actualizarSubTotalCostoElaboracion()

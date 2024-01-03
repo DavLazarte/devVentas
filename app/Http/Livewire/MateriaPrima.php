@@ -8,16 +8,34 @@ use App\Models\MateriaPrimaModel;
 
 class MateriaPrima extends Component
 {
-    public  $producto, $precio, $peso,$stock, $id_materia;
+    public  $producto, $precio, $peso, $stock, $id_materia, $busqueda;
     public $modal = false;
 
     use WithPagination;
 
+    // public function render()
+    // {
+    //     return view('livewire.materia-prima',[
+    //         'materia' => MateriaPrimaModel::paginate(10),
+    //     ]);
+    // }
     public function render()
     {
-        return view('livewire.materia-prima',[
-            'materia' => MateriaPrimaModel::paginate(10),
-        ]);
+        $query = MateriaPrimaModel::query();
+
+        if ($this->busqueda) {
+            $query->where('id', 'like', '%' . $this->busqueda . '%')
+                ->orWhere('producto', 'like', '%' . $this->busqueda . '%');
+        }
+
+        $materia = $query->paginate(10);
+
+        return view('livewire.materia-prima', compact('materia'));
+    }
+
+    public function buscar()
+    {
+        $this->resetPage();
     }
     public function crear()
     {

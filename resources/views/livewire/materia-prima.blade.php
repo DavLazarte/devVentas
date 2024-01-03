@@ -23,6 +23,18 @@
                 @include('livewire.crear')
             @endif
 
+            <!-- Formulario de búsqueda con estilos de Tailwind CSS -->
+            <form wire:submit.prevent="buscar" class="my-4 flex items-center">
+                <input type="text" wire:model="busqueda" placeholder="Buscar por ID o Nombre del Producto"
+                    class="px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring focus:border-blue-300 w-full">
+                {{-- <button type="submit"
+                    class="ml-2 px-4 py-2 bg-blue-500 text-white rounded-md shadow hover:bg-blue-600">
+                    Buscar
+                </button> --}}
+            </form>
+
+
+
             <div class="overflow-x-auto">
                 <table class="table-auto min-w-full">
                     <thead>

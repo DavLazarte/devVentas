@@ -30,7 +30,19 @@
                     <div class="w-full sm:w-1/2 md:w-2/3 lg:w-3/4 xl:w-4/5 mt-4 px-2">
                         <div class="grid grid-cols-4 gap-4">
                             <!-- Select para seleccionar materia prima -->
-                            <div>
+                            <div class="relative">
+                                <input wire:model.debounce.300ms="searchMateriaPrima" type="text" class="block w-full border border-gray-300 rounded-md py-2 px-3 text-black" placeholder="Buscar materia prima">
+
+                                @if($searchMateriaPrima)
+                                    <div class="absolute z-50 bg-white w-full mt-1 rounded-md shadow-lg">
+                                        @foreach($materiaPrima as $opcion)
+                                            <div wire:click="agregarMateriaPrima({{ $opcion['id'] }})" class="py-2 px-3 cursor-pointer hover:bg-gray-100">{{ $opcion['producto'] }}</div>
+                                        @endforeach
+                                    </div>
+                                @endif
+                            </div>
+
+                            {{-- <div>
                                 <select wire:model="nuevaMateriaPrima"
                                     class="block w-full border border-gray-300 rounded-md py-2 px-3 text-black">
                                     <option value="">Seleccionar materia prima</option>
@@ -43,7 +55,7 @@
                             <div>
                                 <button wire:click="agregarMateriaPrima"
                                     class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-md">Agregar</button>
-                            </div>
+                            </div> --}}
                         </div>
                     </div>
                 </div>
