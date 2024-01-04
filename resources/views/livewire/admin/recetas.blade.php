@@ -17,13 +17,13 @@
             @endif
 
 
-            <button wire:click="crear()"
-                class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 my-3">Nueva Receta</button>
+            <button wire:click="crear()" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 my-3">Nueva
+                Receta</button>
             @if ($modal)
                 @include('livewire.admin.create-receta')
             @endif
-             <!-- Formulario de búsqueda con estilos de Tailwind CSS -->
-             <form wire:submit.prevent="buscar" class="my-4 flex items-center">
+            <!-- Formulario de búsqueda con estilos de Tailwind CSS -->
+            <form wire:submit.prevent="buscar" class="my-4 flex items-center">
                 <input type="text" wire:model="busqueda" placeholder="Buscar por ID o Nombre de la Receta"
                     class="px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring focus:border-blue-300 w-full">
                 {{-- <button type="submit"
@@ -40,6 +40,8 @@
                             <th class="px-4 py-2">NOMBRE</th>
                             <th class="px-4 py-2">DESCRIPCION</th>
                             <th class="px-4 py-2">PORCIONES</th>
+                            <th class="px-4 py-2">COSTO UNITARIO</th>
+                            <th class="px-4 py-2">PRECIO</th>
                             {{-- <th class="px-4 py-2">STOCK</th> --}}
                             <th class="px-4 py-2">ACCIONES</th>
                         </tr>
@@ -52,7 +54,15 @@
                                 <td class="border px-4 py-2">{{ $rec->nombre }}</td>
                                 <td class="border px-4 py-2">{{ $rec->descripcion }}</td>
                                 <td class="border px-4 py-2">{{ $rec->porciones }}</td>
-                                {{-- <td class="border px-4 py-2">{{ $rec->stock }}</td> --}}
+                                <!-- Nuevas columnas desde la relación con Calculo -->
+                                @if ($rec->calculo)
+                                    <td class="border px-4 py-2">{{ $rec->calculo->costo_unitario }}</td>
+                                    <td class="border px-4 py-2">{{ $rec->calculo->precio_iva }}</td>
+                                @else
+                                    <td class="border px-4 py-2">sin calculo aun</td>
+                                    <td class="border px-4 py-2">sin calculo aun</td>
+                                @endif
+                                <!-- Fin de las nuevas columnas -->
                                 <td class="border px-4 py-2 text-center">
                                     <button wire:click="editar({{ $rec->id }})"
                                         class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4">Editar</button>

@@ -26,18 +26,9 @@ class Recetas extends Component
 
     use WithPagination;
 
-    // public function render()
-    // {
-    //     $this->materiaPrima = MateriaPrimaModel::all();
-
-    //     return view('livewire.admin.recetas', [
-    //         'receta' => Receta::paginate(10),
-    //     ]);
-    // }
     public function render()
     {
         $this->filtrarMateriaPrima();
-        // $this->materiaPrima = MateriaPrimaModel::all();
         $query = Receta::query();
 
         if ($this->busqueda) {
