@@ -41,21 +41,6 @@
                                     </div>
                                 @endif
                             </div>
-
-                            {{-- <div>
-                                <select wire:model="nuevaMateriaPrima"
-                                    class="block w-full border border-gray-300 rounded-md py-2 px-3 text-black">
-                                    <option value="">Seleccionar materia prima</option>
-                                    <!-- Iterar sobre las opciones de materia prima disponibles -->
-                                    @foreach ($materiaPrima as $opcion)
-                                        <option value="{{ $opcion['id'] }}">{{ $opcion['producto'] }}</option>
-                                    @endforeach
-                                </select>
-                            </div>
-                            <div>
-                                <button wire:click="agregarMateriaPrima"
-                                    class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-md">Agregar</button>
-                            </div> --}}
                         </div>
                     </div>
                 </div>
@@ -98,14 +83,7 @@
                                         <input type="number" id="stock_{{ $index }}"
                                             value="{{ isset($materia['stock']) ? $materia['stock'] : '' }}">
                                     </td>
-                                    <!-- Resto de las celdas -->
-                                    {{-- <td class="border border-gray-200 px-4 py-2">
-                                        <input type="number" id="cantidad_{{ $index }}" wire:model="cantidad">
-                                    </td>
-                                    <td class="border border-gray-200 px-4 py-2">
-                                        <input type="number" id="costo_en_receta_{{ $index }}"
-                                            wire:model="costo_en_receta">
-                                    </td> --}}
+                                    
                                     <td class="border border-gray-200 px-4 py-2">
                                         <input type="number" id="cantidad_{{ $index }}"
                                             wire:model="materiaPrimaSeleccionada.{{ $index }}.cantidad"

@@ -211,15 +211,7 @@ class Recetas extends Component
                 ]
             );
 
-            // MateriaPrimaModel::updateOrCreate(
-            //     ['id' => $this->id_materia],
-            //     [
-            //         'producto' => $this->producto,
-            //         'precio' => $this->precio,
-            //         'peso' => $this->peso,
-            //         'stock' => $this->stock
-            //     ]
-            // );
+
 
             // Guardar en la tabla Calculos
             $calculo = Calculo::updateOrCreate(
