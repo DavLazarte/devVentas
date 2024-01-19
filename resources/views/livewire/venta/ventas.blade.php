@@ -126,80 +126,75 @@
                 </table>
             </div>
         </div>
-        <div class="flex w-2/3 justify-center mx-auto mt-8">
-            <div>
-                <button
-                    class="align-middle select-none font-sans font-bold text-center uppercase transition-all disabled:opacity-50 disabled:shadow-none disabled:pointer-events-none text-xs py-2 px-4 rounded-lg bg-gray-900 text-white shadow-md shadow-gray-900/10 hover:shadow-lg hover:shadow-gray-900/20 focus:opacity-[0.85] focus:shadow-none active:opacity-[0.85] active:shadow-none flex items-center gap-3 mt-4"
-                    type="button" wire:click.prevent="guardar()">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"
-                        stroke-width="2" class="h-4 w-4">
-                        <path
-                            d="M6.25 6.375a4.125 4.125 0 118.25 0 4.125 4.125 0 01-8.25 0zM3.25 19.125a7.125 7.125 0 0114.25 0v.003l-.001.119a.75.75 0 01-.363.63 13.067 13.067 0 01-6.761 1.873c-2.472 0-4.786-.684-6.76-1.873a.75.75 0 01-.364-.63l-.001-.122zM19.75 7.5a.75.75 0 00-1.5 0v2.25H16a.75.75 0 000 1.5h2.25v2.25a.75.75 0 001.5 0v-2.25H22a.75.75 0 000-1.5h-2.25V7.5z">
-                        </path>
-                    </svg>
-                    GUARDAR VENTA
-                </button>
-            </div>
-            <div class="flex w-full justify-end">
-                <div class="col-span-4 sm:col-span-6 md:col-span-3">
-                    <div class="flex flex-row bg-white shadow-sm rounded p-4">
-                        <div
-                            class="flex items-center justify-center flex-shrink-0 h-12 w-12 rounded-xl bg-red-100 text-red-500">
-                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-                                xmlns="http://www.w3.org/2000/svg">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z">
-                                </path>
-                            </svg>
-                        </div>
-                        <div class="flex flex-col flex-grow ml-4">
-                            <div class="text-sm text-gray-500">Total</div>
-                            {{-- <div class="font-bold text-lg">$<span id="venta-total">0.00</span></div> --}}
-                            <input type="text" id="total" wire:model="venta_total" placeholder="$0,00"
-                                class="p-2 rounded border attendees-count">
-                        </div>
-                    </div>
-                </div>
-                <div class="col-span-4 sm:col-span-6 md:col-span-3">
-                    <div class="flex flex-row bg-white shadow-sm rounded p-4">
-                        <div
-                            class="flex items-center justify-center flex-shrink-0 h-12 w-12 rounded-xl bg-red-100 text-red-500">
-                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-                                xmlns="http://www.w3.org/2000/svg">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z">
-                                </path>
-                            </svg>
-                        </div>
-                        <div class="flex flex-col flex-grow ml-4">
-                            <div class="text-sm text-gray-500">Pago</div>
-                            <input type="text" id="pago" wire:model="pago"
-                                placeholder="ingrese el monto abonado" class="p-2 rounded border attendees-count"
-                                wire:change="calcularSaldo()">
-                        </div>
-                    </div>
-                </div>
-                <div class="col-span-4 sm:col-span-6 md:col-span-3">
-                    <div class="flex flex-row bg-white shadow-sm rounded p-4">
-                        <div
-                            class="flex items-center justify-center flex-shrink-0 h-12 w-12 rounded-xl bg-red-100 text-red-500">
-                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-                                xmlns="http://www.w3.org/2000/svg">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z">
-                                </path>
-                            </svg>
-                        </div>
-                        <div class="flex flex-col flex-grow ml-4">
-                            <div class="text-sm text-gray-500">Saldo</div>
-                            <input type="text" id="saldo" wire:model="saldo" placeholder="saldo"
-                                class="p-2 rounded border attendees-count">
-                        </div>
-                    </div>
-                </div>
-            </div>
 
+        <div class="container mx-auto mt-8 p-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="bg-white shadow-sm rounded p-4">
+                    <div
+                        class="flex items-center justify-center flex-shrink-0 h-12 w-12 rounded-xl bg-red-100 text-red-500">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                            xmlns="http://www.w3.org/2000/svg">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z">
+                            </path>
+                        </svg>
+                    </div>
+                    <div class="flex flex-col flex-grow ml-4">
+                        <div class="text-sm text-gray-500">Total</div>
+                        {{-- <div class="font-bold text-lg">$<span id="venta-total">0.00</span></div> --}}
+                        <input type="text" id="total" wire:model="venta_total" placeholder="$0,00"
+                            class="p-2 rounded border attendees-count">
+                    </div>
+                </div>
+
+                <div class="bg-white shadow-sm rounded p-4">
+                    <div
+                        class="flex items-center justify-center flex-shrink-0 h-12 w-12 rounded-xl bg-red-100 text-red-500">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                            xmlns="http://www.w3.org/2000/svg">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z">
+                            </path>
+                        </svg>
+                    </div>
+                    <div class="flex flex-col flex-grow ml-4">
+                        <div class="text-sm text-gray-500">Pago</div>
+                        <input type="text" id="pago" wire:model="pago"
+                            placeholder="ingrese el monto abonado" class="p-2 rounded border attendees-count"
+                            wire:change="calcularSaldo()">
+                    </div>
+                </div>
+
+                <div class="bg-white shadow-sm rounded p-4">
+                    <div
+                        class="flex items-center justify-center flex-shrink-0 h-12 w-12 rounded-xl bg-red-100 text-red-500">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                            xmlns="http://www.w3.org/2000/svg">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z">
+                            </path>
+                        </svg>
+                    </div>
+                    <div class="flex flex-col flex-grow ml-4">
+                        <div class="text-sm text-gray-500">Saldo</div>
+                        <input type="text" id="saldo" wire:model="saldo" placeholder="saldo"
+                            class="p-2 rounded border attendees-count">
+                    </div>
+                </div>
+            </div>
+            <button
+                class="w-3/4 mt-4 py-2 px-4 rounded-lg bg-gray-900 text-white shadow-md hover:shadow-lg focus:opacity-85 active:opacity-85 mb-4"
+                type="button" wire:click.prevent="guardar()">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"
+                    stroke-width="2" class="h-4 w-4">
+                    <path
+                        d="M6.25 6.375a4.125 4.125 0 118.25 0 4.125 4.125 0 01-8.25 0zM3.25 19.125a7.125 7.125 0 0114.25 0v.003l-.001.119a.75.75 0 01-.363.63 13.067 13.067 0 01-6.761 1.873c-2.472 0-4.786-.684-6.76-1.873a.75.75 0 01-.364-.63l-.001-.122zM19.75 7.5a.75.75 0 00-1.5 0v2.25H16a.75.75 0 000 1.5h2.25v2.25a.75.75 0 001.5 0v-2.25H22a.75.75 0 000-1.5h-2.25V7.5z">
+                    </path>
+                </svg>
+                GUARDAR VENTA
+            </button>
         </div>
+
 
     </div>
 
