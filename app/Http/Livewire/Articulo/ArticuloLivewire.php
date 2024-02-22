@@ -5,13 +5,14 @@ namespace App\Http\Livewire\Articulo;
 use Livewire\Component;
 use App\Models\Articulo;
 use App\Models\Categoria;
-
+use App\Models\Receta;
 
 class ArticuloLivewire extends Component
 {
 
-    public $articulos, $articulo_id, $nombre, $descripcion, $estado, $stock, $codigo, $precio_unitario, $busqueda, $categorias,$categoria_id;
+    public $articulos, $articulo_id, $nombre, $descripcion, $estado, $stock, $codigo, $precio_unitario, $busqueda, $categorias, $categoria_id, $recetas, $receta, $recetaSeleccionada;
     public $isOpen = 0;
+    public $modoEdit = 0;
     // En tus componentes Livewire (por ejemplo, CategoriaLivewire)
     public $layout = 'sistema';
 
@@ -28,6 +29,7 @@ class ArticuloLivewire extends Component
 
         $articulo = $query->with('categoria')->paginate(10);
         $this->categorias = Categoria::pluck('nombre', 'id_categoria');
+        $this->recetas = Receta::all();
 
         return view('livewire.articulo.articulo-livewire', compact('articulo'));
     }
@@ -46,6 +48,8 @@ class ArticuloLivewire extends Component
     public function closeModal()
     {
         $this->isOpen = false;
+        $this->modoEdit = false;
+
     }
 
     private function resetInputFields()
@@ -89,6 +93,7 @@ class ArticuloLivewire extends Component
 
     public function editar($id)
     {
+        $this->modoEdit = true;
         $articulo = Articulo::findOrFail($id);
         $this->articulo_id = $id;
         // $this->categorias = $articulo->categoria->nombre;
@@ -96,7 +101,7 @@ class ArticuloLivewire extends Component
         $this->nombre = $articulo->nombre;
         $this->descripcion = $articulo->descripcion;
         $this->codigo = $articulo->codigo;
-        $this->precio_unitario = $articulo->precio_unitario;
+        $this->precio_unitario = floatval($articulo->precio_unitario);
         $this->stock = $articulo->stock;
         $this->estado = $articulo->estado;
 
@@ -107,5 +112,21 @@ class ArticuloLivewire extends Component
     {
         Articulo::find($id)->delete();
         session()->flash('message', 'Articulo eliminado exitosamente.');
+    }
+
+    public function rellenarForm()
+    {
+
+        // Obtén la receta seleccionada
+        $recetaSeleccionada = Receta::with('calculo')->find($this->receta);
+
+
+        // Actualiza los valores de los otros campos
+        if ($recetaSeleccionada) {
+            $this->nombre = $recetaSeleccionada->nombre;
+            $this->descripcion = $recetaSeleccionada->descripcion;
+            $calculo = $recetaSeleccionada->calculo;
+            $this->precio_unitario = $calculo->precio_iva;
+        }
     }
 }

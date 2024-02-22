@@ -4,7 +4,7 @@
             <div class="bg-white overflow-hidden shadow-xl sm:rounded-lg px-4 py-4 col-span-12 sm:col-span-7  md:col-span-9">
 
                 <div class=" border-gray-900/10 pb-12">
-                    <h1 class="text-base font-semibold leading-7 text-gray-900">PUNTO DE VENTA</h1>
+                    <h1 class="text-base font-semibold leading-7 text-gray-900">INGRESO DE INSUMOS Y MERCADERIA</h1>
                     @if ($mensajeVenta)
                         <div class="bg-teal-100 rounded-b text-teal-900 px-4 py-4 shadow-md my-3" role="alert">
                             <div class="flex">
@@ -69,8 +69,8 @@
                                                         class="p-2 rounded border  w-3/4">
                                                 </td>
                                                 <td class="p-3">
-                                                    <input type="number" id="precio_unitario_{{ $index }}"
-                                                        value="{{ isset($art['precio_unitario']) ? $art['precio_unitario'] : '' }}"
+                                                    <input type="number" id="precio_unitario_{{ $index }}" wire:model="articuloSeleccionado.{{ $index }}.precio_compra"
+                                                        {{-- value="{{ isset($art['precio_unitario']) ? $art['precio_unitario'] : '' }}" --}}
                                                         class="p-2 rounded border w-3/4">
                                                 </td>
 
@@ -108,10 +108,16 @@
                 </div>
             </div>
             <div class="bg-white overflow-hidden shadow-xl sm:rounded-lg px-4 py-4 col-span-12 sm:col-span-5  md:col-span-3">
-                <h1 class="text-base font-semibold leading-7 text-gray-900"> DETALLE VENTA</h1>
+                <h1 class="text-base font-semibold leading-7 text-gray-900"> DETALLE COMPRA</h1>
+                <div class="mt-4 mb-3">
+                    <label for="num_recibo" class="block text-gray-700 text-sm font-bold mb-2">Numero de Recibo:</label>
+                    <input type="number" id="num_recibo" name="num_recibo" wire:model="num_recibo"
+                    class="block w-full border border-gray-300 rounded-md py-2 px-3 text-black"
+                    placeholder="ingresar el numero de la factura o boleta">
+                </div>
                 <div class="mt-4">
-                    <label for="forma_de_pago" class="block text-gray-700 text-sm font-bold mb-2">Forma de Pago:</label>
-                    <select id="forma_de_pago" name="forma_de_pago" wire:model="forma_de_pago"
+                    <label for="tipo_pago" class="block text-gray-700 text-sm font-bold mb-2">Forma de Pago:</label>
+                    <select id="tipo_pago" name="tipo_pago" wire:model="forma_de_pago"
                             class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
                         <option value="efectivo" >Efectivo</option>
                         <option value="transferencia" >Transferencia</option>
@@ -119,12 +125,13 @@
                         <option value="tarjeta">Tarjeta</option>
                     </select>
                 </div>
+
                 <div class="mb-4">
-                    <label for="tipo_venta" class="block text-gray-700 text-sm font-bold mb-2">Tipo de Venta:</label>
-                    <select id="tipo_venta" name="tipo_venta" wire:model="tipo_venta"
+                    <label for="tipo_compra" class="block text-gray-700 text-sm font-bold mb-2">Tipo de Compra:</label>
+                    <select id="tipo_compra" name="tipo_compra" wire:model="tipo_venta"
                         class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
-                        <option value="venta_rapida">Venta Rápida</option>
-                        <option value="cuenta_corriente">Cuenta Corriente</option>
+                        <option value="compra_rapida">Compra Rápida</option>
+                        <option value="cuenta_corriente">Compra a Proveedor</option>
                     </select>
                 </div>
 
@@ -132,21 +139,21 @@
                     <div class="mt-10  gap-x-6 gap-y-8 ">
                         <input wire:model.debounce.300ms="searchCliente" type="text"
                             class="block w-full border border-gray-300 rounded-md py-2 px-3 text-black"
-                            placeholder="Buscar un cliente">
+                            placeholder="Buscar un proveedor">
 
                         @if ($searchCliente)
                             <div class="absolute z-50 bg-white w-full mt-1 rounded-md shadow-lg">
                                 @foreach ($persona as $opcion)
-                                    <div wire:click="agregarCliente({{ $opcion['idpersona'] }})"
+                                    <div wire:click="agregarProveedor({{ $opcion['idpersona'] }})"
                                         class="py-2 px-3 cursor-pointer hover:bg-gray-100">
                                         {{ $opcion['nombre'] }}</div>
                                 @endforeach
                             </div>
                         @endif
-                        @if ($clienteSeleccionado)
+                        @if ($proveedorSeleccionado)
                             <div>
                                 <label for="id_cliente"
-                                    class="block text-sm font-medium leading-6 text-gray-900">Cliente</label>
+                                    class="block text-sm font-medium leading-6 text-gray-900">Proveedor</label>
                                 <div class="relative mt-2 rounded-md shadow-sm">
                                     <input type="text" id="idcliente" wire:model="nombre_cliente"
                                         class="absolute z-50 bg-white w-full mt-1 rounded-md shadow-lg">
@@ -157,7 +164,7 @@
                 @else
                     <div class="mt-4 mb-4">
                         <label for="id_cliente"
-                            class="block text-sm font-medium leading-6 text-gray-900">Cliente</label>
+                            class="block text-sm font-medium leading-6 text-gray-900">Proveedor</label>
                         <div class="relative mt-2 rounded-md shadow-sm">
                             <input type="text" id="idcliente" wire:model="nombre_cliente"
                                 class="block w-full rounded-md border-0 py-1.5 pl-7 pr-20 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-900 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6">
@@ -184,7 +191,7 @@
                 <div class="flex flex-col flex-grow ml-4">
                     <div class="text-sm text-gray-500">Total</div>
                     {{-- <div class="font-bold text-lg">$<span id="venta-total">0.00</span></div> --}}
-                    <input type="text" id="total" wire:model="venta_total" placeholder="$0,00"
+                    <input type="text" id="total" wire:model="compra_total" placeholder="$0,00"
                         class="p-2 rounded border attendees-count">
                 </div>
             </div>
@@ -226,7 +233,7 @@
         <button
             class="mt-4 py-2 px-4 rounded-lg bg-gray-900 text-white shadow-md hover:shadow-lg focus:opacity-85 active:opacity-85 mb-4 col-span-12 "
             type="button" wire:click.prevent="guardar()">
-            GUARDAR VENTA
+            GUARDAR COMPRA
         </button>
     </div>
 

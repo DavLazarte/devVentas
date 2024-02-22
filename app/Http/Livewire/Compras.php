@@ -1,48 +1,44 @@
 <?php
 
-namespace App\Http\Livewire\Venta;
+namespace App\Http\Livewire;
 
-use App\Http\Livewire\Persona\PersonaLivewire;
-use App\Models\Articulo;
-use App\Models\DetalleVenta;
-use App\Models\Persona;
-use App\Models\Venta;
 use Livewire\Component;
+
+use App\Models\Articulo;
+use App\Models\Detalle_compra;
+use App\Models\Persona;
+use App\Models\Compra;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
-
-
-class Ventas extends Component
+class Compras extends Component
 {
-    public $persona, $articulo, $id_articulo, $precio_unitario, $cantidad, $subtotal, $saldo, $pago, $id_venta,  $venta_total, $mensajeVenta;
-    public $clienteSeleccionado;
+    public $persona, $articulo, $id_articulo, $precio_compra, $cantidad, $subtotal, $saldo, $pago, $id_compra,  $compra_total, $mensajeVenta,$num_recibo;
+    public $proveedorSeleccionado;
     public $articuloSeleccionado = [];
     public $searchCliente = '';
     public $searchArticulo = '';
-    public $nombre_cliente = 'consumidor_final';
-    public $idcliente;
-    public $tipo_venta = "venta_rapida";
+    public $nombre_cliente = 'Consumidor Final';
+    public $idproveedor;
+    public $tipo_venta = "Venta Rapida";
     public $forma_de_pago = "efectivo";
-
-
 
     public function render()
     {
         $this->filtrarArticulo();
-        $this->filtrarCliente();
+        $this->filtrarProveedor();
 
 
-        return view('livewire.venta.ventas', [
+        return view('livewire.compras.compras', [
             'persona' => $this->persona,
             'articulo' => $this->articulo,
         ]);
     }
 
-    public function filtrarCliente()
+    public function filtrarProveedor()
     {
         $this->persona = Persona::query();
-        $this->persona->where('tipo_persona', 'cliente');
+        $this->persona->where('tipo_persona', 'proveedor');
 
         if ($this->searchCliente) {
             $this->persona->where('idpersona', 'like', '%' . $this->searchCliente . '%')
@@ -51,14 +47,14 @@ class Ventas extends Component
 
         $this->persona = $this->persona->get();
     }
-    public function agregarCliente($id)
+    public function agregarProveedor($id)
     {
-        $clienteSe = Persona::where('tipo_persona', 'cliente')->find($id);
+        $proveedorSe = Persona::where('tipo_persona', 'proveedor')->find($id);
 
-        $this->clienteSeleccionado = $clienteSe;
+        $this->proveedorSeleccionado = $proveedorSe;
 
-        $this->idcliente = $clienteSe->idpersona;
-        $this->nombre_cliente = $clienteSe->nombre;
+        $this->idproveedor = $proveedorSe->idpersona;
+        $this->nombre_cliente = $proveedorSe->nombre;
         $this->searchCliente = '';
     }
     public function filtrarArticulo()
@@ -79,7 +75,8 @@ class Ventas extends Component
         $this->articuloSeleccionado[] = [
             'idarticulo' => $articuloSe->idarticulo,
             'nombre' => $articuloSe->nombre,
-            'precio_unitario' => number_format($articuloSe->precio_unitario, 2, '.', ''),
+            // 'precio_unitario' => number_format($articuloSe->precio_unitario, 2, '.', ''),
+            'precio_compra' => $this->precio_compra,
             'stock' => $articuloSe->stock,
             // Agregar otros campos según tu estructura
         ];
@@ -96,8 +93,7 @@ class Ventas extends Component
     {
         // Obtenemos los valores necesarios para el cálculo
         $cantidad = $this->articuloSeleccionado[$index]['cantidad'] ?? 0;
-        $precio = $this->articuloSeleccionado[$index]['precio_unitario'] ?? 0;
-        // $peso = $this->articuloSeleccionado[$index]['peso'] ?? 0;
+        $precio = $this->articuloSeleccionado[$index]['precio_compra'] ?? 0;
         $stock_rec = $this->articuloSeleccionado[$index]['stock'] ?? 0;
 
         // Realizamos el cálculo
@@ -121,18 +117,18 @@ class Ventas extends Component
 
         // Redondear el subtotal a dos cifras decimales
         $subTotal = round($subTotal, 2);
-        $this->venta_total = $subTotal;
+        $this->compra_total = $subTotal;
     }
     public function calcularSaldo()
     {
-        $calc_new_saldo = $this->venta_total - $this->pago;
+        $calc_new_saldo = $this->compra_total - $this->pago;
         $new_saldo = round($calc_new_saldo, 2);
         $this->saldo = $new_saldo;
     }
     public function guardar()
     {
         try {
-            // dd($this->idcliente);
+            // dd($this->idproveedor);
             // Validar datos aquí si es necesario
 
             // Iniciar una transacción para asegurar que todas las operaciones se completen correctamente o se reviertan si hay un error
@@ -140,33 +136,33 @@ class Ventas extends Component
             // Ajustar el valor de saldo
             $this->saldo = max(0, $this->saldo);
 
-            $venta = Venta::updateOrCreate(
-                ['id' => $this->id_venta],
+            $compra = Compra::updateOrCreate(
+                ['id' => $this->id_compra],
                 [
-                    'idcliente' => $this->idcliente,
-                    'tipo_venta' => $this->tipo_venta,
-                    'total_venta' => $this->venta_total,
+                    'idpersona' => $this->idproveedor,
+                    'tipo_compra' => $this->tipo_venta,
+                    'num_recibo' => $this->num_recibo,
+                    'total' => $this->compra_total,
                     'pago' => $this->pago,
-                    'forma_de_pago' => $this->forma_de_pago,
+                    'tipo_pago' => $this->forma_de_pago,
                     'saldo' => $this->saldo,
                 ]
             );
 
             foreach ($this->articuloSeleccionado as $articulo) {
                 // Crear o actualizar el DetalleVenta para cada artículo
-                $detalle_venta = DetalleVenta::updateOrCreate(
-                    ['idventa' => $venta->id, 'idarticulo' => $articulo['idarticulo']],
+                $detalle_compra = Detalle_compra::updateOrCreate(
+                    ['id_compra' => $compra->id, 'idarticulo' => $articulo['idarticulo']],
                     [
                         'cantidad' => $articulo['cantidad'],
-                        'precio_venta' => $articulo['precio_unitario'],
-                        // Otros campos según tu estructura de la tabla detalles
+                        'precio_compra' => $articulo['precio_compra'],
                     ]
                 );
 
                 // Actualizar el stock del artículo
                 $articuloModel = Articulo::find($articulo['idarticulo']);
                 if ($articuloModel) {
-                    $articuloModel->stock = $articulo['stock'];
+                    $articuloModel->stock = $articulo['stock'] + $articulo['cantidad'];
                     $articuloModel->save();
                 }
             }
@@ -174,14 +170,14 @@ class Ventas extends Component
             // Confirmar la transacción
             DB::commit();
 
-            $this->mensajeVenta = 'VENTA EXITOSA!';
+            $this->mensajeVenta = 'COMPRA EXITOSA!';
 
 
             $this->reset([
-                'nombre_cliente', 'venta_total', 'persona', 'articulo', 'id_articulo', 'precio_unitario',
-                'cantidad', 'subtotal', 'saldo', 'pago', 'id_venta',
-                'articuloSeleccionado', 'clienteSeleccionado', 'nombre_cliente', 'idcliente',
-                'searchCliente', 'searchArticulo','tipo_venta'
+                'nombre_cliente', 'compra_total', 'persona', 'articulo', 'id_articulo', 'precio_compra',
+                'cantidad', 'subtotal', 'saldo', 'pago', 'id_compra',
+                'articuloSeleccionado', 'proveedorSeleccionado', 'nombre_cliente', 'idproveedor',
+                'searchCliente', 'searchArticulo','num_recibo'
             ]);
 
 
@@ -207,5 +203,4 @@ class Ventas extends Component
             return back();
         }
     }
-
 }
