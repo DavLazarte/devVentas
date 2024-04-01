@@ -1,13 +1,10 @@
 <?php
 
-use App\Http\Livewire\MateriaPrima;
 use App\Http\Livewire\CategoriaLivewire;
 use App\Http\Livewire\Persona\PersonaLivewire;
 use App\Http\Livewire\Articulo\ArticuloLivewire;
-use App\Http\Livewire\Admin\Recetas;
 use App\Http\Livewire\Caja\AdminCajas;
 use App\Http\Livewire\Venta\Ventas;
-use App\Http\Livewire\Compras;
 use App\Http\Livewire\DashVentas;
 use App\Http\Livewire\Ingreso\IngresoComponent;
 use App\Http\Livewire\List\ListVentas;
@@ -26,17 +23,14 @@ use Illuminate\Support\Facades\Route;
 */
 
 Route::get('/', function () {
-    return view('welcome');
+    return view('auth.login');
 });
 
-Route::get('/admin/recetas', Recetas::class)->middleware(['auth'])->name('admin.recetas');
 
-Route::get('/materias', MateriaPrima::class)->middleware(['auth'])->name('materias');
 Route::get('/categorias', CategoriaLivewire::class)->middleware(['auth'])->name('categorias');
 Route::get('/articulos', ArticuloLivewire::class)->middleware(['auth'])->name('articulos');
 Route::get('/personas', PersonaLivewire::class)->middleware(['auth'])->name('personas');
 Route::get('/ventas', Ventas::class)->middleware(['auth'])->name('ventas');
-Route::get('/compras', Compras::class)->middleware(['auth'])->name('compras');
 Route::get('/ingresos', IngresoComponent::class)->middleware(['auth'])->name('ingresos');
 Route::get('/salidas', SalidaComponent::class)->middleware(['auth'])->name('salidas');
 Route::get('/caja', AdminCajas::class)->middleware(['auth'])->name('caja');
