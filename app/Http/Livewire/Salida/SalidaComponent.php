@@ -20,9 +20,11 @@ class SalidaComponent extends Component
 
     public function render()
     {
+        $idLocal = auth()->user()->local->id;
+
         $this->filtrarCliente();
 
-        $query = Salida::query();
+        $query = Salida::where('id_local', $idLocal);
 
         if ($this->busqueda) {
             $query->where('idpersona', 'like', '%' . $this->busqueda . '%')
@@ -41,7 +43,8 @@ class SalidaComponent extends Component
     }
     public function filtrarCliente()
     {
-        $this->personas = Persona::query();
+        $idLocal = auth()->user()->local->id;
+        $this->personas = Persona::where('id_local', $idLocal);
 
         if ($this->searchCliente) {
             $this->personas->where('idpersona', 'like', '%' . $this->searchCliente . '%')
@@ -52,6 +55,7 @@ class SalidaComponent extends Component
     }
     public function agregarCliente($id)
     {
+        $idLocal = auth()->user()->local->id;
         $clienteSe = Persona::find($id);
 
         $this->clienteSeleccionado = $clienteSe;
@@ -60,6 +64,7 @@ class SalidaComponent extends Component
         $this->nombre_cliente = $clienteSe->nombre;
         $this->searchCliente = '';
         $this->ventasConSaldos = Compra::where('idpersona', $this->idpersona)
+            ->where('id_local', $idLocal)
             ->where('saldo', '>', 0)
             ->get();
 
@@ -93,6 +98,8 @@ class SalidaComponent extends Component
         // $this->validate([
         //     'monto' => 'required',
         // ]);
+        $idLocal = auth()->user()->local->id;
+
         if ($this->ventasConSaldos && $this->ventasConSaldos->isNotEmpty()) {
             foreach ($this->ventasConSaldos as $venta) {
                 $montoVenta = $this->saldos[$venta->id] ?? 0;
@@ -120,6 +127,7 @@ class SalidaComponent extends Component
             'monto' => $this->monto,
             'descripcion' => $this->descripcion,
             'saldo' => $this->saldo,
+            'id_local' => $idLocal,
             // 'estado' => $this->estado,
         ]);
 

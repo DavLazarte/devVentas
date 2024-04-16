@@ -20,5 +20,6 @@ class Persona extends Model
         'telefono',
         'mail',
         'estado',
+        'id_local'
     ];
 }

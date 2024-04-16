@@ -11,7 +11,8 @@ class ListCompras extends Component
 
     public function render()
     {
-        $query = Compra::query();
+        $idLocal = auth()->user()->local->id;
+        $query = Compra::where('id_local', $idLocal);
 
         if ($this->busqueda) {
             $query->where('id', 'like', '%' . $this->busqueda . '%')

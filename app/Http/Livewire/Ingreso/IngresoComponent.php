@@ -15,13 +15,21 @@ class IngresoComponent extends Component
     public $modoEdit = 0;
     public $searchCliente = '';
     public $saldos = [];
+    public $idLocal;
+
+    public function mount(){
+
+        $this->idLocal = auth()->user()->local->id;
+    }
 
 
     public function render()
     {
+        
+
         $this->filtrarCliente();
 
-        $query = Ingreso::query();
+        $query = Ingreso::where('id_local', $this->idLocal);
 
         if ($this->busqueda) {
             $query->where('idpersona', 'like', '%' . $this->busqueda . '%')
@@ -39,7 +47,7 @@ class IngresoComponent extends Component
     }
     public function filtrarCliente()
     {
-        $this->personas = Persona::query();
+        $this->personas = Persona::where('id_local', $this->idLocal);
 
         if ($this->searchCliente) {
             $this->personas->where('idpersona', 'like', '%' . $this->searchCliente . '%')
@@ -58,6 +66,7 @@ class IngresoComponent extends Component
         $this->nombre_cliente = $clienteSe->nombre;
         $this->searchCliente = '';
         $this->ventasConSaldos = Venta::where('idcliente', $this->idpersona)
+            ->where('id_local', $this->idLocal)
             ->where('saldo', '>', 0)
             ->get();
 
@@ -124,6 +133,7 @@ class IngresoComponent extends Component
             'monto' => $this->monto,
             'descripcion' => $this->descripcion,
             'saldo' => $this->saldo,
+            'id_local' => $this->idLocal,
             // 'estado' => $this->estado,
         ]);
 

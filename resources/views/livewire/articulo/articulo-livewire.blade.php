@@ -48,23 +48,27 @@
                     </thead>
                     <tbody>
                         {{-- @dd($arteria) --}}
-                        @foreach ($articulo as $art)
-                            <tr>
-                                <td class="border px-4 py-2">{{ $art->idarticulo }}</td>
-                                <td class="border px-4 py-2">{{ $art->categoria->nombre }}</td>
-                                <td class="border px-4 py-2">{{ $art->nombre }}</td>
-                                <td class="border px-4 py-2">{{ $art->codigo }}</td>
-                                <td class="border px-4 py-2">{{ $art->descripcion }}</td>
-                                <td class="border px-4 py-2">{{ number_format($art->precio_unitario, 2) }}</td>
-                                <td class="border px-4 py-2">{{ $art->stock }}</td>
-                                <td class="border px-4 py-2 text-center">
-                                    <button wire:click="editar({{ $art->idarticulo }})"
-                                        class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4">Editar</button>
-                                    <button wire:click="borrar({{ $art->idarticulo }})"
-                                        class="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4">Borrar</button>
-                                </td>
-                            </tr>
-                        @endforeach
+                        @if ($articulo->count() > 0)
+                            @foreach ($articulo as $art)
+                                <tr>
+                                    <td class="border px-4 py-2">{{ $art->idarticulo }}</td>
+                                    <td class="border px-4 py-2">{{ $art->categoria->nombre }}</td>
+                                    <td class="border px-4 py-2">{{ $art->nombre }}</td>
+                                    <td class="border px-4 py-2">{{ $art->codigo }}</td>
+                                    <td class="border px-4 py-2">{{ $art->descripcion }}</td>
+                                    <td class="border px-4 py-2">{{ number_format($art->precio_unitario, 2) }}</td>
+                                    <td class="border px-4 py-2">{{ $art->stock }}</td>
+                                    <td class="border px-4 py-2 text-center">
+                                        <button wire:click="editar({{ $art->idarticulo }})"
+                                            class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4">Editar</button>
+                                        <button wire:click="borrar({{ $art->idarticulo }})"
+                                            class="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4">Borrar</button>
+                                    </td>
+                                </tr>
+                            @endforeach
+                        @else
+                            <p>No hay artículos cargados aún.</p>
+                        @endif
                     </tbody>
                 </table>
             </div>
@@ -74,4 +78,3 @@
         </div>
     </div>
 </div>
-

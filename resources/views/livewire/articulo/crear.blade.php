@@ -24,21 +24,9 @@
                             @endforeach
                         </select>
                     </div>
-                    @if (!$modoEdit)
-                        <div class="mb-4">
-                            <label for="receta" class="block text-gray-700 text-sm font-bold mb-2">Receta:</label>
-                            <select wire:model="receta" id="receta" name="receta"
-                                class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                                wire:change="rellenarForm">
-                                <option value="">Selecciona una receta</option>
-                                @foreach ($recetas as $id => $rec)
-                                    {{-- <option value="{{ $id }}">{{ $nombre }}</option> --}}
-                                    <option value="{{ $rec->id }}"
-                                        @if ($receta == $id) selected @endif>{{ $rec->nombre }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                    @endif
+                    {{-- @if (!$modoEdit)
+                        
+                    @endif --}}
                     <div class="mb-4">
                         <label for="producto" class="block text-gray-700 text-sm font-bold mb-2">Nombre:</label>
                         <input type="text"
@@ -80,16 +68,17 @@
                         <label for="codigo" class="block text-gray-700 text-sm font-bold mb-2">Codigo:</label>
                         <input type="number"
                             class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                            id="codigo" wire:model="codigo" onchange="generarBarcode()">
+                            id="codigo" wire:model="codigo">
                     </div>
-                    <div class="mb-4 flex items-center">
+                    {{-- <div class="mb-4 flex items-center">
+                        onchange="generarBarcode()"
                         <div id="print">
                             <svg id="barcode"></svg>
                         </div>
                         <button type="button" class="ml-4 cursor-pointer bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-700" onclick="exportarComoImagen()">
                             Exportar como Imagen
                         </button>
-                    </div>
+                    </div> --}}
 
 
                     <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">

@@ -17,6 +17,7 @@ class Compra extends Model
         'num_recibo',
         'total',
         'saldo',
+        'id_local'
     ];
 
     public function detallesCompra()

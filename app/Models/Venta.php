@@ -18,6 +18,7 @@ class Venta extends Model
         'forma_de_pago',
         'saldo',
         'estado',
+        'id_local'
     ];
 
     // Relación con el modelo de personas (asumo que tu modelo de persona se llama Persona)

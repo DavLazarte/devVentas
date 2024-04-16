@@ -10,40 +10,26 @@ use App\Http\Livewire\Ingreso\IngresoComponent;
 use App\Http\Livewire\List\ListVentas;
 use App\Http\Livewire\Salida\SalidaComponent;
 use Illuminate\Support\Facades\Route;
+use TCG\Voyager\Facades\Voyager;
 
-/*
-|--------------------------------------------------------------------------
-| Web Routes
-|--------------------------------------------------------------------------
-|
-| Here is where you can register web routes for your application. These
-| routes are loaded by the RouteServiceProvider within a group which
-| contains the "web" middleware group. Now create something great!
-|
-*/
+Route::group(['prefix' => 'admin'], function () {
+    Voyager::routes();
 
-Route::get('/', function () {
-    return view('auth.login');
+
+    Route::middleware(['admin.user'])->group(function () {
+        Route::get('/sistema', DashVentas::class)->name('sistema');
+        Route::get('/categorias', CategoriaLivewire::class)->name('categorias');
+        Route::get('/articulos', ArticuloLivewire::class)->name('articulos');
+        Route::get('/personas', PersonaLivewire::class)->name('personas');
+        Route::get('/ventas', Ventas::class)->name('ventas');
+        Route::get('/ingresos', IngresoComponent::class)->name('ingresos');
+        Route::get('/salidas', SalidaComponent::class)->name('salidas');
+        Route::get('/caja', AdminCajas::class)->name('caja');
+        Route::get('/list-ventas', ListVentas::class)->name('list-ventas');
+
+        Route::view('/dashboard', 'dashboard')->name('dashboard');
+        Route::view('/productos', 'ventas.productos.index')->name('productos');
+    });
 });
-
-
-Route::get('/categorias', CategoriaLivewire::class)->middleware(['auth'])->name('categorias');
-Route::get('/articulos', ArticuloLivewire::class)->middleware(['auth'])->name('articulos');
-Route::get('/personas', PersonaLivewire::class)->middleware(['auth'])->name('personas');
-Route::get('/ventas', Ventas::class)->middleware(['auth'])->name('ventas');
-Route::get('/ingresos', IngresoComponent::class)->middleware(['auth'])->name('ingresos');
-Route::get('/salidas', SalidaComponent::class)->middleware(['auth'])->name('salidas');
-Route::get('/caja', AdminCajas::class)->middleware(['auth'])->name('caja');
-Route::get('/sistema', DashVentas::class)->middleware(['auth'])->name('sistema');
-Route::get('/list-ventas', ListVentas::class)->middleware(['auth'])->name('/list-ventas');
-
-Route::get('/dashboard', function () {
-    return view('dashboard');
-})->middleware(['auth'])->name('dashboard');
-
-
-Route::get('/productos', function () {
-    return view('ventas.productos.index');
-})->middleware(['auth'])->name('productos');
 
 require __DIR__ . '/auth.php';

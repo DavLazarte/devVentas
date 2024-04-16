@@ -24,6 +24,6 @@ class CierreCaja extends Model
         'ventas_tarjeta',
         'ingresos',
         'salidas',
-        'estado',
+        'estado' ,'id_local'
     ];
 }

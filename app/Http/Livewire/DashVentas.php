@@ -14,25 +14,40 @@ class DashVentas extends Component
 
     public function render()
     {
-        $this->monto_total_ventas = Venta::whereDate('created_at', now()->toDateString())
+        // Obtener el ID del local del usuario actual
+        $idLocal = auth()->user()->local->id;
+
+        // Filtrar ventas, ingresos y salidas por local
+        $this->monto_total_ventas = Venta::where('id_local', $idLocal)
+            ->whereDate('created_at', now()->toDateString())
             ->sum('total_venta');
-        // dd($this->monto_total_ventas);        // Sumar solo los pagos (ventas en efectivo y transferencia)
-        $this->ventas_efectivo = Venta::whereDate('created_at', now()->toDateString())
+
+        $this->ventas_efectivo = Venta::where('id_local', $idLocal)
+            ->whereDate('created_at', now()->toDateString())
             ->whereIn('forma_de_pago', ['efectivo'])
             ->sum('pago');
-        $this->ventas_transferencia = Venta::whereDate('created_at', now()->toDateString())
+
+        $this->ventas_transferencia = Venta::where('id_local', $idLocal)
+            ->whereDate('created_at', now()->toDateString())
             ->whereIn('forma_de_pago', ['transferencia'])
             ->sum('pago');
-        $this->ventas_tarjeta = Venta::whereDate('created_at', now()->toDateString())
-            ->whereIn('forma_de_pago', ['tarjeta'])
+
+        $this->ventas_tarjeta = Venta::where('id_local', $idLocal)
+            ->whereDate('created_at', now()->toDateString())
+            ->whereIn('forma_de_pago', ['cuenta_corriente'])
             ->sum('pago');
-        $this->ingresos = Ingreso::whereDate('created_at', now()->toDateString())
-            ->sum('monto');
-        $this->salidas = Salida::whereDate('created_at', now()->toDateString())
+
+        $this->ingresos = Ingreso::where('id_local', $idLocal)
+            ->whereDate('created_at', now()->toDateString())
             ->sum('monto');
 
-       // Actualizar la variable new_monto_cierre sumando total_ventas, pagos, ingresos y salidas
-       $this->monto_cierre = $this->ventas_efectivo - $this->salidas  + $this->ingresos + $this->monto_apertura;
+        $this->salidas = Salida::where('id_local', $idLocal)
+            ->whereDate('created_at', now()->toDateString())
+            ->sum('monto');
+
+        // Actualizar la variable monto_cierre sumando total_ventas, pagos, ingresos y salidas
+        $this->monto_cierre = $this->ventas_efectivo - $this->salidas + $this->ingresos + $this->monto_apertura;
+
         return view('livewire.dash-ventas');
     }
 }

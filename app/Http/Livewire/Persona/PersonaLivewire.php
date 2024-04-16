@@ -13,7 +13,8 @@ class PersonaLivewire extends Component
 
     public function render()
     {
-        $query = Persona::query();
+        $idLocal = auth()->user()->local->id;
+        $query = Persona::where('id_local', $idLocal);
 
         if ($this->busqueda) {
             $query->where('idpersona', 'like', '%' . $this->busqueda . '%')
@@ -61,13 +62,16 @@ class PersonaLivewire extends Component
             'tipo_persona' => 'required',
         ]);
 
+        $idLocal = auth()->user()->local->id;
+
         Persona::updateOrCreate(['idpersona' => $this->persona_id], [
             'tipo_persona' => $this->tipo_persona,
             'nombre' => $this->nombre,
             'direccion' => $this->direccion,
             'mail' => $this->mail,
             'telefono' => $this->telefono,
-            // 'estado' => $this->estado,
+            'id_local' => $idLocal,
+             // 'estado' => $this->estado,
         ]);
 
         session()->flash(

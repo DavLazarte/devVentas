@@ -5,7 +5,6 @@ namespace App\Http\Livewire\Articulo;
 use Livewire\Component;
 use App\Models\Articulo;
 use App\Models\Categoria;
-use App\Models\Receta;
 
 class ArticuloLivewire extends Component
 {
@@ -16,23 +15,49 @@ class ArticuloLivewire extends Component
     // En tus componentes Livewire (por ejemplo, CategoriaLivewire)
     public $layout = 'sistema';
 
-
     public function render()
     {
-        $query = Articulo::query();
+        $idLocal = auth()->user()->local->id;
 
-        if ($this->busqueda) {
-            $query->where('idarticulo', 'like', '%' . $this->busqueda . '%')
-                ->orWhere('nombre', 'like', '%' . $this->busqueda . '%')
-                ->orWhere('codigo', 'like', '%' . $this->busqueda . '%');
-        }
+       // Construir la consulta de artículos pertenecientes al local del usuario
+       $query = Articulo::where('id_local', $idLocal);
 
-        $articulo = $query->with('categoria')->paginate(10);
+       if ($this->busqueda) {
+        
+           $query->where(function ($q) {
+               $q->where('idarticulo', 'like', '%' . $this->busqueda . '%')
+                   ->orWhere('nombre', 'like', '%' . $this->busqueda . '%')
+                   ->orWhere('codigo', 'like', '%' . $this->busqueda . '%');
+           });
+       }
+
+       // Obtener los artículos con paginación
+       $articulo = $query->with('categoria')->paginate(10);
+   
+           
+
+        // Obtener las categorías para el filtro
         $this->categorias = Categoria::pluck('nombre', 'id_categoria');
-        $this->recetas = Receta::all();
 
         return view('livewire.articulo.articulo-livewire', compact('articulo'));
     }
+
+
+    // public function render()
+    // {
+    //     $query = Articulo::query();
+
+    //     if ($this->busqueda) {
+    //         $query->where('idarticulo', 'like', '%' . $this->busqueda . '%')
+    //             ->orWhere('nombre', 'like', '%' . $this->busqueda . '%')
+    //             ->orWhere('codigo', 'like', '%' . $this->busqueda . '%');
+    //     }
+
+    //     $articulo = $query->with('categoria')->paginate(10);
+    //     $this->categorias = Categoria::pluck('nombre', 'id_categoria');
+
+    //     return view('livewire.articulo.articulo-livewire', compact('articulo'));
+    // }
 
     public function crear()
     {
@@ -49,7 +74,6 @@ class ArticuloLivewire extends Component
     {
         $this->isOpen = false;
         $this->modoEdit = false;
-
     }
 
     private function resetInputFields()
@@ -72,6 +96,9 @@ class ArticuloLivewire extends Component
             'estado' => 'required|in:activo,inactivo',
         ]);
 
+        $idLocal = auth()->user()->local->id;
+
+        // Procede a crear o actualizar el Artículo
         Articulo::updateOrCreate(['idarticulo' => $this->articulo_id], [
             'idcategoria' => $this->categoria_id,
             'nombre' => $this->nombre,
@@ -80,16 +107,46 @@ class ArticuloLivewire extends Component
             'precio_unitario' => $this->precio_unitario,
             'stock' => $this->stock,
             'estado' => $this->estado,
+            'id_local' => $idLocal  // Agrega el id_local al registro
         ]);
 
         session()->flash(
             'message',
-            $this->articulo_id ? 'Articulo actualizado exitosamente.' : 'Articulo creado exitosamente.'
+            $this->articulo_id ? 'Artículo actualizado exitosamente.' : 'Artículo creado exitosamente.'
         );
 
         $this->closeModal();
         $this->resetInputFields();
     }
+
+
+    // public function guardar()
+    // {
+    //     $this->validate([
+    //         'nombre' => 'required',
+    //         'descripcion' => 'required',
+    //         'codigo' => 'required',
+    //         'estado' => 'required|in:activo,inactivo',
+    //     ]);
+
+    //     Articulo::updateOrCreate(['idarticulo' => $this->articulo_id], [
+    //         'idcategoria' => $this->categoria_id,
+    //         'nombre' => $this->nombre,
+    //         'descripcion' => $this->descripcion,
+    //         'codigo' => $this->codigo,
+    //         'precio_unitario' => $this->precio_unitario,
+    //         'stock' => $this->stock,
+    //         'estado' => $this->estado,
+    //     ]);
+
+    //     session()->flash(
+    //         'message',
+    //         $this->articulo_id ? 'Articulo actualizado exitosamente.' : 'Articulo creado exitosamente.'
+    //     );
+
+    //     $this->closeModal();
+    //     $this->resetInputFields();
+    // }
 
     public function editar($id)
     {
@@ -112,21 +169,5 @@ class ArticuloLivewire extends Component
     {
         Articulo::find($id)->delete();
         session()->flash('message', 'Articulo eliminado exitosamente.');
-    }
-
-    public function rellenarForm()
-    {
-
-        // Obtén la receta seleccionada
-        $recetaSeleccionada = Receta::with('calculo')->find($this->receta);
-
-
-        // Actualiza los valores de los otros campos
-        if ($recetaSeleccionada) {
-            $this->nombre = $recetaSeleccionada->nombre;
-            $this->descripcion = $recetaSeleccionada->descripcion;
-            $calculo = $recetaSeleccionada->calculo;
-            $this->precio_unitario = $calculo->precio_iva;
-        }
     }
 }

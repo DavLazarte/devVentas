@@ -26,7 +26,8 @@ class AdminCajas extends Component
     }
     public function render()
     {
-        $query = CierreCaja::query();
+        $idLocal = auth()->user()->local->id;
+        $query = CierreCaja::where('id_local', $idLocal);
 
         if ($this->busqueda) {
             $query->where('id', 'like', '%' . $this->busqueda . '%')
@@ -74,6 +75,7 @@ class AdminCajas extends Component
             ]);
             // Convertir la fecha a un objeto DateTime
             $fechaApertura = new DateTime($this->fecha_apertura);
+            $idLocal = auth()->user()->local->id;
 
             // Verificar y asignar null a fecha_cierre si está vacío
             $fechaCierre = empty($this->fecha_cierre) ? null : new DateTime($this->fecha_cierre);
@@ -90,6 +92,7 @@ class AdminCajas extends Component
                 'ingresos' => $this->ingresos,
                 'salidas' => $this->salidas,
                 'estado' => $this->estado,
+                'id_local' => $idLocal,
             ]);
 
             session()->flash(

@@ -24,7 +24,13 @@ class Ventas extends Component
     public $idcliente;
     public $tipo_venta = "venta_rapida";
     public $forma_de_pago = "efectivo";
+    public $idLocal;
 
+    public function mount()
+    {
+
+        $this->idLocal = auth()->user()->local->id;
+    }
 
 
     public function render()
@@ -41,29 +47,38 @@ class Ventas extends Component
 
     public function filtrarCliente()
     {
-        $this->persona = Persona::query();
-        $this->persona->where('tipo_persona', 'cliente');
+        $query = Persona::where('id_local', $this->idLocal);
+        // $this->persona->where('tipo_persona', 'cliente');
 
-        if ($this->searchCliente) {
-            $this->persona->where('idpersona', 'like', '%' . $this->searchCliente . '%')
-                ->orWhere('nombre', 'like', '%' . $this->searchCliente . '%');
+        if (!empty($this->searchCliente)) {
+            $query->where(function ($q) {
+                $q->where('idpersona', 'like', '%' . $this->searchCliente . '%')
+                    ->orWhere('nombre', 'like', '%' . $this->searchCliente . '%');
+            });
         }
 
-        $this->persona = $this->persona->get();
+        $this->persona = $query->get();
     }
     public function agregarCliente($id)
     {
-        $clienteSe = Persona::where('tipo_persona', 'cliente')->find($id);
+        // Aquí se busca el cliente por ID solo si corresponde al 'id_local' y al tipo 'cliente'.
+        $clienteSe = Persona::where('id_local', $this->idLocal)
+            ->where('tipo_persona', 'cliente')
+            ->find($id);
 
-        $this->clienteSeleccionado = $clienteSe;
-
-        $this->idcliente = $clienteSe->idpersona;
-        $this->nombre_cliente = $clienteSe->nombre;
-        $this->searchCliente = '';
+            if ($clienteSe) {
+                $this->clienteSeleccionado = $clienteSe;
+                $this->idcliente = $clienteSe->idpersona;
+                $this->nombre_cliente = $clienteSe->nombre;
+                $this->searchCliente = '';
+            } else {
+                // Opcional: Agregar algún manejo si no se encuentra el cliente, como un mensaje de error.
+                session()->flash('error', 'Cliente no encontrado en su local.');
+            }
     }
     public function filtrarArticulo()
     {
-        $this->articulo = Articulo::query();
+        $this->articulo = Articulo::where('id_local', $this->idLocal);
 
         if ($this->searchArticulo) {
             $this->articulo->where('nombre', 'like', '%' . $this->searchArticulo . '%')
@@ -149,6 +164,7 @@ class Ventas extends Component
                     'pago' => $this->pago,
                     'forma_de_pago' => $this->forma_de_pago,
                     'saldo' => $this->saldo,
+                    'id_local' => $this->idLocal,
                 ]
             );
 
@@ -181,7 +197,7 @@ class Ventas extends Component
                 'nombre_cliente', 'venta_total', 'persona', 'articulo', 'id_articulo', 'precio_unitario',
                 'cantidad', 'subtotal', 'saldo', 'pago', 'id_venta',
                 'articuloSeleccionado', 'clienteSeleccionado', 'nombre_cliente', 'idcliente',
-                'searchCliente', 'searchArticulo','tipo_venta'
+                'searchCliente', 'searchArticulo', 'tipo_venta','idLocal'
             ]);
 
 
@@ -207,5 +223,4 @@ class Ventas extends Component
             return back();
         }
     }
-
 }

@@ -11,7 +11,8 @@ class ListVentas extends Component
 
     public function render()
     {
-        $query = Venta::query();
+        $idLocal = auth()->user()->local->id;
+        $query = Venta::where('id_local', $idLocal);
 
         if ($this->busqueda) {
             $query->where('id', 'like', '%' . $this->busqueda . '%')
