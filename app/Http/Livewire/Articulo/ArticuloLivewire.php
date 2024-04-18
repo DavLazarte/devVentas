@@ -19,25 +19,26 @@ class ArticuloLivewire extends Component
     {
         $idLocal = auth()->user()->local->id;
 
-       // Construir la consulta de artículos pertenecientes al local del usuario
-       $query = Articulo::where('id_local', $idLocal);
+        // Construir la consulta de artículos pertenecientes al local del usuario
+        $query = Articulo::where('id_local', $idLocal);
 
-       if ($this->busqueda) {
-        
-           $query->where(function ($q) {
-               $q->where('idarticulo', 'like', '%' . $this->busqueda . '%')
-                   ->orWhere('nombre', 'like', '%' . $this->busqueda . '%')
-                   ->orWhere('codigo', 'like', '%' . $this->busqueda . '%');
-           });
-       }
+        if ($this->busqueda) {
 
-       // Obtener los artículos con paginación
-       $articulo = $query->with('categoria')->paginate(10);
-   
-           
+            $query->where(function ($q) {
+                $q->where('idarticulo', 'like', '%' . $this->busqueda . '%')
+                    ->orWhere('nombre', 'like', '%' . $this->busqueda . '%')
+                    ->orWhere('codigo', 'like', '%' . $this->busqueda . '%');
+            });
+        }
+
+        // Obtener los artículos con paginación
+        $articulo = $query->with('categoria')->paginate(10);
+
+
 
         // Obtener las categorías para el filtro
-        $this->categorias = Categoria::pluck('nombre', 'id_categoria');
+        $this->categorias = Categoria::where('id_local', $idLocal)
+        ->pluck('nombre', 'id_categoria');
 
         return view('livewire.articulo.articulo-livewire', compact('articulo'));
     }

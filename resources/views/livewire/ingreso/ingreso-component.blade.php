@@ -15,7 +15,7 @@
 
 
             <button wire:click="crear()"
-                class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 my-3">Nuevo Ingreso</button>
+                class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 my-3">Cargar Pago</button>
             @if ($isOpen)
                 @include('livewire.ingreso.create')
             @endif

@@ -20,7 +20,7 @@ class DashVentas extends Component
         // Filtrar ventas, ingresos y salidas por local
         $this->monto_total_ventas = Venta::where('id_local', $idLocal)
             ->whereDate('created_at', now()->toDateString())
-            ->sum('total_venta');
+            ->sum('pago');
 
         $this->ventas_efectivo = Venta::where('id_local', $idLocal)
             ->whereDate('created_at', now()->toDateString())

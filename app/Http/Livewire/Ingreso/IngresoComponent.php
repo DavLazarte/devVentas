@@ -47,15 +47,19 @@ class IngresoComponent extends Component
     }
     public function filtrarCliente()
     {
-        $this->personas = Persona::where('id_local', $this->idLocal);
-
+        $query = Persona::where('id_local', $this->idLocal);  // Comienzas construyendo la consulta con la restricción de local.
+    
         if ($this->searchCliente) {
-            $this->personas->where('idpersona', 'like', '%' . $this->searchCliente . '%')
-                ->orWhere('nombre', 'like', '%' . $this->searchCliente . '%');
+            // Aplica las condiciones de búsqueda dentro de un subgrupo para asegurar el contexto correcto.
+            $query->where(function($q) {
+                $q->where('idpersona', 'like', '%' . $this->searchCliente . '%')
+                  ->orWhere('nombre', 'like', '%' . $this->searchCliente . '%');
+            });
         }
-
-        $this->personas = $this->personas->get();
+    
+        $this->personas = $query->get();  // Ejecutas la consulta y guardas los resultados en $this->personas.
     }
+    
     public function agregarCliente($id)
     {
         $clienteSe = Persona::find($id);
