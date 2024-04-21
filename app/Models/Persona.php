@@ -22,4 +22,12 @@ class Persona extends Model
         'estado',
         'id_local'
     ];
+    public function ventas()
+    {
+        return $this->hasMany(Venta::class, 'idcliente');
+    }
+    public function compras()
+    {
+        return $this->hasMany(Compra::class, 'idpersona');
+    }
 }

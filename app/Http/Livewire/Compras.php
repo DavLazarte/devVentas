@@ -13,14 +13,14 @@ use Illuminate\Support\Facades\Log;
 
 class Compras extends Component
 {
-    public $persona, $articulo, $id_articulo, $precio_compra, $cantidad, $subtotal, $saldo, $pago, $id_compra,  $compra_total, $mensajeVenta,$num_recibo;
+    public $persona, $articulo, $id_articulo, $precio_compra, $cantidad, $subtotal, $saldo, $pago, $id_compra,  $compra_total, $mensajeVenta, $num_recibo;
     public $proveedorSeleccionado;
     public $articuloSeleccionado = [];
     public $searchCliente = '';
     public $searchArticulo = '';
-    public $nombre_cliente = 'Consumidor Final';
+    public $nombre_cliente = 'consumidor_final';
     public $idproveedor;
-    public $tipo_venta = "Venta Rapida";
+    public $tipo_venta = "venta_rapida";
     public $forma_de_pago = "efectivo";
     public $idLocal;
 
@@ -44,41 +44,50 @@ class Compras extends Component
 
     public function filtrarProveedor()
     {
-        $this->persona = Persona::query();
-        $this->persona->where('tipo_persona', 'proveedor');
+        $query = Persona::where('id_local', $this->idLocal);
+        // $this->persona->where('tipo_persona', 'proveedor');
 
-        if ($this->searchCliente) {
-            $this->persona->where('idpersona', 'like', '%' . $this->searchCliente . '%')
-                ->orWhere('nombre', 'like', '%' . $this->searchCliente . '%');
+        if (!empty($this->searchCliente)) {
+            $query->where(function ($q) {
+                $q->where('idpersona', 'like', '%' . $this->searchCliente . '%')
+                    ->orWhere('nombre', 'like', '%' . $this->searchCliente . '%');
+            });
         }
 
-        $this->persona = $this->persona->get();
+        $this->persona = $query->get();
     }
     public function agregarProveedor($id)
     {
-        $proveedorSe = Persona::where('tipo_persona', 'proveedor')->find($id);
+        $proveedorSe = Persona::where('id_local', $this->idLocal)
+            ->where('tipo_persona', 'proveedor')
+            ->find($id);
 
-        $this->proveedorSeleccionado = $proveedorSe;
+        if ($proveedorSe) {
+            $this->proveedorSeleccionado = $proveedorSe;
 
-        $this->idproveedor = $proveedorSe->idpersona;
-        $this->nombre_cliente = $proveedorSe->nombre;
-        $this->searchCliente = '';
+            $this->idproveedor = $proveedorSe->idpersona;
+            $this->nombre_cliente = $proveedorSe->nombre;
+            $this->searchCliente = '';
+        } else {
+            // Opcional: Agregar algún manejo si no se encuentra el cliente, como un mensaje de error.
+            session()->flash('error', 'Proveedor no encontrado en su local.');
+        }
     }
     public function filtrarArticulo()
-{
-    // Asumiendo que $this->idLocal ya está definido y es el ID del local correcto.
-    $query = Articulo::where('id_local', $this->idLocal);
+    {
+        // Asumiendo que $this->idLocal ya está definido y es el ID del local correcto.
+        $query = Articulo::where('id_local', $this->idLocal);
 
-    if ($this->searchArticulo) {
-        // Agrupa las condiciones de búsqueda para que actúen juntas
-        $query->where(function ($q) {
-            $q->where('nombre', 'like', '%' . $this->searchArticulo . '%')
-              ->orWhere('codigo', 'like', '%' . $this->searchArticulo . '%');
-        });
+        if ($this->searchArticulo) {
+            // Agrupa las condiciones de búsqueda para que actúen juntas
+            $query->where(function ($q) {
+                $q->where('nombre', 'like', '%' . $this->searchArticulo . '%')
+                    ->orWhere('codigo', 'like', '%' . $this->searchArticulo . '%');
+            });
+        }
+
+        $this->articulo = $query->get();
     }
-
-    $this->articulo = $query->get();
-}
     public function agregarArticulo($id)
     {
         $articuloSe = Articulo::find($id);
@@ -111,7 +120,7 @@ class Compras extends Component
         $calc_subtotal = $cantidad * $precio;
         $subtotal = round($calc_subtotal, 2);
         //descontamos stock
-        $nuevo_stock = $stock_rec - $cantidad;
+        $nuevo_stock = $stock_rec + $cantidad;
 
         // Actualizamos el valor en el arreglo de materia prima seleccionada
         $this->articuloSeleccionado[$index]['subtotal'] = $subtotal;
@@ -157,6 +166,7 @@ class Compras extends Component
                     'pago' => $this->pago,
                     'tipo_pago' => $this->forma_de_pago,
                     'saldo' => $this->saldo,
+                    'id_local' => $this->idLocal,
                 ]
             );
 
@@ -188,7 +198,7 @@ class Compras extends Component
                 'nombre_cliente', 'compra_total', 'persona', 'articulo', 'id_articulo', 'precio_compra',
                 'cantidad', 'subtotal', 'saldo', 'pago', 'id_compra',
                 'articuloSeleccionado', 'proveedorSeleccionado', 'nombre_cliente', 'idproveedor',
-                'searchCliente', 'searchArticulo','num_recibo'
+                'searchCliente', 'searchArticulo', 'num_recibo'
             ]);
 
 

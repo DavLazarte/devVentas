@@ -29,4 +29,8 @@ class DetalleVenta extends Model
         return $this->belongsToMany(Articulo::class, 'detalle_ventas', 'idventa', 'idarticulo')
             ->withPivot(['cantidad', 'precio_venta']); // Asegúrate de incluir los campos pivot necesarios
     }
+    public function producto()
+    {
+        return $this->belongsTo(Articulo::class, 'idarticulo');
+    }
 }

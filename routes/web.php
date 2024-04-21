@@ -8,6 +8,7 @@ use App\Http\Livewire\Compras;
 use App\Http\Livewire\Venta\Ventas;
 use App\Http\Livewire\DashVentas;
 use App\Http\Livewire\Ingreso\IngresoComponent;
+use App\Http\Livewire\List\ListCompras;
 use App\Http\Livewire\List\ListVentas;
 use App\Http\Livewire\Salida\SalidaComponent;
 use App\Models\Compra;
@@ -28,7 +29,8 @@ Route::group(['prefix' => 'admin'], function () {
         Route::get('/ingresos', IngresoComponent::class)->name('ingresos');
         Route::get('/salidas', SalidaComponent::class)->name('salidas');
         Route::get('/caja', AdminCajas::class)->name('caja');
-        Route::get('/list-ventas', ListVentas::class)->name('list-ventas');
+        Route::get('/list-ventas', ListVentas::class)->name('/list-ventas');
+        Route::get('/list-compras', ListCompras::class)->name('/list-compras');
 
         Route::view('/dashboard', 'dashboard')->name('dashboard');
         Route::view('/productos', 'ventas.productos.index')->name('productos');

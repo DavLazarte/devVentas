@@ -12,7 +12,6 @@
             <form>
                 <div class="bg-white px-4 pt-5 pb-4 sm:p-4 sm:pb-2">
                     <div class="mb-7">
-
                         <div class="gap-x-6 gap-y-8 ">
                             <input wire:model.debounce.300ms="searchCliente" type="text"
                                 class="block w-full border border-gray-300 rounded-md py-2 px-3 text-black"
@@ -29,6 +28,7 @@
                             @endif
                         </div>
                     </div>
+
                     <div class="mt-4 mb-8">
                         @if ($clienteSeleccionado)
                             <div class="mt-4 mb-12">
@@ -39,6 +39,7 @@
                                         class="absolute z-50 bg-white w-full mt-1 rounded-md shadow-lg">
                                 </div>
                             </div>
+
                             <div class="mt-8">
                                 <table class="min-w-full bg-white border border-gray-300">
                                     <thead>
@@ -52,16 +53,44 @@
                                     <tbody>
                                         @foreach ($ventasConSaldos as $venta)
                                             <tr>
-                                                <td class="py-2 px-4 border-b">{{ $venta->created_at->format('d/m/Y') }}</td>
+                                                <td class="py-2 px-4 border-b">{{ $venta->created_at->format('d/m/Y') }}
+                                                </td>
                                                 <td class="py-2 px-4 border-b">{{ $venta->total_venta }}</td>
                                                 <td class="py-2 px-4 border-b">{{ $venta->saldo }}</td>
                                                 <td class="py-2 px-4 border-b">
-                                                    <input type="number" wire:model="saldos.{{ $venta->id }}" class=" border rounded px-2 py-1 w-full" >
+                                                    <input type="number" wire:model="saldos.{{ $venta->id }}"
+                                                        class=" border rounded px-2 py-1 w-full">
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td colspan="4">
+                                                    <div class="accordion" id="accordionVenta-{{ $venta->id }}">
+                                                        <div class="accordion-item">
+                                                            <h2 class="accordion-header" id="heading-{{ $venta->id }}">
+                                                                <button class="accordion-button collapsed" type="button"
+                                                                        data-bs-toggle="collapse"
+                                                                        data-bs-target="#collapse-{{ $venta->id }}"
+                                                                        aria-expanded="false"
+                                                                        aria-controls="collapse-{{ $venta->id }}">
+                                                                    Ver detalles de venta
+                                                                </button>
+                                                            </h2>
+                                                            <div id="collapse-{{ $venta->id }}"
+                                                                 class="accordion-collapse collapse"
+                                                                 aria-labelledby="heading-{{ $venta->id }}"
+                                                                 data-bs-parent="#accordionVenta-{{ $venta->id }}">
+                                                                <div class="accordion-body">
+                                                                    @include('livewire.ingreso.detalle-venta')
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
                                                 </td>
                                             </tr>
                                         @endforeach
                                     </tbody>
                                 </table>
+
 
                                 <div class="mt-4">
                                     <p class="font-bold">Total de saldos: {{ $totalSaldos }}</p>
@@ -74,18 +103,19 @@
 
 
                     <div class="mb-4 grid grid-cols-12">
-                       <div class="col-span-12 sm:col-span-6 m-1">
-                        <label for="monto" class="block text-gray-700 text-sm font-bold mb-2">Monto:</label>
-                        <input type="number"
-                            class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                            id="monto" wire:model="monto" wire:change="distribuirPago">
-                       </div>
-                       <div class="col-span-12 sm:col-span-6 m-1">
-                        <label for="saldo" class="block text-gray-700 text-sm font-bold mb-2"> Nuevo Saldo:</label>
-                        <input type="number"
-                            class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                            id="saldo" wire:model="saldo">
-                       </div>
+                        <div class="col-span-12 sm:col-span-6 m-1">
+                            <label for="monto" class="block text-gray-700 text-sm font-bold mb-2">Monto:</label>
+                            <input type="number"
+                                class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                                id="monto" wire:model="monto" wire:change="distribuirPago">
+                        </div>
+                        <div class="col-span-12 sm:col-span-6 m-1">
+                            <label for="saldo" class="block text-gray-700 text-sm font-bold mb-2"> Nuevo
+                                Saldo:</label>
+                            <input type="number"
+                                class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                                id="saldo" wire:model="saldo">
+                        </div>
                     </div>
 
                     <div class="mb-4">

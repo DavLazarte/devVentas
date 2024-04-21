@@ -13,11 +13,14 @@ class IngresoComponent extends Component
     public $personas, $monto, $ventasConSaldos, $saldo, $descripcion, $estado, $busqueda, $idpersona, $clienteSeleccionado, $nombre_cliente, $ingreso_id, $totalSaldos;
     public $isOpen = 0;
     public $modoEdit = 0;
+    public $showVentas = 0;
     public $searchCliente = '';
     public $saldos = [];
     public $idLocal;
+    public $ver_venta;
 
-    public function mount(){
+    public function mount()
+    {
 
         $this->idLocal = auth()->user()->local->id;
     }
@@ -25,7 +28,7 @@ class IngresoComponent extends Component
 
     public function render()
     {
-        
+
 
         $this->filtrarCliente();
 
@@ -48,33 +51,38 @@ class IngresoComponent extends Component
     public function filtrarCliente()
     {
         $query = Persona::where('id_local', $this->idLocal);  // Comienzas construyendo la consulta con la restricción de local.
-    
+
         if ($this->searchCliente) {
             // Aplica las condiciones de búsqueda dentro de un subgrupo para asegurar el contexto correcto.
-            $query->where(function($q) {
+            $query->where(function ($q) {
                 $q->where('idpersona', 'like', '%' . $this->searchCliente . '%')
-                  ->orWhere('nombre', 'like', '%' . $this->searchCliente . '%');
+                    ->orWhere('nombre', 'like', '%' . $this->searchCliente . '%');
             });
         }
-    
+
         $this->personas = $query->get();  // Ejecutas la consulta y guardas los resultados en $this->personas.
     }
-    
+
     public function agregarCliente($id)
     {
         $clienteSe = Persona::find($id);
+        if ($clienteSe) {
+            $this->clienteSeleccionado = $clienteSe;
 
-        $this->clienteSeleccionado = $clienteSe;
+            $this->idpersona = $clienteSe->idpersona;
+            $this->nombre_cliente = $clienteSe->nombre;
+            $this->searchCliente = '';
+            // Obtiene las ventas con saldos y precarga las relaciones necesarias.
+            $this->ventasConSaldos = Venta::with('detalles.producto', 'persona')
+                ->where('idcliente', $this->idpersona)
+                ->where('saldo', '>', 0)
+                ->get();
 
-        $this->idpersona = $clienteSe->idpersona;
-        $this->nombre_cliente = $clienteSe->nombre;
-        $this->searchCliente = '';
-        $this->ventasConSaldos = Venta::where('idcliente', $this->idpersona)
-            ->where('id_local', $this->idLocal)
-            ->where('saldo', '>', 0)
-            ->get();
-
-        $this->totalSaldos = $this->ventasConSaldos->sum('saldo');
+            $this->totalSaldos = $this->ventasConSaldos->sum('saldo');
+        } else {
+            // Opcional: manejo de error si el cliente no se encuentra
+            $this->addError('clienteNotFound', 'El cliente no se encuentra en la base de datos.');
+        }
     }
     public function crear()
     {
@@ -194,5 +202,10 @@ class IngresoComponent extends Component
             // Limpia el campo monto después de distribuir el pago
             // $this->monto = 0;
         }
+    }
+    public function ver($id)
+    {
+        $this->ver_venta = Venta::with('detalles.producto', 'persona')->findOrFail($id);
+        $this->showVentas = true;
     }
 }
