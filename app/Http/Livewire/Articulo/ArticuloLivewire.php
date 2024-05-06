@@ -44,21 +44,6 @@ class ArticuloLivewire extends Component
     }
 
 
-    // public function render()
-    // {
-    //     $query = Articulo::query();
-
-    //     if ($this->busqueda) {
-    //         $query->where('idarticulo', 'like', '%' . $this->busqueda . '%')
-    //             ->orWhere('nombre', 'like', '%' . $this->busqueda . '%')
-    //             ->orWhere('codigo', 'like', '%' . $this->busqueda . '%');
-    //     }
-
-    //     $articulo = $query->with('categoria')->paginate(10);
-    //     $this->categorias = Categoria::pluck('nombre', 'id_categoria');
-
-    //     return view('livewire.articulo.articulo-livewire', compact('articulo'));
-    // }
 
     public function crear()
     {
