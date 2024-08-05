@@ -20,24 +20,18 @@ class AdminCajas extends Component
     public $monto_total_ventas = 0;
     public $monto_cierre_real = 0;
 
+    protected $listeners = [
+        'editarCaja' => 'editar',
+        'openModal' => 'openModal'
+    ];
+
     public function mount()
     {
         $this->actualizarCaja();
     }
     public function render()
     {
-        $idLocal = auth()->user()->local->id;
-        $query = CierreCaja::where('id_local', $idLocal);
-
-        if ($this->busqueda) {
-            $query->where('id', 'like', '%' . $this->busqueda . '%')
-                ->orWhere('fecha_apertura', 'like', '%' . $this->busqueda . '%')
-                ->orWhere('cierre', 'like', '%' . $this->busqueda . '%');
-        }
-
-        $caja = $query->paginate(10);
-
-        return view('livewire.caja.admin-cajas', compact('caja'));
+        return view('livewire.caja.admin-cajas');
     }
 
     public function crear()
@@ -49,6 +43,7 @@ class AdminCajas extends Component
         $this->resetInputFields();
         $this->estado = 'abierta';
         // $this->monto_apertura = $ultimoCierre ? $ultimoCierre->monto_cierre : 0;
+        $this->emit('refreshDatatableCajas');
         $this->openModal();
 
     }
@@ -99,7 +94,7 @@ class AdminCajas extends Component
                 'message',
                 $this->caja_id ? 'Caja Cerrada exitosamente.' : 'Caja abierta exitosamente.'
             );
-
+            $this->emit('refreshDatatableCajas');
             $this->closeModal();
             $this->resetInputFields();
         } catch (\Exception $e) {
@@ -144,6 +139,7 @@ class AdminCajas extends Component
     {
         CierreCaja::find($id)->delete();
         session()->flash('message', 'Caja eliminada exitosamente.');
+        $this->emit('refreshDatatableCajas');
     }
     public function actualizarCaja()
     {

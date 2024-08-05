@@ -5,6 +5,7 @@ namespace App\Http\Livewire\Articulo;
 use Livewire\Component;
 use App\Models\Articulo;
 use App\Models\Categoria;
+use Illuminate\Support\Facades\Auth;
 
 class ArticuloLivewire extends Component
 {
@@ -14,33 +15,27 @@ class ArticuloLivewire extends Component
     public $modoEdit = 0;
     // En tus componentes Livewire (por ejemplo, CategoriaLivewire)
     public $layout = 'sistema';
+    
+    
+    protected $listeners = [
+        'editarArticulo' => 'editar',
+        'openModal' => 'openModal'
+    ];
+
+    public function mount()
+    {
+        $this->categorias = $this->getCategorias();
+    }
+
+    public function getCategorias()
+    {
+        $idLocal = Auth::user()->local->id;
+        return Categoria::where('id_local', $idLocal)->pluck('nombre', 'id_categoria')->toArray();
+    }
 
     public function render()
     {
-        $idLocal = auth()->user()->local->id;
-
-        // Construir la consulta de artículos pertenecientes al local del usuario
-        $query = Articulo::where('id_local', $idLocal);
-
-        if ($this->busqueda) {
-
-            $query->where(function ($q) {
-                $q->where('idarticulo', 'like', '%' . $this->busqueda . '%')
-                    ->orWhere('nombre', 'like', '%' . $this->busqueda . '%')
-                    ->orWhere('codigo', 'like', '%' . $this->busqueda . '%');
-            });
-        }
-
-        // Obtener los artículos con paginación
-        $articulo = $query->with('categoria')->paginate(10);
-
-
-
-        // Obtener las categorías para el filtro
-        $this->categorias = Categoria::where('id_local', $idLocal)
-        ->pluck('nombre', 'id_categoria');
-
-        return view('livewire.articulo.articulo-livewire', compact('articulo'));
+        return view('livewire.articulo.articulo-livewire');
     }
 
 
@@ -101,38 +96,15 @@ class ArticuloLivewire extends Component
             $this->articulo_id ? 'Artículo actualizado exitosamente.' : 'Artículo creado exitosamente.'
         );
 
+        $this->emit('refreshDatatableArticulos');
+
         $this->closeModal();
         $this->resetInputFields();
     }
 
 
-    // public function guardar()
-    // {
-    //     $this->validate([
-    //         'nombre' => 'required',
-    //         'descripcion' => 'required',
-    //         'codigo' => 'required',
-    //         'estado' => 'required|in:activo,inactivo',
-    //     ]);
 
-    //     Articulo::updateOrCreate(['idarticulo' => $this->articulo_id], [
-    //         'idcategoria' => $this->categoria_id,
-    //         'nombre' => $this->nombre,
-    //         'descripcion' => $this->descripcion,
-    //         'codigo' => $this->codigo,
-    //         'precio_unitario' => $this->precio_unitario,
-    //         'stock' => $this->stock,
-    //         'estado' => $this->estado,
-    //     ]);
-
-    //     session()->flash(
-    //         'message',
-    //         $this->articulo_id ? 'Articulo actualizado exitosamente.' : 'Articulo creado exitosamente.'
-    //     );
-
-    //     $this->closeModal();
-    //     $this->resetInputFields();
-    // }
+ 
 
     public function editar($id)
     {
@@ -155,5 +127,6 @@ class ArticuloLivewire extends Component
     {
         Articulo::find($id)->delete();
         session()->flash('message', 'Articulo eliminado exitosamente.');
+        $this->emit('refreshDatatableArticulos');
     }
 }

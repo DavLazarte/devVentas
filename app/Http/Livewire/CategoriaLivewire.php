@@ -10,23 +10,14 @@ class CategoriaLivewire extends Component
     public $categorias, $categoria_id, $nombre, $descripcion, $estado, $busqueda;
     public $isOpen = 0;
 
+    protected $listeners = [
+        'editarCategoria' => 'editar',
+        'openModal' => 'openModal'
+    ];
+
     public function render()
     {
-
-        $idLocal = auth()->user()->local->id;
-
-
-        $query = Categoria::where('id_local',$idLocal);;
-
-        if ($this->busqueda) {
-            $query->where('id_categoria', 'like', '%' . $this->busqueda . '%')
-                ->orWhere('nombre', 'like', '%' . $this->busqueda . '%');
-        }
-
-        $categoria = $query->paginate(10);
-    
-
-        return view('livewire.categorias.categoria-livewire', compact('categoria'));
+        return view('livewire.categorias.categoria-livewire');
     }
 
     public function crear()
@@ -74,7 +65,7 @@ class CategoriaLivewire extends Component
             'message',
             $this->categoria_id ? 'Categoría actualizada exitosamente.' : 'Categoría creada exitosamente.'
         );
-
+        $this->emit('refreshTable');
         $this->closeModal();
         $this->resetInputFields();
     }
@@ -94,5 +85,6 @@ class CategoriaLivewire extends Component
     {
         Categoria::find($id)->delete();
         session()->flash('message', 'Categoría eliminada exitosamente.');
+        $this->emit('refreshTable');
     }
 }

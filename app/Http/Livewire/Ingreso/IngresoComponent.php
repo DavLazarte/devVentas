@@ -21,33 +21,18 @@ class IngresoComponent extends Component
 
     public function mount()
     {
-
         $this->idLocal = auth()->user()->local->id;
     }
 
 
     public function render()
     {
-
-
         $this->filtrarCliente();
-
-        $query = Ingreso::where('id_local', $this->idLocal);
-
-        if ($this->busqueda) {
-            $query->where('idpersona', 'like', '%' . $this->busqueda . '%')
-                ->orWhere('nombre', 'like', '%' . $this->busqueda . '%');
-        }
-
-        $ingreso = $query->with('cliente')->paginate(10);
-
-
-
         return view('livewire.ingreso.ingreso-component', [
-            'ingreso' => $ingreso,
             'personas' => $this->personas
         ]);
     }
+
     public function filtrarCliente()
     {
         $query = Persona::where('id_local', $this->idLocal);  // Comienzas construyendo la consulta con la restricción de local.
@@ -154,6 +139,8 @@ class IngresoComponent extends Component
             $this->ingreso_id ? 'Ingreso actualizado exitosamente.' : 'Pago creado exitosamente.'
         );
 
+        $this->emit('refreshDatatableIngresos');
+
         $this->closeModal();
         $this->resetInputFields();
     }
@@ -176,6 +163,7 @@ class IngresoComponent extends Component
     {
         Ingreso::find($id)->delete();
         session()->flash('message', 'ingreso eliminado exitosamente.');
+        $this->emit('refreshDatatableIngresos');
     }
     public function distribuirPago()
     {

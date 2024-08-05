@@ -11,21 +11,14 @@ class PersonaLivewire extends Component
     public $nombre, $tipo_persona, $direccion, $mail, $estado, $telefono, $busqueda, $persona_id;
     public $isOpen = 0;
 
+    protected $listeners = [
+        'editarPersona' => 'editar',
+        'openModal' => 'openModal'
+    ];
+
     public function render()
     {
-        $idLocal = auth()->user()->local->id;
-        $query = Persona::where('id_local', $idLocal);
-
-        if ($this->busqueda) {
-            $query->where('idpersona', 'like', '%' . $this->busqueda . '%')
-                ->orWhere('nombre', 'like', '%' . $this->busqueda . '%')
-                ->orWhere('tipo_persona', 'like', '%' . $this->busqueda . '%');
-        }
-
-        $persona = $query->paginate(10);
-        // $this->categorias = Categoria::pluck('nombre', 'id_categoria');
-
-        return view('livewire.persona.persona-livewire', compact('persona'));
+        return view('livewire.persona.persona-livewire');
     }
 
     public function crear()
@@ -79,6 +72,7 @@ class PersonaLivewire extends Component
             $this->persona_id ? 'Persona actualizado exitosamente.' : 'Persona creada exitosamente.'
         );
 
+        $this->emit('refreshTablePersonas');
         $this->closeModal();
         $this->resetInputFields();
     }
@@ -101,5 +95,7 @@ class PersonaLivewire extends Component
     {
         Persona::find($id)->delete();
         session()->flash('message', 'Persona eliminado exitosamente.');
+        $this->emit('refreshTablePersonas');
+
     }
 }

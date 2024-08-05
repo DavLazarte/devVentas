@@ -3,7 +3,7 @@
         'name' => 'laravel/laravel',
         'pretty_version' => 'dev-main',
         'version' => 'dev-main',
-        'reference' => '65316358a28a8ca184d36488b1c032545fa1bd08',
+        'reference' => 'c03ced277ec03d56d2facda15f69b1454d90db9b',
         'type' => 'project',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
@@ -460,7 +460,7 @@
         'laravel/laravel' => array(
             'pretty_version' => 'dev-main',
             'version' => 'dev-main',
-            'reference' => '65316358a28a8ca184d36488b1c032545fa1bd08',
+            'reference' => 'c03ced277ec03d56d2facda15f69b1454d90db9b',
             'type' => 'project',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),
@@ -890,6 +890,15 @@
             'aliases' => array(),
             'dev_requirement' => false,
         ),
+        'rappasoft/laravel-livewire-tables' => array(
+            'pretty_version' => 'v2.15.0',
+            'version' => '2.15.0.0',
+            'reference' => '26c596d4d4bb0e0efdfcd48de16071fc5ed969ef',
+            'type' => 'library',
+            'install_path' => __DIR__ . '/../rappasoft/laravel-livewire-tables',
+            'aliases' => array(),
+            'dev_requirement' => false,
+        ),
         'rhumsaa/uuid' => array(
             'dev_requirement' => false,
             'replaced' => array(
@@ -1039,6 +1048,15 @@
             'install_path' => __DIR__ . '/../sebastian/version',
             'aliases' => array(),
             'dev_requirement' => true,
+        ),
+        'spatie/laravel-package-tools' => array(
+            'pretty_version' => '1.12.1',
+            'version' => '1.12.1.0',
+            'reference' => '09f80fa240d44fafb1c70657c74ee44ffa929357',
+            'type' => 'library',
+            'install_path' => __DIR__ . '/../spatie/laravel-package-tools',
+            'aliases' => array(),
+            'dev_requirement' => false,
         ),
         'swiftmailer/swiftmailer' => array(
             'pretty_version' => 'v6.3.0',

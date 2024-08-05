@@ -17,29 +17,18 @@ class SalidaComponent extends Component
     public $saldos = [];
     public  $saldo = 0.0;
 
+    // protected $listeners = [
+    //     'editarSalida' => 'editar',
+    //     'openModal' => 'openModal'
+    // ];
+
 
     public function render()
     {
-        $idLocal = auth()->user()->local->id;
 
         $this->filtrarCliente();
 
-        $query = Salida::where('id_local', $idLocal);
-
-        if ($this->busqueda) {
-            $query->where('idpersona', 'like', '%' . $this->busqueda . '%')
-                ->orWhere('nombre', 'like', '%' . $this->busqueda . '%')
-                ->orWhere('tipo_venta', 'like', '%' . $this->busqueda . '%');
-        }
-
-        $salida = $query->with('persona')->paginate(10);
-
-
-
-        return view('livewire.salida.salida-component', [
-            'salida' => $salida,
-            'personas' => $this->personas
-        ]);
+        return view('livewire.salida.salida-component', ['personas' => $this->personas]);
     }
     public function filtrarCliente()
     {
@@ -87,12 +76,6 @@ class SalidaComponent extends Component
         $this->modoEdit = false;
     }
 
-
-    // public function restarSaldo()
-    // {
-    //     $nuevo_saldo = $this->saldo - $this->monto;
-    //     $this->saldo = round($nuevo_saldo, 2);
-    // }
     public function guardar()
     {
         // $this->validate([
@@ -135,6 +118,8 @@ class SalidaComponent extends Component
             'message',
             $this->salida_id ? 'Salida actualizado exitosamente.' : 'Salida creada exitosamente.'
         );
+
+        $this->emit('refreshDatatableSalidas');
 
         $this->closeModal();
         $this->resetInputFields();

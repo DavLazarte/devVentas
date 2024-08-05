@@ -1,72 +1,31 @@
 <div class="py-12">
     <div class="max-w-7xl mx-auto sm:px6 lg:px-8">
         <div class="bg-white overflow-hidden shadow-xl sm:rounded-lg px-4 py-4">
-            <h5>Ingresos</h5>
-
-            @if (session()->has('message'))
-                <div class="bg-teal-100 rounded-b text-teal-900 px-4 py-4 shadow-md my-3" role="alert">
-                    <div class="flex">
-                        <div>
-                            <h4>{{ session('message') }}</h4>
-                        </div>
-                    </div>
+            <div class="p-4">
+                <div class="flex justify-between items-center">
+                    <h1 class="text-2xl font-bold text-gray-900">Gestión de Egresos</h1>
+                    <button wire:click="crear()"
+                        class="flex items-center bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24"
+                            stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                        </svg>
+                        Cargar Salida
+                    </button>
                 </div>
-            @endif
 
+                @if (session()->has('message'))
+                    <div class="mt-4 bg-purple-100 border-l-4 border-purple-500 text-purple-700 p-4" role="alert">
+                        <p class="font-bold">Notificación</p>
+                        <p>{{ session('message') }}</p>
+                    </div>
+                @endif
 
-            <button wire:click="crear()"
-                class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 my-3">Nueva Salida</button>
-            @if ($isOpen)
-                @include('livewire.salida.create')
-            @endif
-
-            <!-- Formulario de búsqueda con estilos de Tailwind CSS -->
-            <form wire:submit.prevent="buscar" class="my-4 flex items-center">
-                <input type="text" wire:model="busqueda" placeholder="Buscar por ID o Nombre del proveedor o tipo de salida"
-                    class="px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring focus:border-blue-300 w-full">
-            </form>
-
-
-
-            <div class="overflow-x-auto">
-                <table class="table-auto min-w-full">
-                    <thead>
-                        <tr class="bg-indigo-600 text-white">
-                            <th class="px-4 py-2">ID</th>
-                            <th class="px-4 py-2">Tipo</th>
-                            <th class="px-4 py-2">Proveedor</th>
-                            <th class="px-4 py-2">Monto</th>
-                            <th class="px-4 py-2">Descripción</th>
-                            <th class="px-4 py-2">Saldo</th>
-                            <th class="px-4 py-2">Estado</th>
-                            <th class="px-4 py-2">ACCIONES</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach ($salida as $sal)
-                            <tr>
-                                <td class="border px-4 py-2">{{ $sal->idsalida }}</td>
-                                <td class="border px-4 py-2">{{ $sal->tipo_salida }}</td>
-                                <td class="border px-4 py-2">{{ optional($sal->persona)->nombre }}</td>
-                                <td class="border px-4 py-2">{{ number_format($sal->monto, 2) }}</td>
-                                <td class="border px-4 py-2">{{ $sal->descripcion }}</td>
-                                <td class="border px-4 py-2">{{ number_format($sal->saldo, 2) }}</td>
-                                <td class="border px-4 py-2">{{ $sal->estado }}</td>
-                                <td class="border px-4 py-2 text-center">
-                                    {{-- <button wire:click="editar({{ $sal->id_ingreso }})"
-                                        class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4">Editar</button> --}}
-                                    <button wire:click="borrar({{ $sal->idsalida }})"
-                                        class="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4">Borrar</button>
-                                </td>
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </table>
+                @if ($isOpen)
+                    @include('livewire.salida.create')
+                @endif
             </div>
-            <div class="mt-2">
-                {{ $salida->links() }}
-            </div>
+            @livewire('salida.salidas-table')  
         </div>
     </div>
 </div>
-
