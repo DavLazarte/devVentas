@@ -164,7 +164,9 @@ return [
 
         /*
          * Package Service Providers...
+         * 
          */
+        Rappasoft\LaravelLivewireTables\LaravelLivewireTablesServiceProvider::class,
 
         /*
          * Application Service Providers...
