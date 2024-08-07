@@ -45,8 +45,8 @@ class ArticulosTable extends DataTableComponent
                 ->searchable(),
             Column::make("Stock", "stock")
                 ->sortable(),
-            // Column::make("Descripcion", "descripcion")
-            //     ->sortable(),
+            Column::make("Descripcion", "descripcion")
+                 ->sortable(),
             Column::make("Precio", "precio_unitario")
                 ->sortable(),
             Column::make("Estado", "estado")
