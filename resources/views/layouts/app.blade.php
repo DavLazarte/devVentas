@@ -13,8 +13,8 @@
 
     <!-- Scripts -->
     <link href="{{ mix('css/app.css') }}" rel="stylesheet">
-    @livewireStyles
     <script src="{{ mix('js/app.js') }}"></script>
+    @livewireStyles
 </head>
 
 <body class="font-sans antialiased">

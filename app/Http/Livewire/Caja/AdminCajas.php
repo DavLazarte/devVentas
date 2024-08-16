@@ -19,6 +19,7 @@ class AdminCajas extends Component
     // variables nuevas
     public $monto_total_ventas = 0;
     public $monto_cierre_real = 0;
+    public $idLocal;
 
     protected $listeners = [
         'editarCaja' => 'editar',
@@ -28,6 +29,7 @@ class AdminCajas extends Component
     public function mount()
     {
         $this->actualizarCaja();
+        $this->idLocal = auth()->user()->local->id;
     }
     public function render()
     {
@@ -142,27 +144,37 @@ class AdminCajas extends Component
         $this->emit('refreshDatatableCajas');
     }
     public function actualizarCaja()
-    {
-        $this->monto_total_ventas = Venta::whereDate('created_at', now()->toDateString())
-            ->sum('total_venta');
-        // dd($this->monto_total_ventas);        // Sumar solo los pagos (ventas en efectivo y transferencia)
-        $this->ventas_efectivo = Venta::whereDate('created_at', now()->toDateString())
-            ->whereIn('forma_de_pago', ['efectivo'])
-            ->sum('pago');
-        $this->ventas_transferencia = Venta::whereDate('created_at', now()->toDateString())
-            ->whereIn('forma_de_pago', ['transferencia'])
-            ->sum('pago');
-        $this->ventas_tarjeta = Venta::whereDate('created_at', now()->toDateString())
-            ->whereIn('forma_de_pago', ['tarjeta'])
-            ->sum('pago');
-        $this->ingresos = Ingreso::whereDate('created_at', now()->toDateString())
-            ->sum('monto');
-        $this->salidas = Salida::whereDate('created_at', now()->toDateString())
-            ->sum('monto');
+{
+    $this->monto_total_ventas = Venta::whereDate('created_at', now()->toDateString())
+        ->where('id_local', $this->idLocal)
+        ->sum('total_venta');
 
-       // Actualizar la variable new_monto_cierre sumando total_ventas, pagos, ingresos y salidas
-       $this->monto_cierre = $this->ventas_efectivo - $this->salidas  + $this->ingresos + $this->monto_apertura;
-    }
+    $this->ventas_efectivo = Venta::whereDate('created_at', now()->toDateString())
+        ->where('id_local', $this->idLocal)
+        ->whereIn('forma_de_pago', ['efectivo'])
+        ->sum('pago');
+
+    $this->ventas_transferencia = Venta::whereDate('created_at', now()->toDateString())
+        ->where('id_local', $this->idLocal)
+        ->whereIn('forma_de_pago', ['transferencia'])
+        ->sum('pago');
+
+    $this->ventas_tarjeta = Venta::whereDate('created_at', now()->toDateString())
+        ->where('id_local', $this->idLocal)
+        ->whereIn('forma_de_pago', ['tarjeta'])
+        ->sum('pago');
+
+    $this->ingresos = Ingreso::whereDate('created_at', now()->toDateString())
+        ->where('id_local', $this->idLocal)
+        ->sum('monto');
+
+    $this->salidas = Salida::whereDate('created_at', now()->toDateString())
+        ->where('id_local', $this->idLocal)
+        ->sum('monto');
+
+    $this->monto_cierre = $this->ventas_efectivo - $this->salidas + $this->ingresos + $this->monto_apertura;
+}
+
     private function resetInputFields()
     {
         $this->fecha_apertura = '';

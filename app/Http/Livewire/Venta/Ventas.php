@@ -100,8 +100,11 @@ class Ventas extends Component
             'nombre' => $articuloSe->nombre,
             'precio_unitario' => number_format($articuloSe->precio_unitario, 2, '.', ''),
             'stock' => $articuloSe->stock,
+            'cantidad' => 1,
+            'descripcion' => $articuloSe->descripcion,
             // Agregar otros campos según tu estructura
         ];
+        $this->calcularSubTotalProducto();
         $this->searchArticulo = '';
     }
     public function eliminarArticulo($index)
@@ -111,25 +114,45 @@ class Ventas extends Component
             $this->actualizarTotal();
         }
     }
-    public function calcularSubTotalProducto($index)
+    public function calcularSubTotalProducto($index = null)
     {
-        // Obtenemos los valores necesarios para el cálculo
-        $cantidad = $this->articuloSeleccionado[$index]['cantidad'] ?? 0;
-        $precio = $this->articuloSeleccionado[$index]['precio_unitario'] ?? 0;
-        // $peso = $this->articuloSeleccionado[$index]['peso'] ?? 0;
-        $stock_rec = $this->articuloSeleccionado[$index]['stock'] ?? 0;
+        if ($index !== null) {
 
-        // Realizamos el cálculo
-        $calc_subtotal = $cantidad * $precio;
-        $subtotal = round($calc_subtotal, 2);
-        //descontamos stock
-        $nuevo_stock = $stock_rec - $cantidad;
+            // Si se proporciona un índice, se calcula el subtotal para el artículo en ese índice
 
-        // Actualizamos el valor en el arreglo de materia prima seleccionada
-        $this->articuloSeleccionado[$index]['subtotal'] = $subtotal;
-        $this->articuloSeleccionado[$index]['stock'] = $nuevo_stock;
-        $this->actualizarTotal();
+            // Obtenemos el artículo correspondiente al índice dado
+            $articulo = $this->articuloSeleccionado[$index] ?? null;
+
+            if ($articulo) {
+                // Obtenemos los valores necesarios para el cálculo
+                $cantidad = $articulo['cantidad'] ?? 0;
+                $precio = $articulo['precio_unitario'] ?? 0;
+                $stock_rec = $articulo['stock'] ?? 0;
+
+                // Realizamos el cálculo
+                $calc_subtotal = $cantidad * $precio;
+                $subtotal = round($calc_subtotal, 2);
+
+                // Descontamos el stock
+                $nuevo_stock = $stock_rec - $cantidad;
+
+                // Actualizamos el valor en el arreglo del artículo seleccionado
+                $this->articuloSeleccionado[$index]['subtotal'] = $subtotal;
+                $this->articuloSeleccionado[$index]['stock'] = $nuevo_stock;
+
+                // Actualizamos el total
+                $this->actualizarTotal();
+            }
+        } else {
+            // Si no se proporciona un índice, se calcula el subtotal para todos los artículos
+
+            foreach ($this->articuloSeleccionado as $index => $articulo) {
+                $this->calcularSubTotalProducto($index);
+            }
+        }
     }
+
+
 
     public function actualizarTotal()
     {
@@ -141,6 +164,7 @@ class Ventas extends Component
         // Redondear el subtotal a dos cifras decimales
         $subTotal = round($subTotal, 2);
         $this->venta_total = $subTotal;
+        $this->pago = $subTotal;
     }
     public function calcularSaldo()
     {
@@ -198,10 +222,25 @@ class Ventas extends Component
 
 
             $this->reset([
-                'nombre_cliente', 'venta_total', 'persona', 'articulo', 'id_articulo', 'precio_unitario',
-                'cantidad', 'subtotal', 'saldo', 'pago', 'id_venta',
-                'articuloSeleccionado', 'clienteSeleccionado', 'nombre_cliente', 'idcliente',
-                'searchCliente', 'searchArticulo', 'tipo_venta', 'idLocal'
+                'nombre_cliente',
+                'venta_total',
+                'persona',
+                'articulo',
+                'id_articulo',
+                'precio_unitario',
+                'cantidad',
+                'subtotal',
+                'saldo',
+                'pago',
+                'id_venta',
+                'articuloSeleccionado',
+                'clienteSeleccionado',
+                'nombre_cliente',
+                'idcliente',
+                'searchCliente',
+                'searchArticulo',
+                'tipo_venta',
+                'idLocal'
             ]);
 
 

@@ -138,6 +138,7 @@ class Compras extends Component
         // Redondear el subtotal a dos cifras decimales
         $subTotal = round($subTotal, 2);
         $this->compra_total = $subTotal;
+        $this->pago = $subTotal;
     }
     public function calcularSaldo()
     {
@@ -183,7 +184,7 @@ class Compras extends Component
                 // Actualizar el stock del artículo
                 $articuloModel = Articulo::find($articulo['idarticulo']);
                 if ($articuloModel) {
-                    $articuloModel->stock = $articulo['stock'] + $articulo['cantidad'];
+                    $articuloModel->stock = $articulo['stock'];
                     $articuloModel->save();
                 }
             }
