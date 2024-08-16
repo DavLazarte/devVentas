@@ -111,22 +111,34 @@ class Compras extends Component
     }
     public function calcularSubTotalProducto($index)
     {
-        // Obtenemos los valores necesarios para el cálculo
-        $cantidad = $this->articuloSeleccionado[$index]['cantidad'] ?? 0;
-        $precio = $this->articuloSeleccionado[$index]['precio_compra'] ?? 0;
-        $stock_rec = $this->articuloSeleccionado[$index]['stock'] ?? 0;
+        // Obtenemos el artículo correspondiente al índice dado
+        $articulo = $this->articuloSeleccionado[$index] ?? null;
 
-        // Realizamos el cálculo
-        $calc_subtotal = $cantidad * $precio;
-        $subtotal = round($calc_subtotal, 2);
-        //descontamos stock
-        $nuevo_stock = $stock_rec + $cantidad;
+        if ($articulo) {
+            // Mantén una referencia del stock original
+            $stock_original = $articulo['stock_original'] ?? $articulo['stock'];
 
-        // Actualizamos el valor en el arreglo de materia prima seleccionada
-        $this->articuloSeleccionado[$index]['subtotal'] = $subtotal;
-        $this->articuloSeleccionado[$index]['stock'] = $nuevo_stock;
-        $this->actualizarTotal();
+            // Obtenemos los valores necesarios para el cálculo
+            $cantidad = $articulo['cantidad'] ?? 0;
+            $precio = $articulo['precio_compra'] ?? 0;
+
+            // Realizamos el cálculo
+            $calc_subtotal = $cantidad * $precio;
+            $subtotal = round($calc_subtotal, 2);
+
+            // Aumentamos el stock basado en el stock original y la cantidad comprada
+            $nuevo_stock = $stock_original + $cantidad;
+
+            // Actualizamos el valor en el arreglo de artículos seleccionados
+            $this->articuloSeleccionado[$index]['subtotal'] = $subtotal;
+            $this->articuloSeleccionado[$index]['stock'] = $nuevo_stock;
+            $this->articuloSeleccionado[$index]['stock_original'] = $stock_original;
+
+            // Actualizamos el total
+            $this->actualizarTotal();
+        }
     }
+
 
     public function actualizarTotal()
     {
@@ -196,10 +208,24 @@ class Compras extends Component
 
 
             $this->reset([
-                'nombre_cliente', 'compra_total', 'persona', 'articulo', 'id_articulo', 'precio_compra',
-                'cantidad', 'subtotal', 'saldo', 'pago', 'id_compra',
-                'articuloSeleccionado', 'proveedorSeleccionado', 'nombre_cliente', 'idproveedor',
-                'searchCliente', 'searchArticulo', 'num_recibo'
+                'nombre_cliente',
+                'compra_total',
+                'persona',
+                'articulo',
+                'id_articulo',
+                'precio_compra',
+                'cantidad',
+                'subtotal',
+                'saldo',
+                'pago',
+                'id_compra',
+                'articuloSeleccionado',
+                'proveedorSeleccionado',
+                'nombre_cliente',
+                'idproveedor',
+                'searchCliente',
+                'searchArticulo',
+                'num_recibo'
             ]);
 
 

@@ -118,27 +118,31 @@ class Ventas extends Component
     {
         if ($index !== null) {
 
-            // Si se proporciona un índice, se calcula el subtotal para el artículo en ese índice
+            // Si se proporciona un índice, se calcula el subtotal para el artículo en ese 
+            
 
             // Obtenemos el artículo correspondiente al índice dado
             $articulo = $this->articuloSeleccionado[$index] ?? null;
 
             if ($articulo) {
+                // Mantén una referencia del stock original
+                $stock_original = $articulo['stock_original'] ?? $articulo['stock'];
                 // Obtenemos los valores necesarios para el cálculo
                 $cantidad = $articulo['cantidad'] ?? 0;
                 $precio = $articulo['precio_unitario'] ?? 0;
-                $stock_rec = $articulo['stock'] ?? 0;
+                // $stock_rec = $articulo['stock'] ?? 0;
 
                 // Realizamos el cálculo
                 $calc_subtotal = $cantidad * $precio;
                 $subtotal = round($calc_subtotal, 2);
 
-                // Descontamos el stock
-                $nuevo_stock = $stock_rec - $cantidad;
+              // Descontamos el stock original
+            $nuevo_stock = $stock_original - $cantidad;
 
                 // Actualizamos el valor en el arreglo del artículo seleccionado
                 $this->articuloSeleccionado[$index]['subtotal'] = $subtotal;
                 $this->articuloSeleccionado[$index]['stock'] = $nuevo_stock;
+                $this->articuloSeleccionado[$index]['stock_original'] = $stock_original;
 
                 // Actualizamos el total
                 $this->actualizarTotal();
