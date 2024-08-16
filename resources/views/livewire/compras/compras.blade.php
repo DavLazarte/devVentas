@@ -43,13 +43,13 @@
                     </div>
 
                     @if ($tipo_venta === 'cuenta_corriente')
-                        <div>
+                        <div class="relative mb-6">
                             <label for="cliente" class="block text-sm font-medium text-gray-700">Proveedor:</label>
                             <input type="text" wire:model.debounce.300ms="searchCliente"
                                 class="block w-full mt-1 border border-gray-300 rounded-md py-2 px-3 text-black shadow-purple-200 focus:ring-purple-500 focus:border-purple-500"
                                 placeholder="Buscar un cliente">
                             @if ($searchCliente)
-                                <div class="absolute z-50 bg-white  rounded-md shadow-lg mt-1">
+                                <div class="absolute z-50 bg-white  rounded-md shadow-lg mt-1 " style="top: 100%; left: 0;">
                                     @foreach ($persona as $opcion)
                                         <div wire:click="agregarProveedor({{ $opcion['idpersona'] }})"
                                             class="py-2 px-3 cursor-pointer hover:bg-gray-100">
@@ -73,7 +73,7 @@
             <div class="border-t border-gray-200 px-6 py-6 grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div class="col-span-1 md:col-span-2">
                     <!-- Artículos -->
-                    <div class="relative mb-6">
+                    {{-- <div class="relative mb-6">
                         <label for="articulo" class="block text-sm font-medium text-gray-700">Artículos:</label>
                         <input wire:model.debounce.300ms="searchArticulo" type="text" 
                             class="block w-full mt-1 border border-gray-300 rounded-md py-2 px-3 text-black shadow-purple-200 focus:ring-purple-500 focus:border-purple-500"
@@ -88,7 +88,26 @@
                                 @endforeach
                             </div>
                         @endif
+                    </div> --}}
+                    <div class="relative mb-6">
+                        <label for="articulo" class="block text-sm font-medium text-gray-700">Artículos:</label>
+                        <input wire:model.debounce.300ms="searchArticulo" type="text" 
+                            id="articulo"
+                            class="block w-full mt-1 border border-gray-300 rounded-md py-2 px-3 text-black shadow-purple-200 focus:ring-purple-500 focus:border-purple-500"
+                            placeholder="Escanear o ingresar código">
+                    
+                        @if ($searchArticulo)
+                            <div class="absolute z-50 bg-white w-full rounded-md shadow-lg mt-1" style="top: 100%; left: 0;">
+                                @foreach ($articulo as $opcion)
+                                    <div wire:click="agregarArticulo({{ $opcion['idarticulo'] }})"
+                                        class="py-2 px-3 cursor-pointer hover:bg-gray-100">
+                                        {{ $opcion['nombre'] }} | {{ $opcion['descripcion'] }}
+                                    </div>
+                                @endforeach
+                            </div>
+                        @endif
                     </div>
+                    
 
                     <!-- Tabla de Artículos -->
                     <div class="overflow-auto rounded-md shadow">
@@ -113,7 +132,7 @@
                                             <td class="p-2 md:table-cell block md:table-cell">
                                                 <span class="md:hidden block font-medium text-gray-700">Stock:</span>
                                                 {{ $art['stock'] ?? '' }}</td>
-                                            <td class="p- md:table-cell block md:table-cell">
+                                            <td class="p-2 md:table-cell block md:table-cell">
                                                 <span class="md:hidden block font-medium text-gray-700">Precio:</span>
                                                 <input type="number" id="precio_compra_{{ $index }}"
                                                     wire:model="articuloSeleccionado.{{ $index }}.precio_compra"
