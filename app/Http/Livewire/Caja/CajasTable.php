@@ -17,8 +17,10 @@ class CajasTable extends DataTableComponent
     {
         $idLocal = auth()->user()->local->id;
 
-        return CierreCaja::where('cierre_cajas.id_local', $idLocal);
+        return CierreCaja::where('cierre_cajas.id_local', $idLocal)
+            ->orderBy('fecha_apertura', 'desc'); // Ordenar por fecha_apertura descendente
     }
+
 
     public function configure(): void
     {
@@ -54,7 +56,7 @@ class CajasTable extends DataTableComponent
                 ->sortable(),
             Column::make("Salidas", "salidas")
                 ->sortable(),
-                Column::make("Estado", "estado")
+            Column::make("Estado", "estado")
                 ->sortable()
                 ->format(function ($value, $column, $row) {
                     $badgeColor = $value === 'abierta' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800';
@@ -64,7 +66,7 @@ class CajasTable extends DataTableComponent
                 ->html(),
             Column::make("Acciones")
                 ->label(
-                    fn ($row, Column $column) => view('livewire.caja.actions', ['row' => $row])
+                    fn($row, Column $column) => view('livewire.caja.actions', ['row' => $row])
                 ),
         ];
     }
@@ -72,6 +74,11 @@ class CajasTable extends DataTableComponent
     {
         $caja = CierreCaja::findOrFail($id);
         $this->emit('editarCaja', $caja->id);
+    }
+    public function verCaja($id)
+    {
+        $caja = CierreCaja::findOrFail($id);
+        $this->emit('verCaja', $caja->id);
     }
 
     public function borrar($id)

@@ -16,6 +16,7 @@ class AdminCajas extends Component
     public $cajas, $caja_id, $monto_apertura, $monto_cierre, $fecha_apertura, $fecha_cierre, $ingresos, $salidas, $ventas_efectivo, $ventas_tarjeta, $ventas_transferencia, $estado, $busqueda;
     public $isOpen = 0;
     public $isEdit = 0;
+    public $isShow = 0;
     // variables nuevas
     public $monto_total_ventas = 0;
     public $monto_cierre_real = 0;
@@ -23,6 +24,7 @@ class AdminCajas extends Component
 
     protected $listeners = [
         'editarCaja' => 'editar',
+        'verCaja' => 'verCaja',
         'openModal' => 'openModal'
     ];
 
@@ -47,7 +49,6 @@ class AdminCajas extends Component
         // $this->monto_apertura = $ultimoCierre ? $ultimoCierre->monto_cierre : 0;
         $this->emit('refreshDatatableCajas');
         $this->openModal();
-
     }
 
     public function openModal()
@@ -58,6 +59,7 @@ class AdminCajas extends Component
     public function closeModal()
     {
         $this->isOpen = false;
+        $this->resetInputFields();
     }
 
 
@@ -70,6 +72,13 @@ class AdminCajas extends Component
                 'fecha_apertura' => 'required',
                 // 'estado' => 'required|in:abierta,cerrada',
             ]);
+
+
+            // Verificar si está cerrando la caja (puedes basarte en si hay fecha de cierre)
+            if ($this->fecha_cierre) {
+                $this->estado = 'cerrada'; // Forzar el estado a "cerrada" si hay fecha de cierre
+            }
+
             // Convertir la fecha a un objeto DateTime
             $fechaApertura = new DateTime($this->fecha_apertura);
             $idLocal = auth()->user()->local->id;
@@ -143,37 +152,68 @@ class AdminCajas extends Component
         session()->flash('message', 'Caja eliminada exitosamente.');
         $this->emit('refreshDatatableCajas');
     }
-    public function actualizarCaja()
-{
-    $this->monto_total_ventas = Venta::whereDate('created_at', now()->toDateString())
-        ->where('id_local', $this->idLocal)
-        ->sum('total_venta');
+    public function actualizarCaja($fecha = null)
+    {
+        // Si no se pasa una fecha, usa la fecha actual 
+        $fecha = $fecha ? new DateTime($fecha) : now();
 
-    $this->ventas_efectivo = Venta::whereDate('created_at', now()->toDateString())
-        ->where('id_local', $this->idLocal)
-        ->whereIn('forma_de_pago', ['efectivo'])
-        ->sum('pago');
+        $this->monto_total_ventas = Venta::whereDate('created_at', $fecha)
+            ->where('id_local', $this->idLocal)
+            ->sum('total_venta');
 
-    $this->ventas_transferencia = Venta::whereDate('created_at', now()->toDateString())
-        ->where('id_local', $this->idLocal)
-        ->whereIn('forma_de_pago', ['transferencia'])
-        ->sum('pago');
+        $this->ventas_efectivo = Venta::whereDate('created_at', $fecha)
+            ->where('id_local', $this->idLocal)
+            ->whereIn('forma_de_pago', ['efectivo'])
+            ->sum('pago');
 
-    $this->ventas_tarjeta = Venta::whereDate('created_at', now()->toDateString())
-        ->where('id_local', $this->idLocal)
-        ->whereIn('forma_de_pago', ['tarjeta'])
-        ->sum('pago');
+        $this->ventas_transferencia = Venta::whereDate('created_at', $fecha)
+            ->where('id_local', $this->idLocal)
+            ->whereIn('forma_de_pago', ['transferencia'])
+            ->sum('pago');
 
-    $this->ingresos = Ingreso::whereDate('created_at', now()->toDateString())
-        ->where('id_local', $this->idLocal)
-        ->sum('monto');
+        $this->ventas_tarjeta = Venta::whereDate('created_at', $fecha)
+            ->where('id_local', $this->idLocal)
+            ->whereIn('forma_de_pago', ['tarjeta'])
+            ->sum('pago');
 
-    $this->salidas = Salida::whereDate('created_at', now()->toDateString())
-        ->where('id_local', $this->idLocal)
-        ->sum('monto');
+        $this->ingresos = Ingreso::whereDate('created_at', $fecha)
+            ->where('id_local', $this->idLocal)
+            ->sum('monto');
 
-    $this->monto_cierre = $this->ventas_efectivo - $this->salidas + $this->ingresos + $this->monto_apertura;
-}
+        $this->salidas = Salida::whereDate('created_at', $fecha)
+            ->where('id_local', $this->idLocal)
+            ->sum('monto');
+
+        $this->monto_cierre = $this->ventas_efectivo - $this->salidas + $this->ingresos + $this->monto_apertura;
+    }
+
+    public function verCaja($id)
+    {
+        // Similar a editar, pero no permitirá la edición
+        $this->isShow = true; // Modo solo lectura
+        $this->isEdit = true; // Modo solo lectura
+        $caja = CierreCaja::findOrFail($id);
+
+        // Asignar los datos de la caja
+        $this->caja_id = $id;
+        $this->fecha_apertura = $caja->fecha_apertura;
+        $this->fecha_cierre = $caja->fecha_cierre;
+        $this->monto_apertura = $caja->monto_apertura;
+        $this->monto_total_ventas = $caja->monto_total_ventas;
+        $this->monto_cierre = $caja->monto_cierre;
+        $this->monto_cierre_real = $caja->monto_cierre_real;
+        $this->ventas_efectivo = $caja->ventas_efectivo;
+        $this->ventas_transferencia = $caja->ventas_transferencia;
+        $this->ventas_tarjeta = $caja->ventas_tarjeta;
+        $this->ingresos = $caja->ingresos;
+        $this->salidas = $caja->salidas;
+        $this->estado = $caja->estado;
+
+        // Levantar el modal, pero en modo vista (sin edición)
+        $this->openModal();
+    }
+
+
 
     private function resetInputFields()
     {
@@ -191,7 +231,6 @@ class AdminCajas extends Component
         $this->estado = '';
         $this->caja_id = '';
         $this->isEdit = 0;
-
+        $this->isShow = 0;
     }
-
 }
