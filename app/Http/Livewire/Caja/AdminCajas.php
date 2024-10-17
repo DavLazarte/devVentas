@@ -159,29 +159,35 @@ class AdminCajas extends Component
 
         $this->monto_total_ventas = Venta::whereDate('created_at', $fecha)
             ->where('id_local', $this->idLocal)
+            ->where('estado', 'activo')
             ->sum('total_venta');
 
         $this->ventas_efectivo = Venta::whereDate('created_at', $fecha)
             ->where('id_local', $this->idLocal)
             ->whereIn('forma_de_pago', ['efectivo'])
+            ->where('estado', 'activo')
             ->sum('pago');
 
         $this->ventas_transferencia = Venta::whereDate('created_at', $fecha)
             ->where('id_local', $this->idLocal)
             ->whereIn('forma_de_pago', ['transferencia'])
+            ->where('estado', 'activo')
             ->sum('pago');
 
         $this->ventas_tarjeta = Venta::whereDate('created_at', $fecha)
             ->where('id_local', $this->idLocal)
             ->whereIn('forma_de_pago', ['tarjeta'])
+            ->where('estado', 'activo')
             ->sum('pago');
 
         $this->ingresos = Ingreso::whereDate('created_at', $fecha)
+            ->where('estado', 'activo')
             ->where('id_local', $this->idLocal)
             ->sum('monto');
 
         $this->salidas = Salida::whereDate('created_at', $fecha)
             ->where('id_local', $this->idLocal)
+            ->where('estado', 'activo')
             ->sum('monto');
 
         $this->monto_cierre = $this->ventas_efectivo - $this->salidas + $this->ingresos + $this->monto_apertura;
