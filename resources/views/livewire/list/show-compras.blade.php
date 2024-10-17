@@ -13,46 +13,61 @@
             <div class="max-w-4xl mx-auto mt-8">
                 <!-- Card principal -->
                 <div class="bg-white p-6 rounded-lg shadow-md">
-                    <!-- Información de la venta -->
-                    <h2 class="text-2xl font-semibold mb-4">Detalles de la Compa</h2>
-                    {{-- @dd($ver_compra->proveedor->nombre) --}}
-                    <div class="flex justify-between space-x-4">
-                        <div class="flex-1">
-                            <p><strong>ID de Compra:</strong> {{ $ver_compra->id }}</p>
-                            <p><strong>Fecha de Compra:</strong> {{ $ver_compra->created_at }}</p>
-                            <p><strong>Proveedor:</strong>
-                                {{ $ver_compra->proveedor ? $ver_compra->proveedor->nombre : 'Compra Rapida' }}</p>
-                        </div>
+                    <!-- Información de la compra -->
+                    <h2 class="text-3xl font-bold text-gray-800 mb-4">Detalles de la Compra</h2>
 
-                        <div class="flex-1">
-                            <p><strong>Tipo de Compra:</strong> {{ $ver_compra->tipo_compra }}</p>
-                            <p><strong>Forma de Pago:</strong> {{ $ver_compra->tipo_pago }}</p>
-                            <p><strong>Total Venta:</strong> {{ $ver_compra->total }}</p>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                        <div>
+                            <p class="text-lg font-semibold text-gray-700">
+                                <strong>ID de Compra:</strong> {{ $ver_compra->id }}
+                            </p>
+                            <p class="text-lg font-semibold text-gray-700">
+                                <strong>Fecha de Compra:</strong> {{ $ver_compra->created_at }}
+                            </p>
+                            <p class="text-lg font-semibold text-gray-700">
+                                <strong>Proveedor:</strong> 
+                                {{ $ver_compra->proveedor ? $ver_compra->proveedor->nombre : 'Compra Rápida' }}
+                            </p>
+                        </div>
+                        <div>
+                            <p class="text-lg font-semibold text-gray-700">
+                                <strong>Tipo de Compra:</strong> {{ $ver_compra->tipo_compra }}
+                            </p>
+                            <p class="text-lg font-semibold text-gray-700">
+                                <strong>Forma de Pago:</strong> {{ $ver_compra->tipo_pago }}
+                            </p>
+                            <p class="text-lg font-semibold text-gray-700">
+                                <strong>Total Compra:</strong> {{ $ver_compra->total }}
+                            </p>
                         </div>
                     </div>
 
-                    <table class="table text-gray-400 border-separate space-y-6 text-sm w-full">
-                        <thead class="bg-gray-800 text-gray-500">
-                            <tr>
-                                <th class="p-3">Producto</th>
-                                <th class="p-3 text-left">Cantidad</th>
-                                <th class="p-3 text-left">Precio Venta</th>
-                                <th class="p-3 text-left">Subtotal</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach ($ver_compra->detallesCompra as $detalle)
-                                <tr class="bg-gray-800">
-                                    <td class="p-3">{{ $detalle->articulo->nombre }}</td>
-                                    <td class="p-3">{{ $detalle->cantidad }}</td>
-                                    <td class="p-3">{{ $detalle->precio_compra }}</td>
-                                    <td class="p-3">{{ $detalle->cantidad * $detalle->precio_compra }}</td>
+                    <!-- Tabla de detalles de la compra -->
+                    <div class="bg-white rounded-lg shadow">
+                        <table class="min-w-full table-auto">
+                            <thead class="bg-purple-600 text-white">
+                                <tr>
+                                    <th class="px-4 py-2">Producto</th>
+                                    <th class="px-4 py-2 text-left">Cantidad</th>
+                                    <th class="px-4 py-2 text-left">Precio Compra</th>
+                                    <th class="px-4 py-2 text-left">Subtotal</th>
                                 </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody class="bg-white">
+                                @foreach ($ver_compra->detallesCompra as $detalle)
+                                    <tr class="border-b">
+                                        <td class="px-4 py-2">{{ $detalle->articulo->nombre }}</td>
+                                        <td class="px-4 py-2">{{ $detalle->cantidad }}</td>
+                                        <td class="px-4 py-2">{{ $detalle->precio_compra }}</td>
+                                        <td class="px-4 py-2">{{ $detalle->cantidad * $detalle->precio_compra }}</td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
 
-                    <div class="flex gap-2 p-2">
+                    <!-- Sección de pago y saldo -->
+                    <div class="flex gap-2 p-2 mt-4">
                         <div
                             class="center relative inline-block select-none whitespace-nowrap rounded-lg bg-blue-500 py-2 px-3.5 align-baseline font-sans text-xs font-bold uppercase leading-none text-white">
                             <div class="mt-px">PAGO: {{ $ver_compra->pago }}</div>
@@ -63,10 +78,13 @@
                         </div>
                     </div>
 
-                    <span class="flex w-50 rounded-md shadow-sm sm:ml-3 sm:w-auto">
+                    <!-- Botón de cerrar -->
+                    <div class="mt-4 text-right">
                         <button wire:click="closeModal()" type="button"
-                            class="inline-flex justify-center w-full rounded-md border border-gray-300 px-4 py-2 bg-gray-200 text-base leading-6 font-medium text-gray-700 shadow-sm hover:text-gray-500 focus:outline-none focus:border-blue-300 focus:shadow-outline-blue transition ease-in-out duration-150 sm:text-sm sm:leading-5">Cerrar</button>
-                    </span>
+                            class="inline-flex justify-center w-auto rounded-md border border-gray-300 px-4 py-2 bg-gray-200 text-base font-medium text-gray-700 shadow-sm hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-600 transition ease-in-out duration-150 sm:text-sm">
+                            Cerrar
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>

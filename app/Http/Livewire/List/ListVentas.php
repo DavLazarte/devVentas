@@ -7,42 +7,30 @@ use Livewire\Component;
 
 class ListVentas extends Component
 {
-    public  $busqueda,$ver_venta,$fecha;
+    public  $busqueda, $ver_venta, $fecha;
 
     public $isOpen = 0;
+    public $isLoading = false;
     public $idLocal;
     public $ventaIdToDelete;
+    public $motivoCancelacion = '';
 
-    protected $listeners = ['cancelarVenta'];
+    protected $listeners = ['cancelarVenta', 'ver'];
 
-    public function mount(){
+    public function mount($fecha= null)
+    {
         $this->idLocal = auth()->user()->local->id;
-
+        // Asignar la fecha si se pasa
+        $this->fecha = $fecha;
     }
 
     public function render()
     {
-        $query = Venta::where('id_local', $this->idLocal);
-
-        if ($this->busqueda) {
-            $query->where('id', 'like', '%' . $this->busqueda . '%')
-                ->orWhere('created_at', 'like', '%' . $this->busqueda . '%')
-                ->orWhereHas('persona', function ($queryPersona) {
-                    $queryPersona->where('nombre', 'like', '%' . $this->busqueda . '%');
-                })
-                ->orWhere('tipo_venta', 'like', '%' . $this->busqueda . '%')
-                ->orWhere('forma_de_pago', 'like', '%' . $this->busqueda . '%');
-        }
-        if ($this->fecha) {
-            $query->whereDate('created_at', $this->fecha);
-        }
-
-        $ventas = $query->with('persona')->orderBy('created_at', 'desc')->paginate(10);
-
-        return view('livewire.list.list-ventas', compact('ventas'));
+        return view('livewire.list.list-ventas');
     }
-    
-    public function ver ($id){
+
+    public function ver($id)
+    {
         $this->ver_venta = Venta::with('detalles.producto', 'persona')->findOrFail($id);
         $this->openModal();
     }
@@ -56,24 +44,27 @@ class ListVentas extends Component
     public function closeModal()
     {
         $this->isOpen = false;
-
     }
+    
 
 
-    public function cancelarVenta($id)
+
+    public function cancelarVenta($id, $motivo)
     {
+        $this->isLoading = true;
+        
+        
         $venta = Venta::findOrFail($id);
 
-        // Cambiar el estado de la venta a "inactivo"
-        $venta->estado = 'inactivo';
+        // Cambiar el estado de la venta a "Cancelada" y guardar el motivo
+        $venta->estado = 'Inactivo';
+        $venta->motivo_cancelacion = $motivo; // Usar el argumento pasado
         $venta->save();
 
-        // Opcionalmente, puedes hacer un soft delete en lugar de cambiar el estado
-        // $venta->delete();
-
-        // Actualizar la lista de ventas después de cancelar la venta
-        $ventas = Venta::where('id_local', $this->idLocal)
-        ->orderBy('created_at', 'desc')->get();
+        $this->isLoading = false;
+        
+        session()->flash('message', 'Venta cancelada con éxito.');
+        // Actualizamos la lista de ventas
+        $this->emit('refreshDatatableVantas');
     }
-
 }

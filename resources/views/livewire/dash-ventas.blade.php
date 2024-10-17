@@ -171,12 +171,12 @@
             </div>
         </div>
 
-        <div class="mt-8">
-            <a href="{{url('admin/list-ventas')}}"
-                class="py-2 px-4 shadow-md no-underline rounded-full bg-yellow-600 text-white font-sans font-semibold text-sm border-blue btn-primary hover:text-white hover:bg-blue-light focus:outline-none active:shadow-none mr-2">Ver
-                todas las ventas</a>
-            @livewire('list.list-ventas', ['fecha' => now()->toDateString()])
-        </div>
+            <div class="mt-8">
+                <a href="{{url('admin/list-ventas')}}"
+                    class="py-2 px-4 shadow-md no-underline rounded-full bg-yellow-600 text-white font-sans font-semibold text-sm border-blue btn-primary hover:text-white hover:bg-blue-light focus:outline-none active:shadow-none mr-2">Ver
+                    todas las ventas</a>
+                @livewire('list.list-ventas', ['fecha' => now()->toDateString()])
+            </div>
 
 
 
