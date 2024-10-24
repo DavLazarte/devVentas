@@ -14,6 +14,7 @@ class Venta extends Model
         'idcliente',
         'tipo_venta',
         'total_venta',
+        'descuento',
         'pago',
         'forma_de_pago',
         'saldo',

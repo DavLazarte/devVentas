@@ -21,6 +21,7 @@ class CierreCaja extends Model
         'monto_cierre_real',
         'ventas_efectivo',
         'ventas_transferencia',
+        'ventas_cuenta',
         'ventas_tarjeta',
         'ingresos',
         'salidas',

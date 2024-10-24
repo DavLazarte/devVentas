@@ -53,19 +53,19 @@
                         </div>
 
                         <div class="mt-4">
+                            <label for="monto_cierre" class="block text-gray-700 text-sm font-bold mb-2">Monto Cierre Sistema:</label>
+                            <input type="number"
+                                class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                                id="monto_cierre" wire:model="monto_cierre">
+                        </div>
+                        <div class="mt-4">
                             <label for="monto_cierre_real" class="block text-gray-700 text-sm font-bold mb-2">Monto Cierre Real:</label>
                             <input type="number"
                                 class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
                                 id="monto_cierre_real" wire:model="monto_cierre_real">
                         </div>
 
-                        {{-- <div class="mt-4">
-                            <label for="estado" class="block text-gray-700 text-sm font-bold mb-2">Cambiar Estado de Caja:</label>
-                            <select wire:model="estado" id="estado" name="estado"
-                                class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
-                                <option value="cerrada">Cerrada</option>
-                            </select>
-                        </div> --}}
+                       
                     </div>
 
                     <!-- Column 3: Daily Movements (shown only when closing) -->
@@ -91,6 +91,12 @@
                             <input type="number"
                                 class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
                                 id="ventas_transferencia" wire:model="ventas_transferencia" disabled>
+                        </div>
+                        <div class="mt-4">
+                            <label for="ventas_cuenta" class="block text-gray-700 text-sm font-bold mb-2">Ventas Cuentas Corrientes:</label>
+                            <input type="number"
+                                class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                                id="ventas_cuenta" wire:model="ventas_cuenta" disabled>
                         </div>
 
                         <div class="mt-4">

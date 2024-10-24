@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\Log;
 
 class Ventas extends Component
 {
-    public $persona, $articulo, $id_articulo, $precio_unitario, $cantidad, $subtotal, $saldo, $pago, $id_venta,  $venta_total, $mensajeVenta;
+    public $persona, $articulo, $id_articulo, $descuento, $precio_unitario, $cantidad, $subtotal, $saldo, $pago, $id_venta,  $venta_total, $mensajeVenta;
     public $clienteSeleccionado;
     public $articuloSeleccionado = [];
     public $searchCliente = '';
@@ -170,6 +170,13 @@ class Ventas extends Component
         $this->venta_total = $subTotal;
         $this->pago = $subTotal;
     }
+    public function calcularNuevoTotal()
+    {
+        $calc_new_total = $this->venta_total - $this->descuento;
+        $new_total = round($calc_new_total, 2);
+        $this->venta_total = $new_total;
+        $this->pago = $new_total;
+    }
     public function calcularSaldo()
     {
         $calc_new_saldo = $this->venta_total - $this->pago;
@@ -193,6 +200,7 @@ class Ventas extends Component
                     'idcliente' => $this->idcliente,
                     'tipo_venta' => $this->tipo_venta,
                     'total_venta' => $this->venta_total,
+                    'descuento' => $this->descuento,
                     'pago' => $this->pago,
                     'forma_de_pago' => $this->forma_de_pago,
                     'saldo' => $this->saldo,
@@ -228,6 +236,7 @@ class Ventas extends Component
             $this->reset([
                 'nombre_cliente',
                 'venta_total',
+                'descuento',
                 'persona',
                 'articulo',
                 'id_articulo',

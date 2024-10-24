@@ -13,7 +13,7 @@ use DateTime;
 
 class AdminCajas extends Component
 {
-    public $cajas, $caja_id, $monto_apertura, $monto_cierre, $fecha_apertura, $fecha_cierre, $ingresos, $salidas, $ventas_efectivo, $ventas_tarjeta, $ventas_transferencia, $estado, $busqueda;
+    public $cajas, $caja_id, $monto_apertura, $monto_cierre, $fecha_apertura, $fecha_cierre, $ingresos, $salidas, $ventas_efectivo,$ventas_cuenta, $ventas_tarjeta, $ventas_transferencia, $estado, $busqueda;
     public $isOpen = 0;
     public $isEdit = 0;
     public $isShow = 0;
@@ -94,6 +94,7 @@ class AdminCajas extends Component
                 'monto_cierre_real' => $this->monto_cierre_real,
                 'ventas_efectivo' => $this->ventas_efectivo,
                 'ventas_transferencia' => $this->ventas_transferencia,
+                'ventas_cuenta' => $this->ventas_cuenta,
                 'ventas_tarjeta' => $this->ventas_tarjeta,
                 'ingresos' => $this->ingresos,
                 'salidas' => $this->salidas,
@@ -137,6 +138,7 @@ class AdminCajas extends Component
         $this->monto_cierre_real = $cajaAbierta->monto_cierre_real;
         $this->ventas_efectivo = $cajaAbierta->ventas_efectivo;
         $this->ventas_transferencia = $cajaAbierta->ventas_transferencia;
+        $this->ventas_cuenta = $cajaAbierta->ventas_cuenta;
         $this->ventas_tarjeta = $cajaAbierta->ventas_tarjeta;
         $this->ingresos = $cajaAbierta->ingresos;
         $this->salidas = $cajaAbierta->salidas;
@@ -174,6 +176,12 @@ class AdminCajas extends Component
             ->where('estado', 'activo')
             ->sum('pago');
 
+        $this->ventas_cuenta   = Venta::whereDate('created_at', $fecha)
+            ->where('id_local', $this->idLocal)
+            ->whereIn('forma_de_pago', ['cuenta_corriente'])
+            ->where('estado', 'activo')
+            ->sum('total_venta');
+
         $this->ventas_tarjeta = Venta::whereDate('created_at', $fecha)
             ->where('id_local', $this->idLocal)
             ->whereIn('forma_de_pago', ['tarjeta'])
@@ -210,9 +218,10 @@ class AdminCajas extends Component
         $this->monto_cierre_real = $caja->monto_cierre_real;
         $this->ventas_efectivo = $caja->ventas_efectivo;
         $this->ventas_transferencia = $caja->ventas_transferencia;
+        $this->ventas_cuenta = $caja->ventas_cuenta;
         $this->ventas_tarjeta = $caja->ventas_tarjeta;
         $this->ingresos = $caja->ingresos;
-        $this->salidas = $caja->salidas;
+        $this->salidas = $caja->salidas;    
         $this->estado = $caja->estado;
 
         // Levantar el modal, pero en modo vista (sin edición)
@@ -230,6 +239,7 @@ class AdminCajas extends Component
         $this->monto_cierre_real = 0;
         $this->ventas_efectivo = 0;
         $this->ventas_transferencia = 0;
+        $this->ventas_cuenta = 0;
         $this->monto_total_ventas = 0;
         $this->ventas_tarjeta = 0;
         $this->ingresos = 0;

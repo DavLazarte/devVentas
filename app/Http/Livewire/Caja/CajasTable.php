@@ -50,6 +50,8 @@ class CajasTable extends DataTableComponent
                 ->sortable(),
             Column::make("Ventas transferencia", "ventas_transferencia")
                 ->sortable(),
+            Column::make("Ventas Cuentas", "ventas_cuenta")
+                ->sortable(),
             Column::make("Ventas tarjeta", "ventas_tarjeta")
                 ->sortable(),
             Column::make("Ingresos", "ingresos")
