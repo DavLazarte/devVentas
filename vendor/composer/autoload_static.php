@@ -596,6 +596,8 @@ class ComposerStaticInitd1dfc0f630921c3ece99785932803b65
         'App\\Http\\Livewire\\Ingreso\\IngresoTable' => __DIR__ . '/../..' . '/app/Http/Livewire/Ingreso/IngresoTable.php',
         'App\\Http\\Livewire\\List\\ListCompras' => __DIR__ . '/../..' . '/app/Http/Livewire/List/ListCompras.php',
         'App\\Http\\Livewire\\List\\ListVentas' => __DIR__ . '/../..' . '/app/Http/Livewire/List/ListVentas.php',
+        'App\\Http\\Livewire\\List\\ListVentasTable' => __DIR__ . '/../..' . '/app/Http/Livewire/List/ListVentasTable.php',
+        'App\\Http\\Livewire\\LoadingIndicator' => __DIR__ . '/../..' . '/app/Http/Livewire/LoadingIndicator.php',
         'App\\Http\\Livewire\\Persona\\PersonaLivewire' => __DIR__ . '/../..' . '/app/Http/Livewire/Persona/PersonaLivewire.php',
         'App\\Http\\Livewire\\Persona\\PersonasTable' => __DIR__ . '/../..' . '/app/Http/Livewire/Persona/PersonasTable.php',
         'App\\Http\\Livewire\\Salida\\SalidaComponent' => __DIR__ . '/../..' . '/app/Http/Livewire/Salida/SalidaComponent.php',

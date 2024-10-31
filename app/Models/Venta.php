@@ -15,6 +15,7 @@ class Venta extends Model
         'tipo_venta',
         'total_venta',
         'descuento',
+        'recargo',
         'pago',
         'forma_de_pago',
         'saldo',

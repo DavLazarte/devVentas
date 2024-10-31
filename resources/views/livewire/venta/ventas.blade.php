@@ -69,13 +69,15 @@
                         <!-- Artículos -->
                         <div class="relative mb-6">
                             <label for="articulo" class="block text-sm font-medium text-gray-700">Artículos:</label>
-                            <input wire:model.debounce.300ms="searchArticulo" type="text" class="block w-full mt-1 border border-gray-300 rounded-md py-2 px-3 text-black shadow-purple-200 focus:ring-purple-500 focus:border-purple-500"
+                            <input wire:model.debounce.300ms="searchArticulo" type="text"
+                                class="block w-full mt-1 border border-gray-300 rounded-md py-2 px-3 text-black shadow-purple-200 focus:ring-purple-500 focus:border-purple-500"
                                 placeholder="Escanear o ingresar código">
                             @if ($searchArticulo)
                                 <div class="absolute z-50 bg-white w-full rounded-md shadow-lg mt-1">
                                     @foreach ($articulo as $opcion)
                                         <div wire:click="agregarArticulo({{ $opcion['idarticulo'] }})"
-                                            class="py-2 px-3 cursor-pointer hover:bg-gray-100">{{ $opcion['nombre'] }} | {{ $opcion['descripcion'] }}
+                                            class="py-2 px-3 cursor-pointer hover:bg-gray-100">{{ $opcion['nombre'] }} |
+                                            {{ $opcion['descripcion'] }}
                                         </div>
                                     @endforeach
                                 </div>
@@ -85,69 +87,75 @@
                         <!-- Tabla de Artículos -->
 
                         <div class="overflow-auto rounded-md shadow">
-                        <table class="table-auto w-full text-gray-600">
-                            <thead class="bg-gray-100 text-gray-800">
-                                <tr class="hidden md:table-row">
-                                    <th class="p-2">Producto</th>
-                                    <th class="p-2 text-left">Stock</th>
-                                    <th class="p-2 text-left">Precio</th>
-                                    <th class="p-2 text-left">Cantidad</th>
-                                    <th class="p-2 text-left">Subtotal</th>
-                                    <th class="p-2 text-left">Acción</th>
-                                </tr>
-                            </thead>
-                            <tbody class="bg-white">
-                                @foreach ($articuloSeleccionado as $index => $art)
-                                    @if (!isset($art['eliminado']) || !$art['eliminado'])
-                                        <tr class="md:table-row block md:table-row">
-                                            <td class="p-2 md:table-cell block md:table-cell">
-                                                <span class="md:hidden block font-medium text-gray-700">Producto:</span>
-                                                {{ $art['nombre'] ?? '' }}
-                                            </td>
-                                            <td class="p-2 md:table-cell block md:table-cell">
-                                                <span class="md:hidden block font-medium text-gray-700">Stock:</span>
-                                                {{ $art['stock'] ?? '' }}
-                                            </td>
-                                            <td class="p-2 md:table-cell block md:table-cell">
-                                                <span class="md:hidden block font-medium text-gray-700">Precio:</span>
-                                                <input type="number" id="precio_unitario_{{ $index }}"
-                                                    wire:model="articuloSeleccionado.{{ $index }}.precio_unitario"
-                                                    wire:change="calcularSubTotalProducto({{ $index }})"
-                                                    value="{{ isset($art['precio_unitario']) ? $art['precio_unitario'] : '' }}"
-                                                    class="w-full border-gray-300 rounded-md shadow-sm focus:ring-purple-500 focus:border-purple-500">
-                                            </td>
-                                            <td class="p-2 md:table-cell block md:table-cell">
-                                                <span class="md:hidden block font-medium text-gray-700">Cantidad:</span>
-                                                <input type="number" id="cantidad_{{ $index }}"
-                                                    wire:model="articuloSeleccionado.{{ $index }}.cantidad"
-                                                    wire:change="calcularSubTotalProducto({{ $index }})"
-                                                    class="w-full border-gray-300 rounded-md shadow-sm focus:ring-purple-500 focus:border-purple-500">
-                                            </td>
-                                            <td class="p-3 md:table-cell block md:table-cell">
-                                                <span class="md:hidden block font-medium text-gray-700">Subtotal:</span>
-                                                <span id="subtotal_{{ $index }}"
-                                                    wire:model="articuloSeleccionado.{{ $index }}.subtotal"
-                                                    wire:change="actualizarTotal({{ $index }})">
-                                                    {{ isset($art['subtotal']) ? $art['subtotal'] : '' }}
-                                                </span>
-                                            </td>
-                                            <td class="p-2 md:table-cell block md:table-cell">
-                                                <span class="md:hidden block font-medium text-gray-700">Acción:</span>
-                                                <button wire:click="eliminarArticulo({{ $index }})"
-                                                    class="text-red-500 hover:text-red-700">
-                                                    <svg class="w-6 h-6" fill="none" stroke="currentColor"
-                                                        viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                                        <path d="M6 18L18 6M6 6l12 12" stroke-linecap="round"
-                                                            stroke-linejoin="round" stroke-width="2" />
-                                                    </svg>
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    @endif
-                                @endforeach
-                            </tbody>
-                        </table>
-                    </div>
+                            <table class="table-auto w-full text-gray-600">
+                                <thead class="bg-gray-100 text-gray-800">
+                                    <tr class="hidden md:table-row">
+                                        <th class="p-2">Producto</th>
+                                        <th class="p-2 text-left">Stock</th>
+                                        <th class="p-2 text-left">Precio</th>
+                                        <th class="p-2 text-left">Cantidad</th>
+                                        <th class="p-2 text-left">Subtotal</th>
+                                        <th class="p-2 text-left">Acción</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white">
+                                    @foreach ($articuloSeleccionado as $index => $art)
+                                        @if (!isset($art['eliminado']) || !$art['eliminado'])
+                                            <tr class="md:table-row block md:table-row">
+                                                <td class="p-2 md:table-cell block md:table-cell">
+                                                    <span
+                                                        class="md:hidden block font-medium text-gray-700">Producto:</span>
+                                                    {{ $art['nombre'] ?? '' }}
+                                                </td>
+                                                <td class="p-2 md:table-cell block md:table-cell">
+                                                    <span
+                                                        class="md:hidden block font-medium text-gray-700">Stock:</span>
+                                                    {{ $art['stock'] ?? '' }}
+                                                </td>
+                                                <td class="p-2 md:table-cell block md:table-cell">
+                                                    <span
+                                                        class="md:hidden block font-medium text-gray-700">Precio:</span>
+                                                    <input type="number" id="precio_unitario_{{ $index }}"
+                                                        wire:model="articuloSeleccionado.{{ $index }}.precio_unitario"
+                                                        wire:change="calcularSubTotalProducto({{ $index }})"
+                                                        value="{{ isset($art['precio_unitario']) ? $art['precio_unitario'] : '' }}"
+                                                        class="w-full border-gray-300 rounded-md shadow-sm focus:ring-purple-500 focus:border-purple-500">
+                                                </td>
+                                                <td class="p-2 md:table-cell block md:table-cell">
+                                                    <span
+                                                        class="md:hidden block font-medium text-gray-700">Cantidad:</span>
+                                                    <input type="number" id="cantidad_{{ $index }}"
+                                                        wire:model="articuloSeleccionado.{{ $index }}.cantidad"
+                                                        wire:change="calcularSubTotalProducto({{ $index }})"
+                                                        class="w-full border-gray-300 rounded-md shadow-sm focus:ring-purple-500 focus:border-purple-500">
+                                                </td>
+                                                <td class="p-3 md:table-cell block md:table-cell">
+                                                    <span
+                                                        class="md:hidden block font-medium text-gray-700">Subtotal:</span>
+                                                    <span id="subtotal_{{ $index }}"
+                                                        wire:model="articuloSeleccionado.{{ $index }}.subtotal"
+                                                        wire:change="actualizarTotal({{ $index }})">
+                                                        {{ isset($art['subtotal']) ? $art['subtotal'] : '' }}
+                                                    </span>
+                                                </td>
+                                                <td class="p-2 md:table-cell block md:table-cell">
+                                                    <span
+                                                        class="md:hidden block font-medium text-gray-700">Acción:</span>
+                                                    <button wire:click="eliminarArticulo({{ $index }})"
+                                                        class="text-red-500 hover:text-red-700">
+                                                        <svg class="w-6 h-6" fill="none" stroke="currentColor"
+                                                            viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                                            <path d="M6 18L18 6M6 6l12 12" stroke-linecap="round"
+                                                                stroke-linejoin="round" stroke-width="2" />
+                                                        </svg>
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        @endif
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
 
 
                     </div>
@@ -156,17 +164,27 @@
                     <div class="col-span-1 bg-white p-6 shadow rounded-lg">
                         <h3 class="text-lg font-medium text-gray-900 mb-4">DETALLE VENTA</h3>
                         <div class="mb-4">
+                            <label for="descuento" class="block text-sm font-medium text-gray-700">Descuento</label>
+                            <input type="number" id="descuento" wire:model="descuento"
+                                wire:change="calcularNuevoTotal()"
+                                class="block w-full mt-1 border-gray-300 rounded-md py-2 px-3 text-gray-700 shadow-purple-200 focus:ring-purple-500 focus:border-purple-500"
+                                placeholder="$0.00">
+                            <label for="racargo" class="block text-sm font-medium text-gray-700">Recargo
+                                Tarjeta</label>
+
+                            <input type="number" id="recargo" wire:model="recargo"
+                                wire:change="calcularNuevoTotal()"
+                                class="block w-full mt-1 border-gray-300 rounded-md py-2 px-3 text-gray-700 shadow-purple-200 focus:ring-purple-500 focus:border-purple-500"
+                                placeholder="$0.00">
+                        </div>
+
+                        <div class="mb-4">
                             <label for="total" class="block text-sm font-medium text-gray-700">Total</label>
                             <input type="number" id="total" wire:model="venta_total"
                                 class="block w-full mt-1 border-gray-300 rounded-md py-2 px-3 text-gray-700 shadow-purple-200 focus:ring-purple-500 focus:border-purple-500"
                                 placeholder="$0.00">
                         </div>
-                        <div class="mb-4">
-                            <label for="descuento" class="block text-sm font-medium text-gray-700">Descuento</label>
-                            <input type="number" id="descuento" wire:model="descuento" wire:change="calcularNuevoTotal()"
-                                class="block w-full mt-1 border-gray-300 rounded-md py-2 px-3 text-gray-700 shadow-purple-200 focus:ring-purple-500 focus:border-purple-500"
-                                placeholder="$0.00">
-                        </div>
+
                         <div class="mb-4">
                             <label for="pago" class="block text-sm font-medium text-gray-700">Pago</label>
                             <input type="text" id="pago" wire:model="pago" wire:change="calcularSaldo()"
@@ -174,7 +192,8 @@
                                 placeholder="$0.00">
                         </div>
                         <div class="mb-4">
-                            <label for="cambio" class="block text-sm font-medium text-gray-700">Cambio o Saldo</label>
+                            <label for="cambio" class="block text-sm font-medium text-gray-700">Cambio o
+                                Saldo</label>
                             <input type="text" id="cambio" wire:model="saldo"
                                 class="block w-full mt-1 border-gray-300 rounded-md py-2 px-3 text-gray-700 shadow-purple-200 focus:ring-purple-500 focus:border-purple-500"
                                 placeholder="$0.00">

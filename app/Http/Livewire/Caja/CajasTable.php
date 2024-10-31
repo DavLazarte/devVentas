@@ -32,6 +32,10 @@ class CajasTable extends DataTableComponent
         return [
             Column::make("Id", "id")
                 ->sortable(),
+            Column::make("Acciones")
+                ->label(
+                    fn($row, Column $column) => view('livewire.caja.actions', ['row' => $row])
+                ),
             Column::make("Apertura", "fecha_apertura")
                 ->sortable()
                 ->searchable(),
@@ -66,10 +70,7 @@ class CajasTable extends DataTableComponent
                     return "<span class='inline-flex items-center px-3 py-0.5 rounded-full text-sm font-medium {$badgeColor}'>{$badgeText}</span>";
                 })
                 ->html(),
-            Column::make("Acciones")
-                ->label(
-                    fn($row, Column $column) => view('livewire.caja.actions', ['row' => $row])
-                ),
+
         ];
     }
     public function editar($id)

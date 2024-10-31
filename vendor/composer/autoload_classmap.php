@@ -30,6 +30,8 @@ return array(
     'App\\Http\\Livewire\\Ingreso\\IngresoTable' => $baseDir . '/app/Http/Livewire/Ingreso/IngresoTable.php',
     'App\\Http\\Livewire\\List\\ListCompras' => $baseDir . '/app/Http/Livewire/List/ListCompras.php',
     'App\\Http\\Livewire\\List\\ListVentas' => $baseDir . '/app/Http/Livewire/List/ListVentas.php',
+    'App\\Http\\Livewire\\List\\ListVentasTable' => $baseDir . '/app/Http/Livewire/List/ListVentasTable.php',
+    'App\\Http\\Livewire\\LoadingIndicator' => $baseDir . '/app/Http/Livewire/LoadingIndicator.php',
     'App\\Http\\Livewire\\Persona\\PersonaLivewire' => $baseDir . '/app/Http/Livewire/Persona/PersonaLivewire.php',
     'App\\Http\\Livewire\\Persona\\PersonasTable' => $baseDir . '/app/Http/Livewire/Persona/PersonasTable.php',
     'App\\Http\\Livewire\\Salida\\SalidaComponent' => $baseDir . '/app/Http/Livewire/Salida/SalidaComponent.php',
