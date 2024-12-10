@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\Log;
 
 class Ventas extends Component
 {
-    public $persona, $articulo, $id_articulo, $descuento, $recargo, $precio_unitario, $cantidad, $subtotal, $saldo, $pago, $id_venta,  $venta_total, $mensajeVenta;
+    public $persona, $articulo, $id_articulo, $descuento, $recargo, $precio_unitario, $cantidad, $subtotal, $saldo, $pago, $id_venta,  $venta_total = 0, $mensajeVenta;
     public $clienteSeleccionado;
     public $articuloSeleccionado = [];
     public $searchCliente = '';
@@ -24,6 +24,8 @@ class Ventas extends Component
     public $idcliente;
     public $tipo_venta = "venta_rapida";
     public $forma_de_pago = "efectivo";
+    // public $venta_total;
+    public $venta_total_original;
     public $idLocal;
 
     public function mount()
@@ -31,6 +33,7 @@ class Ventas extends Component
 
         $this->idLocal = auth()->user()->local->id;
     }
+
 
 
     public function render()
@@ -119,7 +122,7 @@ class Ventas extends Component
         if ($index !== null) {
 
             // Si se proporciona un índice, se calcula el subtotal para el artículo en ese 
-            
+
 
             // Obtenemos el artículo correspondiente al índice dado
             $articulo = $this->articuloSeleccionado[$index] ?? null;
@@ -136,8 +139,8 @@ class Ventas extends Component
                 $calc_subtotal = $cantidad * $precio;
                 $subtotal = round($calc_subtotal, 2);
 
-              // Descontamos el stock original
-            $nuevo_stock = $stock_original - $cantidad;
+                // Descontamos el stock original
+                $nuevo_stock = $stock_original - $cantidad;
 
                 // Actualizamos el valor en el arreglo del artículo seleccionado
                 $this->articuloSeleccionado[$index]['subtotal'] = $subtotal;
@@ -172,10 +175,21 @@ class Ventas extends Component
     }
     public function calcularNuevoTotal()
     {
-        $calc_new_total = $this->venta_total - $this->descuento + $this->recargo;
-        $new_total = round($calc_new_total, 2);
-        $this->venta_total = $new_total;
-        $this->pago = $new_total;
+        $this->actualizarTotal();
+        
+        $this->venta_total_original = $this->venta_total;
+
+        // Limitar descuento al rango válido (0-100%)
+        $this->descuento = max(0, min(100, $this->descuento));
+        $this->recargo = max(0, min(100, $this->recargo));
+
+        // Calcular descuento y aplicar recargo
+        $descuento_monto = ($this->venta_total_original * $this->descuento) / 100;
+        $recarga_monto = ($this->venta_total_original * $this->recargo) / 100;
+        $this->venta_total = round($this->venta_total_original - $descuento_monto + $recarga_monto , 2);
+
+        // Ajustar el pago automáticamente al nuevo total
+        $this->pago = $this->venta_total;
     }
     public function calcularSaldo()
     {

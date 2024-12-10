@@ -164,13 +164,13 @@
                     <div class="col-span-1 bg-white p-6 shadow rounded-lg">
                         <h3 class="text-lg font-medium text-gray-900 mb-4">DETALLE VENTA</h3>
                         <div class="mb-4">
-                            <label for="descuento" class="block text-sm font-medium text-gray-700">Descuento</label>
+                            <label for="descuento" class="block text-sm font-medium text-gray-700">% de descuento</label>
                             <input type="number" id="descuento" wire:model="descuento"
                                 wire:change="calcularNuevoTotal()"
                                 class="block w-full mt-1 border-gray-300 rounded-md py-2 px-3 text-gray-700 shadow-purple-200 focus:ring-purple-500 focus:border-purple-500"
                                 placeholder="$0.00">
-                            <label for="racargo" class="block text-sm font-medium text-gray-700">Recargo
-                                Tarjeta</label>
+                            <label for="racargo" class="block text-sm font-medium text-gray-700">% de recargo
+                                por tarjeta</label>
 
                             <input type="number" id="recargo" wire:model="recargo"
                                 wire:change="calcularNuevoTotal()"

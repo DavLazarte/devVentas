@@ -9,9 +9,10 @@ use Illuminate\Database\Eloquent\Builder;
 
 class PersonasTable extends DataTableComponent
 {
+    public $mostrarPagos;
     protected $model = Persona::class;
 
-    protected $listeners = ['refreshTablePersonas' => '$refresh'];
+    protected $listeners = ['refreshTablePersonas' => '$refresh', 'pagoGuardado' => 'handlePagoGuardado'];
 
     public function builder(): Builder
     {
@@ -44,8 +45,8 @@ class PersonasTable extends DataTableComponent
             Column::make("Estado", "estado")
                 ->sortable(),
             Column::make("Acciones")->label(
-                    fn($row, Column $column) => view('livewire.persona.actions', ['row' => $row])
-                ),
+                fn($row, Column $column) => view('livewire.persona.actions', ['row' => $row])
+            ),
         ];
     }
 
@@ -59,5 +60,14 @@ class PersonasTable extends DataTableComponent
     {
         Persona::find($id)->delete();
         session()->flash('message', 'Persona eliminada exitosamente.');
+    }
+    public function mostrarPagos($idpersona)
+    {
+        $this->emit('verPagos', $idpersona);  // Emite el evento 'verPagos' con el idpersona
+    }
+
+    public function handlePagoGuardado()
+    {
+        $this->emit('NoVerPagos');
     }
 }

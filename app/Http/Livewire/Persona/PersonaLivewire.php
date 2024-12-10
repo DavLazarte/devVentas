@@ -8,14 +8,18 @@ use Livewire\Component;
 
 class PersonaLivewire extends Component
 {
-    public $nombre, $tipo_persona, $direccion, $mail, $estado, $telefono, $busqueda, $persona_id;
+    public $nombre, $tipo_persona, $monto, $direccion, $descripcion, $ingreso_id, $saldo, $mail, $estado, $telefono, $busqueda, $persona_id, $personaId, $idpersona, $clienteSeleccionado, $nombre_cliente, $totalSaldos, $ventasConSaldos;
     public $isOpen = 0;
+    public $isOpenIngreso = 0, $idpersonaPagos = null;
+    public $saldos = [];
+    public $searchCliente = '';
 
     protected $listeners = [
         'editarPersona' => 'editar',
-        'openModal' => 'openModal'
+        'openModal' => 'openModal',
+        'verPagos' => 'mostrarPagos',
+        'NoVerPagos' => 'ocultarPagos'
     ];
-
     public function render()
     {
         return view('livewire.persona.persona-livewire');
@@ -46,9 +50,18 @@ class PersonaLivewire extends Component
         $this->persona_id = '';
         $this->mail = '';
         $this->estado = '';
+        $this->monto = '';
+        $this->descripcion = '';
+        $this->estado = '';
+        $this->idpersona = '';
+        $this->saldo = '';
+        $this->nombre_cliente = '';
+        $this->clienteSeleccionado = '';
+        $this->totalSaldos = '';
+        // $this->ver_venta = '';
     }
 
-    public function guardar()
+    public function guardarPersona()
     {
         $this->validate([
             'nombre' => 'required',
@@ -64,7 +77,7 @@ class PersonaLivewire extends Component
             'mail' => $this->mail,
             'telefono' => $this->telefono,
             'id_local' => $idLocal,
-             // 'estado' => $this->estado,
+            // 'estado' => $this->estado,
         ]);
 
         session()->flash(
@@ -96,6 +109,24 @@ class PersonaLivewire extends Component
         Persona::find($id)->delete();
         session()->flash('message', 'Persona eliminado exitosamente.');
         $this->emit('refreshTablePersonas');
+    }
+    public function mostrarPagos($idpersona)
+    {
+        $this->idpersonaPagos = $idpersona;
+        $this->emit('agregarCliente', $idpersona); // Asigna el id de la persona para mostrar los pagos
+    }
 
+    public function ocultarPagos()
+    {
+        $this->idpersonaPagos = null;  // Limpia la variable cuando quieras ocultar el componente
+    }
+
+    public function guardar()
+    {
+        $this->emit('guardarPago');
+    }
+    public function generarPdf()
+    {
+        $this->emit('descargarPdf');
     }
 }
