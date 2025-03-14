@@ -1,79 +1,48 @@
-<div class="fixed z-10 inset-0 overflow-y-auto ease-out duration-400">
-    <div class="flex justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+<div class="fixed inset-0 z-10 flex items-center justify-center overflow-y-auto bg-gray-500 bg-opacity-75 ease-out duration-400">
+    <div class="bg-white rounded-lg shadow-xl transform transition-all sm:max-w-2xl w-full">
+        <form>
+            <div class="bg-white px-6 py-4">
+                <h2 class="text-lg font-semibold text-gray-900">Registrar Persona</h2>
 
-        <div class="fixed inset-0 transition-opacity">
-            <div class="absolute inset-0 bg-gray-500 opacity-75"></div>
-        </div>
-
-        <span class="hidden sm:inline-block sm:align-middle sm:h-screen"></span>
-
-        <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full"
-            role="dialog" aria-modal="true" aria-labelledby="modal-headline">
-            <form>
-                <div class="bg-white px-4 pt-5 pb-4 sm:p-4 sm:pb-2">
-                    <div class="mb-4">
-                        <label for="tipo_persona" class="block text-gray-700 text-sm font-bold mb-2">Tipo de Persona:</label>
-                        <select wire:model="tipo_persona" id="tipo_persona" name="tipo_persona"
-                            class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
-                            <option value="">Selecciona un tipo de persona</option>
-                            <option value="cliente">Cliente</option>
-                            <option value="proveedor">Proveedor</option>
-                        </select>
+                <div class="mb-4">
+                    <label class="block text-gray-700 text-sm font-bold mb-2">¿Qué tipo de persona vas a cargar?</label>
+                    <div class="flex space-x-4">
+                        <label class="inline-flex items-center">
+                            <input type="radio" wire:model="tipo_persona" value="cliente" class="form-radio text-purple-600">
+                            <span class="ml-2 text-gray-700">Cliente</span>
+                        </label>
+                        <label class="inline-flex items-center">
+                            <input type="radio" wire:model="tipo_persona" value="proveedor" class="form-radio text-purple-600">
+                            <span class="ml-2 text-gray-700">Proveedor</span>
+                        </label>
                     </div>
-
-                    <div class="mb-4">
-                        <label for="nombre" class="block text-gray-700 text-sm font-bold mb-2">Nombre:</label>
-                        <input type="text"
-                            class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                            id="nombre" wire:model="nombre">
-                    </div>
-
-                    <div class="mb-4">
-                        <label for="direccion" class="block text-gray-700 text-sm font-bold mb-2">Dirección:</label>
-                        <input type="text"
-                            class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                            id="direccion" wire:model="direccion">
-                    </div>
-                    <div class="mb-4">
-                        <label for="telefono" class="block text-gray-700 text-sm font-bold mb-2">Celular:</label>
-                        <input type="number"
-                            class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                            id="telefono" wire:model="telefono">
-                    </div>
-                    <div class="mb-4">
-                        <label for="mail" class="block text-gray-700 text-sm font-bold mb-2">Email</label>
-                        <input type="mail"
-                            class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                            id="mail" wire:model="mail">
-                    </div>
-
-                    {{-- <div class="mb-4">
-                        <label for="estado" class="block text-gray-700 text-sm font-bold mb-2">Estado:</label>
-                        <select wire:model="estado" id="estado" name="estado"
-                            class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
-                            <option value="">Selecciona un estado</option>
-                            <option value="activo">Activo</option>
-                            <option value="inactivo">Inactivo</option>
-                        </select>
-                    </div> --}}
-
-                    <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-                        <span class="flex w-full rounded-md shadow-sm sm:ml-3 sm:w-auto">
-                            <button wire:click.prevent="guardar()" type="button"
-                                class="inline-flex justify-center w-full rounded-md border border-transparent px-4 py-2 bg-purple-600 text-base leading-6 font-medium text-white shadow-sm hover:bg-purple-800 focus:outline-none focus:border-green-700 focus:shadow-outline-green transition ease-in-out duration-150 sm:text-sm sm:leading-5">Guardar</button>
-                        </span>
-
-                        <span class="flex w-full rounded-md shadow-sm sm:ml-3 sm:w-auto">
-                            <button wire:click="closeModal()" type="button"
-                                class="inline-flex justify-center w-full rounded-md border border-gray-300 px-4 py-2 bg-gray-200 text-base leading-6 font-medium text-gray-700 shadow-sm hover:text-gray-500 focus:outline-none focus:border-blue-300 focus:shadow-outline-blue transition ease-in-out duration-150 sm:text-sm sm:leading-5">Cancelar</button>
-                        </span>
-                    </div>
-
                 </div>
-            </form>
-        </div>
 
+                <div class="mb-4">
+                    <label for="nombre" class="block text-gray-700 text-sm font-bold mb-2">Nombre:</label>
+                    <input type="text" id="nombre" wire:model="nombre" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-600">
+                </div>
 
+                <div class="mb-4">
+                    <label for="direccion" class="block text-gray-700 text-sm font-bold mb-2">Dirección:</label>
+                    <input type="text" id="direccion" wire:model="direccion" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-600">
+                </div>
+
+                <div class="mb-4">
+                    <label for="telefono" class="block text-gray-700 text-sm font-bold mb-2">Celular:</label>
+                    <input type="number" id="telefono" wire:model="telefono" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-600">
+                </div>
+
+                <div class="mb-4">
+                    <label for="mail" class="block text-gray-700 text-sm font-bold mb-2">Email:</label>
+                    <input type="email" id="mail" wire:model="mail" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-600">
+                </div>
+            </div>
+
+            <div class="bg-gray-50 px-6 py-4 flex justify-end space-x-4">
+                <button wire:click.prevent="guardarPersona()" type="button" class="px-4 py-2 bg-purple-600 text-white rounded-lg shadow hover:bg-purple-800 focus:outline-none focus:ring-2 focus:ring-purple-700">Guardar</button>
+                <button wire:click="closeModal()" type="button" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg shadow hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-300">Cancelar</button>
+            </div>
+        </form>
     </div>
 </div>
-

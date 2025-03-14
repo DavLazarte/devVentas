@@ -2,14 +2,15 @@
     <div class="container px-6 py-8 mx-auto">
         <div class="flex items-center justify-between mb-6">
             <div class="flex items-center space-x-4">
-                <h3 class="text-2xl font-semibold text-gray-800 dark:text-gray-200">
+                <h3 class="text-2xl font-semibold text-gray-800 dark:text-black">
                     Movimientos del
                 </h3>
                 <input type="date" wire:model="selectedDate"
-                    class="px-3 py-2 border rounded-md dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600"
+                    class="px-3 py-2 border rounded-md dark:bg-gray-800 dark:text-white dark:border-gray-500 focus:ring focus:ring-indigo-500"
                     value="{{ $selectedDate }}">
             </div>
         </div>
+
 
         <div class="grid gap-6 mb-8 md:grid-cols-2 xl:grid-cols-3">
             <!-- Ventas Totales -->
@@ -24,8 +25,8 @@
                     </svg>
                 </div>
                 <div>
-                    <p class="mb-2 text-sm font-medium text-gray-600 dark:text-gray-400">Ventas Totales</p>
-                    <p class="text-lg font-semibold text-gray-700 dark:text-gray-200">{{ $monto_total_ventas }}</p>
+                    <p class="mb-2 text-sm font-medium text-gray-600 dark:text-gray-800">Ventas Totales</p>
+                    <p class="text-lg font-semibold text-gray-700 dark:text-gray-600">{{ $monto_total_ventas }}</p>
                 </div>
             </div>
 
@@ -39,8 +40,8 @@
                     </svg>
                 </div>
                 <div>
-                    <p class="mb-2 text-sm font-medium text-gray-600 dark:text-gray-400">Ventas Efectivo</p>
-                    <p class="text-lg font-semibold text-gray-700 dark:text-gray-200">{{ $ventas_efectivo }}</p>
+                    <p class="mb-2 text-sm font-medium text-gray-600 dark:text-gray-800">Ventas Efectivo</p>
+                    <p class="text-lg font-semibold text-gray-700 dark:text-gray-600">{{ $ventas_efectivo }}</p>
                 </div>
             </div>
 
@@ -54,8 +55,8 @@
                     </svg>
                 </div>
                 <div>
-                    <p class="mb-2 text-sm font-medium text-gray-600 dark:text-gray-400">Ventas Transferencias</p>
-                    <p class="text-lg font-semibold text-gray-700 dark:text-gray-200">{{ $ventas_transferencia }}</p>
+                    <p class="mb-2 text-sm font-medium text-gray-600 dark:text-gray-800">Ventas Transferencias</p>
+                    <p class="text-lg font-semibold text-gray-700 dark:text-gray-600">{{ $ventas_transferencia }}</p>
                 </div>
             </div>
 
@@ -69,9 +70,9 @@
                     </svg>
                 </div>
                 <div>
-                    <p class="mb-2 text-sm font-medium text-gray-600 dark:text-gray-400">Total Ventas de Cuentas y
+                    <p class="mb-2 text-sm font-medium text-gray-600 dark:text-gray-800">Total Ventas de Cuentas y
                         Tarjetas </p>
-                    <p class="text-lg font-semibold text-gray-700 dark:text-gray-200">{{ $ventas_tarjeta }}</p>
+                    <p class="text-lg font-semibold text-gray-700 dark:text-gray-600">{{ $ventas_tarjeta }}</p>
                 </div>
             </div>
 
@@ -84,8 +85,8 @@
                     </svg>
                 </div>
                 <div>
-                    <p class="mb-2 text-sm font-medium text-gray-600 dark:text-gray-400">Compras Totales</p>
-                    <p class="text-lg font-semibold text-gray-700 dark:text-gray-200">{{ $monto_total_compras }}</p>
+                    <p class="mb-2 text-sm font-medium text-gray-600 dark:text-gray-800">Compras Totales</p>
+                    <p class="text-lg font-semibold text-gray-700 dark:text-gray-600">{{ $monto_total_compras }}</p>
                 </div>
             </div>
 
@@ -99,8 +100,8 @@
                     </svg>
                 </div>
                 <div>
-                    <p class="mb-2 text-sm font-medium text-gray-600 dark:text-gray-400">Compras en Efectivo</p>
-                    <p class="text-lg font-semibold text-gray-700 dark:text-gray-200">{{ round($compras_efectivo, 2) }}
+                    <p class="mb-2 text-sm font-medium text-gray-600 dark:text-gray-800">Compras en Efectivo</p>
+                    <p class="text-lg font-semibold text-gray-700 dark:text-gray-600">{{ round($compras_efectivo, 2) }}
                     </p>
                 </div>
             </div>
@@ -115,8 +116,8 @@
                     </svg>
                 </div>
                 <div>
-                    <p class="mb-2 text-sm font-medium text-gray-600 dark:text-gray-400">Compras por transferencias</p>
-                    <p class="text-lg font-semibold text-gray-700 dark:text-gray-200">{{ $compras_transferencia }}</p>
+                    <p class="mb-2 text-sm font-medium text-gray-600 dark:text-gray-800">Compras por transferencias</p>
+                    <p class="text-lg font-semibold text-gray-700 dark:text-gray-600">{{ $compras_transferencia }}</p>
                 </div>
             </div>
 
@@ -130,8 +131,8 @@
                     </svg>
                 </div>
                 <div>
-                    <p class="mb-2 text-sm font-medium text-gray-600 dark:text-gray-400">Cobros Cuentas</p>
-                    <p class="text-lg font-semibold text-gray-700 dark:text-gray-200">{{ $ingresos }}</p>
+                    <p class="mb-2 text-sm font-medium text-gray-600 dark:text-gray-800">Cobros Cuentas</p>
+                    <p class="text-lg font-semibold text-gray-700 dark:text-gray-600">{{ $ingresos }}</p>
                 </div>
 
             </div>
@@ -146,8 +147,8 @@
                 </div>
                 <div>
                     <div>
-                        <p class="mb-2 text-sm font-medium text-gray-600 dark:text-gray-400">Salidas</p>
-                        <p class="text-lg font-semibold text-gray-700 dark:text-gray-200">{{ $salidas }}</p>
+                        <p class="mb-2 text-sm font-medium text-gray-600 dark:text-gray-800">Salidas</p>
+                        <p class="text-lg font-semibold text-gray-700 dark:text-gray-600">{{ $salidas }}</p>
                     </div>
                 </div>
             </div>

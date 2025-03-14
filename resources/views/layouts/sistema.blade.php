@@ -22,29 +22,6 @@
     <!-- Alpine.js -->
     <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
 
-    <style>
-        .table {
-            border-spacing: 0 15px;
-        }
-
-        i {
-            font-size: 1rem !important;
-        }
-
-        .table tr {
-            border-radius: 20px;
-        }
-
-        tr td:nth-child(n+6),
-        tr th:nth-child(n+6) {
-            border-radius: 0 .625rem .625rem 0;
-        }
-
-        tr td:nth-child(1),
-        tr th:nth-child(1) {
-            border-radius: .625rem 0 0 .625rem;
-        }
-    </style>
     @livewireStyles
 </head>
 
@@ -87,6 +64,17 @@
                         <span class="mx-3">Inicio</span>
                     </a>
                     <a class="flex items-center px-6 py-2 mt-4 text-gray-500 hover:bg-gray-700 hover:bg-opacity-25 hover:text-gray-100"
+                        href="{{ url('admin/personas') }}">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                            stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
+                            <path stroke-linecap="round" stroke-linejoin="round"
+                                d="M17.982 18.725A7.488 7.488 0 0 0 12 15.75a7.488 7.488 0 0 0-5.982 2.975m11.963 0a9 9 0 1 0-11.963 0m11.963 0A8.966 8.966 0 0 1 12 21a8.966 8.966 0 0 1-5.982-2.275M15 9.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                        </svg>
+
+
+                        <span class="mx-3">Clientes y Proveedores</span>
+                    </a>
+                    <a class="flex items-center px-6 py-2 mt-4 text-gray-500 hover:bg-gray-700 hover:bg-opacity-25 hover:text-gray-100"
                         href="{{ url('admin/categorias') }}">
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
                             stroke="currentColor" class="w-6 h-6">
@@ -117,7 +105,7 @@
                         </svg>
 
 
-                        <span class="mx-3">Ventas</span>
+                        <span class="mx-3">Vender</span>
                     </a>
                     <a class="flex items-center px-6 py-2 mt-4 text-gray-500 hover:bg-gray-700 hover:bg-opacity-25 hover:text-gray-100"
                         href="{{ url('admin/compras') }}">
@@ -127,7 +115,7 @@
                                 d="M8.25 9V5.25A2.25 2.25 0 0 1 10.5 3h6a2.25 2.25 0 0 1 2.25 2.25v13.5A2.25 2.25 0 0 1 16.5 21h-6a2.25 2.25 0 0 1-2.25-2.25V15m-3 0-3-3m0 0 3-3m-3 3H15" />
                         </svg>
 
-                        <span class="mx-3">Compras</span>
+                        <span class="mx-3">Cargar Compras</span>
                     </a>
                     <a class="flex items-center px-6 py-2 mt-4 text-gray-500 hover:bg-gray-700 hover:bg-opacity-25 hover:text-gray-100"
                         href="{{ url('admin/ingresos') }}">
@@ -138,7 +126,7 @@
                         </svg>
 
 
-                        <span class="mx-3">Pagos de Cuentas Corrientes</span>
+                        <span class="mx-3">Cuentas Corrientes</span>
                     </a>
                     <a class="flex items-center px-6 py-2 mt-4 text-gray-500 hover:bg-gray-700 hover:bg-opacity-25 hover:text-gray-100"
                         href="{{ url('admin/salidas') }}">
@@ -149,7 +137,7 @@
                         </svg>
 
 
-                        <span class="mx-3">Salidas</span>
+                        <span class="mx-3">Gastos</span>
                     </a>
                     <a class="flex items-center px-6 py-2 mt-4 text-gray-500 hover:bg-gray-700 hover:bg-opacity-25 hover:text-gray-100"
                         href="{{ url('admin/caja') }}">
@@ -160,20 +148,10 @@
                         </svg>
 
 
-                        <span class="mx-3">Caja</span>
+                        <span class="mx-3">Ver Caja</span>
                     </a>
 
-                    <a class="flex items-center px-6 py-2 mt-4 text-gray-500 hover:bg-gray-700 hover:bg-opacity-25 hover:text-gray-100"
-                        href="{{ url('admin/personas') }}">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-                            stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
-                            <path stroke-linecap="round" stroke-linejoin="round"
-                                d="M17.982 18.725A7.488 7.488 0 0 0 12 15.75a7.488 7.488 0 0 0-5.982 2.975m11.963 0a9 9 0 1 0-11.963 0m11.963 0A8.966 8.966 0 0 1 12 21a8.966 8.966 0 0 1-5.982-2.275M15 9.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
-                        </svg>
 
-
-                        <span class="mx-3">Persona</span>
-                    </a>
 
             </div>
             <div class="flex flex-col flex-1 overflow-hidden">

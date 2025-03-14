@@ -33,66 +33,6 @@ class DashVentas extends Component
         $this->selectedDate = $value;
     }
 
-    // public function render()
-    // {
-
-    //     // Filtrar ventas, ingresos y salidas por local
-    //     $this->monto_total_ventas = Venta::where('id_local', $this->idLocal)
-    //         ->whereDate('created_at', now()->toDateString())
-    //         ->where('estado', 'activo')
-    //         ->sum('pago');
-
-    //     $this->ventas_efectivo = Venta::where('id_local', $this->idLocal)
-    //         ->whereDate('created_at', now()->toDateString())
-    //         ->whereIn('forma_de_pago', ['efectivo'])
-    //         ->where('estado', 'activo')
-    //         ->sum('pago');
-
-    //     $this->ventas_transferencia = Venta::where('id_local', $this->idLocal)
-    //         ->whereDate('created_at', now()->toDateString())
-    //         ->whereIn('forma_de_pago', ['transferencia'])
-    //         ->where('estado', 'activo')
-    //         ->sum('pago');
-
-    //     // cuentas y no tarjetas corregir nombre despues
-
-    //     $this->ventas_tarjeta = Venta::where('id_local', $this->idLocal)
-    //         ->whereDate('created_at', now()->toDateString())
-    //         ->whereIn('forma_de_pago', ['cuenta_corriente'])
-    //         ->where('estado', 'activo')
-    //         ->sum('pago');
-
-    //     // compras
-    //     $this->monto_total_compras = Compra::where('id_local', $this->idLocal)
-    //         ->whereDate('created_at', now()->toDateString())
-    //         ->where('estado', 'activo')
-    //         ->sum('total');
-
-    //     $this->compras_efectivo = Compra::where('id_local', $this->idLocal)
-    //         ->whereDate('created_at', now()->toDateString())
-    //         ->whereIn('tipo_pago', ['efectivo'])
-    //         ->where('estado', 'activo')
-    //         ->sum('pago');
-
-    //     $this->compras_transferencia = Compra::where('id_local', $this->idLocal)
-    //         ->whereDate('created_at', now()->toDateString())
-    //         ->whereIn('tipo_pago', ['transferencia'])
-    //         ->where('estado', 'activo')
-    //         ->sum('pago');
-
-    //     $this->ingresos = Ingreso::where('id_local', $this->idLocal)
-    //         ->whereDate('created_at', now()->toDateString())
-    //         ->sum('monto');
-
-    //     $this->salidas = Salida::where('id_local', $this->idLocal)
-    //         ->whereDate('created_at', now()->toDateString())
-    //         ->sum('monto');
-
-    //     // Actualizar la variable monto_cierre sumando total_ventas, pagos, ingresos y salidas
-    //     $this->monto_cierre = $this->ventas_efectivo - $this->salidas + $this->ingresos + $this->monto_apertura;
-
-    //     return view('livewire.dash-ventas');
-    // }
 
     public function render()
     {
@@ -102,40 +42,72 @@ class DashVentas extends Component
             ->where('estado', 'activo')
             ->sum('pago');
 
-        $this->ventas_efectivo = Venta::where('id_local', $this->idLocal)
-            ->whereDate('created_at', $this->selectedDate)
-            ->whereIn('forma_de_pago', ['efectivo'])
-            ->where('estado', 'activo')
-            ->sum('pago');
 
-        $this->ventas_transferencia = Venta::where('id_local', $this->idLocal)
+        $ventas = Venta::where('id_local', $this->idLocal)
             ->whereDate('created_at', $this->selectedDate)
-            ->whereIn('forma_de_pago', ['transferencia'])
             ->where('estado', 'activo')
-            ->sum('pago');
+            ->selectRaw("
+        SUM(CASE WHEN forma_de_pago = 'efectivo' THEN pago ELSE 0 END) as total_efectivo,
+        SUM(CASE WHEN forma_de_pago = 'transferencia' THEN pago ELSE 0 END) as total_transferencia,
+        SUM(CASE WHEN forma_de_pago = 'tarjeta' THEN pago ELSE 0 END) as total_tarjeta,
+        SUM(CASE WHEN forma_de_pago = 'cuenta_corriente' THEN pago ELSE 0 END) as total_credito
+    ")
+            ->first();
 
-        $this->ventas_tarjeta = Venta::where('id_local', $this->idLocal)
-            ->whereDate('created_at', $this->selectedDate)
-            ->whereIn('forma_de_pago', ['cuenta_corriente','tarjeta'])
-            ->where('estado', 'activo')
-            ->sum('total_venta');
+        $this->ventas_efectivo = $ventas->total_efectivo;
+        $this->ventas_transferencia = $ventas->total_transferencia;
+        $this->ventas_tarjeta = $ventas->total_tarjeta;
+        $this->ventas_credito = $ventas->total_credito;
 
-        $this->monto_total_compras = Compra::where('id_local', $this->idLocal)
-            ->whereDate('created_at', $this->selectedDate)
-            ->where('estado', 'activo')
-            ->sum('total');
 
-        $this->compras_efectivo = Compra::where('id_local', $this->idLocal)
-            ->whereDate('created_at', $this->selectedDate)
-            ->whereIn('tipo_pago', ['efectivo'])
-            ->where('estado', 'activo')
-            ->sum('pago');
+        // $this->ventas_efectivo = Venta::where('id_local', $this->idLocal)
+        //     ->whereDate('created_at', $this->selectedDate)
+        //     ->whereIn('forma_de_pago', ['efectivo'])
+        //     ->where('estado', 'activo')
+        //     ->sum('pago');
 
-        $this->compras_transferencia = Compra::where('id_local', $this->idLocal)
+        // $this->ventas_transferencia = Venta::where('id_local', $this->idLocal)
+        //     ->whereDate('created_at', $this->selectedDate)
+        //     ->whereIn('forma_de_pago', ['transferencia'])
+        //     ->where('estado', 'activo')
+        //     ->sum('pago');
+
+        // $this->ventas_tarjeta = Venta::where('id_local', $this->idLocal)
+        //     ->whereDate('created_at', $this->selectedDate)
+        //     ->whereIn('forma_de_pago', ['cuenta_corriente', 'tarjeta'])
+        //     ->where('estado', 'activo')
+        //     ->sum('total_venta');
+
+        $compras = Compra::where('id_local', $this->idLocal)
             ->whereDate('created_at', $this->selectedDate)
-            ->whereIn('tipo_pago', ['transferencia'])
             ->where('estado', 'activo')
-            ->sum('pago');
+            ->selectRaw("
+            SUM(CASE WHEN tipo_pago = 'efectivo' THEN pago ELSE 0 END) as total_efectivo,
+            SUM(CASE WHEN tipo_pago = 'transferencia' THEN pago ELSE 0 END) as total_transferencia,
+            SUM(total) as monto_total
+        ")
+            ->first();
+
+        $this->compras_efectivo = $compras->total_efectivo;
+        $this->compras_transferencia = $compras->total_transferencia;
+        $this->monto_total_compras = $compras->monto_total;
+
+        // $this->monto_total_compras = Compra::where('id_local', $this->idLocal)
+        //     ->whereDate('created_at', $this->selectedDate)
+        //     ->where('estado', 'activo')
+        //     ->sum('total');
+
+        // $this->compras_efectivo = Compra::where('id_local', $this->idLocal)
+        //     ->whereDate('created_at', $this->selectedDate)
+        //     ->whereIn('tipo_pago', ['efectivo'])
+        //     ->where('estado', 'activo')
+        //     ->sum('pago');
+
+        // $this->compras_transferencia = Compra::where('id_local', $this->idLocal)
+        //     ->whereDate('created_at', $this->selectedDate)
+        //     ->whereIn('tipo_pago', ['transferencia'])
+        //     ->where('estado', 'activo')
+        //     ->sum('pago');
 
         $this->ingresos = Ingreso::where('id_local', $this->idLocal)
             ->whereDate('created_at', $this->selectedDate)
@@ -144,6 +116,7 @@ class DashVentas extends Component
         $this->salidas = Salida::where('id_local', $this->idLocal)
             ->whereDate('created_at', $this->selectedDate)
             ->sum('monto');
+
         $this->monto_cierre = $this->ventas_efectivo - $this->salidas + $this->ingresos + $this->monto_apertura;
 
 
@@ -201,25 +174,8 @@ class DashVentas extends Component
 
     public function masVentas()
     {
-        $query = Venta::where('id_local', $this->idLocal);
-
-        if ($this->busqueda) {
-            $query->where('id', 'like', '%' . $this->busqueda . '%')
-                ->orWhere('created_at', 'like', '%' . $this->busqueda . '%')
-                ->orWhereHas('persona', function ($queryPersona) {
-                    $queryPersona->where('nombre', 'like', '%' . $this->busqueda . '%');
-                })
-                ->orWhere('tipo_venta', 'like', '%' . $this->busqueda . '%')
-                ->orWhere('forma_de_pago', 'like', '%' . $this->busqueda . '%');
-        }
-        if ($this->fecha) {
-            $query->whereDate('created_at', $this->fecha);
-        }
-
-
-        $ventas = $query->with('persona')->orderBy('created_at', 'desc')->paginate(10);
         $this->openModalVenta();
-        return view('livewire.list.list-ventas', compact('ventas'));
+        return view('livewire.list.list-ventas');
     }
 
     public function masCompras()
@@ -240,7 +196,12 @@ class DashVentas extends Component
             $query->whereDate('created_at', $this->fecha);
         }
 
-        $compras = $query->with('proveedor')->orderBy('created_at', 'desc')->paginate(10);
+        // $compras = $query->with('proveedor')->orderBy('created_at', 'desc')->paginate(10);
+        $compras = $query->select('id', 'created_at', 'tipo_compra', 'tipo_pago')
+            ->with(['proveedor:id,nombre']) // Evita cargar datos innecesarios
+            ->orderBy('created_at', 'desc')
+            ->paginate(10);
+
         $this->openModalCompra();
         return view('livewire.list.list-compras', compact('compras'));
     }

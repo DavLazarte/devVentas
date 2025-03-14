@@ -22,12 +22,12 @@
                 @endif
 
                 @if ($isOpen)
-                    @include('livewire.articulo.crear')
                 @endif
             </div>
 
-
             @livewire('articulo.articulos-table')
+
+
 
 
         </div>
