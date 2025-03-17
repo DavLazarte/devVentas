@@ -36,6 +36,9 @@ class PersonasTable extends DataTableComponent
             Column::make("Nombre", "nombre")
                 ->sortable()
                 ->searchable(),
+            Column::make("Dni-Cuit", "dni_cuit")
+                ->sortable()
+                ->searchable(),
             Column::make("Direccion", "direccion")
                 ->sortable(),
             Column::make("Telefono", "telefono")
