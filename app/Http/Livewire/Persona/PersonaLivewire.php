@@ -8,7 +8,7 @@ use Livewire\Component;
 
 class PersonaLivewire extends Component
 {
-    public $nombre, $tipo_persona, $monto, $direccion, $descripcion, $ingreso_id, $saldo, $mail, $estado, $telefono, $busqueda, $persona_id, $personaId, $idpersona, $clienteSeleccionado, $nombre_cliente, $totalSaldos, $ventasConSaldos;
+    public $nombre, $tipo_persona, $monto,$dni_cuit, $direccion, $descripcion, $ingreso_id, $saldo, $mail, $estado, $telefono, $busqueda, $persona_id, $personaId, $idpersona, $clienteSeleccionado, $nombre_cliente, $totalSaldos, $ventasConSaldos;
     public $isOpen = 0;
     public $isOpenIngreso = 0, $idpersonaPagos = null;
     public $saldos = [];
@@ -58,6 +58,7 @@ class PersonaLivewire extends Component
         $this->nombre_cliente = '';
         $this->clienteSeleccionado = '';
         $this->totalSaldos = '';
+        $this->dni_cuit = '';
         // $this->ver_venta = '';
     }
 
@@ -73,6 +74,7 @@ class PersonaLivewire extends Component
         Persona::updateOrCreate(['idpersona' => $this->persona_id], [
             'tipo_persona' => $this->tipo_persona,
             'nombre' => $this->nombre,
+            'dni_cuit' => $this->dni_cuit,
             'direccion' => $this->direccion,
             'mail' => $this->mail,
             'telefono' => $this->telefono,
@@ -96,6 +98,7 @@ class PersonaLivewire extends Component
         $this->persona_id = $id;
         $this->tipo_persona = $persona->tipo_persona;
         $this->nombre = $persona->nombre;
+        $this->dni_cuit = $persona->dni_cuit;
         $this->direccion = $persona->direccion;
         $this->telefono = $persona->telefono;
         $this->mail = $persona->mail;

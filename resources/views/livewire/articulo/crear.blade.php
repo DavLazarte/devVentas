@@ -6,7 +6,7 @@
 
         <span class="hidden sm:inline-block sm:align-middle sm:h-screen"></span>&#8203;
 
-        <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle max-w-full sm:max-w-lg w-full"
+        <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle max-w-full sm:max-w-md w-full"
             role="dialog" aria-modal="true" aria-labelledby="modal-headline">
             <form>
                 <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
@@ -26,6 +26,7 @@
                         <input type="text" id="nombre" wire:model="nombre"
                             class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
                     </div>
+                   
 
                     <div class="mb-4">
                         <label for="descripcion" class="block text-gray-700 text-sm font-bold mb-2">Descripción:</label>
