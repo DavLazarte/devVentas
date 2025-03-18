@@ -20,7 +20,7 @@ class ArticulosTable extends DataTableComponent
         $query = Articulo::where('articulos.id_local', $idLocal);
 
         // Obtener los artículos con sus categorías
-        return $query->with('categoria');
+        return $query->with('categoria')->select('articulos.*');;
     }
 
     public function configure(): void
@@ -33,6 +33,7 @@ class ArticulosTable extends DataTableComponent
     public function columns(): array
     {
         return [
+           
             Column::make("Id", "idarticulo")->sortable(),
             Column::make("Categoría", "categoria.nombre")
                 ->sortable()
@@ -43,17 +44,19 @@ class ArticulosTable extends DataTableComponent
             Column::make("Nombre", "nombre")
                 ->sortable()
                 ->searchable(),
+            Column::make("Imagen", "imagen")
+                ->label(fn($row) => view('livewire.articulo.imagen', ['imagen' => $row->imagen])),
             Column::make("Stock", "stock")
                 ->sortable(),
             Column::make("Descripcion", "descripcion")
-                 ->sortable(),
+                ->sortable(),
             Column::make("Precio", "precio_unitario")
                 ->sortable(),
             Column::make("Estado", "estado")
                 ->sortable(),
-            Column::make("Acciones")    
+            Column::make("Acciones")
                 ->label(
-                    fn ($row, Column $column) => view('livewire.articulo.actions', ['row' => $row])
+                    fn($row, Column $column) => view('livewire.articulo.actions', ['row' => $row])
                 ),
         ];
     }

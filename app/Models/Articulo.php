@@ -11,7 +11,7 @@ class Articulo extends Model
 
     protected $table = 'articulos';
     protected $primaryKey = 'idarticulo';
-    protected $fillable = ['idcategoria', 'codigo', 'nombre', 'stock', 'descripcion', 'precio_unitario', 'estado','id_local'];
+    protected $fillable = ['idcategoria', 'codigo', 'nombre', 'stock', 'descripcion', 'imagen','precio_unitario', 'estado','id_local'];
 
     // Relación con la tabla Categoria
     public function categoria()

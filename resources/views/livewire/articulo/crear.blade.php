@@ -26,20 +26,39 @@
                         <input type="text" id="nombre" wire:model="nombre"
                             class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
                     </div>
-                   
+
 
                     <div class="mb-4">
                         <label for="descripcion" class="block text-gray-700 text-sm font-bold mb-2">Descripción:</label>
                         <input type="text" id="descripcion" wire:model="descripcion"
                             class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
                     </div>
+                    <div>
+                        <label for="imagen" class="block text-sm font-medium text-gray-700">Imagen del
+                            producto:</label>
+                        <input type="file" id="imagen" wire:model="imagen"
+                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+                        @error('imagen')
+                            <span class="text-red-500 text-sm">{{ $message }}</span>
+                        @enderror
+                    </div>
+
+                    <!-- Vista previa de la imagen subida -->
+                    @if ($imagen_actual)
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium text-gray-700">Imagen Actual:</label>
+                            <img src="{{ asset('storage/articulos/' . $imagen_actual) }}"
+                                class="w-32 h-32 object-cover mt-2">
+                        </div>
+                    @endif
                     <div class="mb-4">
                         <label for="stock" class="block text-gray-700 text-sm font-bold mb-2">Stock:</label>
                         <input type="number" id="stock" wire:model="stock"
                             class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
                     </div>
                     <div class="mb-4">
-                        <label for="precio_unitario" class="block text-gray-700 text-sm font-bold mb-2">Precio Venta:</label>
+                        <label for="precio_unitario" class="block text-gray-700 text-sm font-bold mb-2">Precio
+                            Venta:</label>
                         <input type="number" id="precio_unitario" wire:model="precio_unitario"
                             class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
                     </div>

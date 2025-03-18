@@ -13,9 +13,14 @@ use App\Http\Livewire\List\ListVentas;
 use App\Http\Livewire\Salida\SalidaComponent;
 use App\Models\Compra;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Artisan;
 use TCG\Voyager\Facades\Voyager;
 
 Route::group(['prefix' => 'admin'], function () {
+    Route::get('/storage-link', function () {
+        Artisan::call('storage:link');
+        return "Enlace de almacenamiento creado correctamente.";
+    });
     Voyager::routes();
 
 
