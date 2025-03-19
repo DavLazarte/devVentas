@@ -47,7 +47,7 @@
                     @if ($imagen_actual)
                         <div class="mb-4">
                             <label class="block text-sm font-medium text-gray-700">Imagen Actual:</label>
-                            <img src="{{ asset('storage/articulos/' . $imagen_actual) }}"
+                            <img src="{{ Storage::disk(config('voyager.storage.disk', 'public'))->url($imagen_actual) }}"
                                 class="w-32 h-32 object-cover mt-2">
                         </div>
                     @endif
@@ -81,7 +81,7 @@
                 </div>
 
                 <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-                    <span class="flex w-full rounded-md shadow-sm sm:ml-3 sm:w-auto">
+                    <span class="flex w-full rounded-md shadow-sm sm:ml-3 sm:w-auto mt-3 sm:mt-0">
                         <button wire:click.prevent="guardar()" type="button"
                             class="inline-flex justify-center w-full rounded-md border border-transparent px-4 py-2 bg-purple-600 text-base leading-6 font-medium text-white shadow-sm hover:bg-purple-800 focus:outline-none focus:border-purple-700 focus:shadow-outline-purple transition ease-in-out duration-150 sm:text-sm sm:leading-5">
                             Guardar

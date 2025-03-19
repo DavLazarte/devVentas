@@ -86,10 +86,22 @@ class ArticuloLivewire extends Component
         $nombreArchivo = null;
 
         if ($this->imagen) {
-            $nombreLimpio = str_replace(' ', '_', strtolower($this->nombre)); // Reemplaza espacios por guiones bajos
-            $extension = $this->imagen->getClientOriginalExtension(); // Obtiene la extensión
+            $nombreLimpio = str_replace(' ', '_', strtolower($this->nombre));
+            $extension = $this->imagen->getClientOriginalExtension();
             $nombreArchivo = $nombreLimpio . '.' . $extension;
-            $this->imagen->storeAs('public/articulos', $nombreArchivo); // Guarda en storage/app/public/articulos
+
+            // Crear una estructura de carpetas por local/articulos/fecha
+            $path = 'locales/' . $idLocal . '/articulos/' . date('FY') . '/';
+
+            // Guardar la imagen usando la configuración de Voyager
+            $this->imagen->storeAs(
+                $path,
+                $nombreArchivo,
+                config('voyager.storage.disk', 'public')
+            );
+
+            // Guardar la ruta relativa completa para acceder al archivo
+            $nombreArchivo = $path . $nombreArchivo;
         }
 
         // Procede a crear o actualizar el Artículo
@@ -102,7 +114,7 @@ class ArticuloLivewire extends Component
             'stock' => $this->stock,
             'estado' => $this->estado,
             'imagen' => $nombreArchivo,
-            'id_local' => $idLocal  // Agrega el id_local al registro
+            'id_local' => $idLocal
         ]);
 
         session()->flash(
