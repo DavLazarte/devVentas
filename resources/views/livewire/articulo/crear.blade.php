@@ -47,7 +47,7 @@
                     @if ($imagen_actual)
                         <div class="mb-4">
                             <label class="block text-sm font-medium text-gray-700">Imagen Actual:</label>
-                            <img src="{{ Storage::disk(config('voyager.storage.disk', 'public'))->url($imagen_actual) }}"
+                            <img src="{{ asset('storage/'. $imagen_actual) }}"
                                 class="w-32 h-32 object-cover mt-2">
                         </div>
                     @endif

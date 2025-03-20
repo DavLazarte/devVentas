@@ -21,6 +21,19 @@ Route::group(['prefix' => 'admin'], function () {
         Artisan::call('storage:link');
         return "Enlace de almacenamiento creado correctamente.";
     });
+    Route::get('/optimizar', function () {
+        Artisan::call('config:cache');
+        Artisan::call('route:cache');
+        Artisan::call('view:cache');
+        Artisan::call('optimize');
+        Artisan::call('cache:clear');
+        Artisan::call('config:clear');
+        Artisan::call('route:clear');
+        Artisan::call('view:clear');
+
+        return 'Optimización y limpieza de caché completada ✔';
+    });
+    
     Voyager::routes();
 
 

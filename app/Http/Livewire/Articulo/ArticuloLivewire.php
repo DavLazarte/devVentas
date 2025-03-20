@@ -6,6 +6,8 @@ use Livewire\Component;
 use App\Models\Articulo;
 use App\Models\Categoria;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 
 use Livewire\WithFileUploads;
 
@@ -74,58 +76,75 @@ class ArticuloLivewire extends Component
 
     public function guardar()
     {
-        $this->validate([
-            'nombre' => 'required',
-            'descripcion' => 'required',
-            'codigo' => 'required',
-            'estado' => 'required|in:activo,inactivo',
-            'imagen' => 'nullable|image|max:2048',
-        ]);
+        try {
+            Log::info('Iniciando el guardado de artículo.');
 
-        $idLocal = auth()->user()->local->id;
-        $nombreArchivo = null;
+            $this->validate([
+                'nombre' => 'required',
+                'descripcion' => 'required',
+                'codigo' => 'required',
+                'estado' => 'required|in:activo,inactivo',
+                'imagen' => 'nullable|image|max:2048',
+            ]);
 
-        if ($this->imagen) {
-            $nombreLimpio = str_replace(' ', '_', strtolower($this->nombre));
-            $extension = $this->imagen->getClientOriginalExtension();
-            $nombreArchivo = $nombreLimpio . '.' . $extension;
+            Log::info('Validación exitosa.');
 
-            // Crear una estructura de carpetas por local/articulos/fecha
-            $path = 'locales/' . $idLocal . '/articulos/' . date('FY') . '/';
+            $idLocal = auth()->user()->local->id;
+            Log::info("ID del local obtenido: {$idLocal}");
 
-            // Guardar la imagen usando la configuración de Voyager
-            $this->imagen->storeAs(
-                $path,
-                $nombreArchivo,
-                config('voyager.storage.disk', 'public')
+            $nombreArchivo = null;
+
+            if ($this->imagen) {
+                $nombreLimpio = str_replace(' ', '_', strtolower($this->nombre));
+                $extension = $this->imagen->getClientOriginalExtension();
+                $nombreArchivo = $nombreLimpio . '.' . $extension;
+
+                $rutaCarpeta = "public/locales/{$idLocal}/articulos";
+                Log::info("Ruta de almacenamiento: {$rutaCarpeta}");
+
+                // Verificar si la carpeta existe
+                if (!Storage::exists($rutaCarpeta)) {
+                    Log::info("Carpeta no encontrada, creando: {$rutaCarpeta}");
+                    Storage::makeDirectory($rutaCarpeta);
+                }
+
+                // Guarda la imagen
+                $path = $this->imagen->storeAs($rutaCarpeta, $nombreArchivo);
+                Log::info("Imagen guardada en: {$path}");
+            } else {
+                Log::info("No se subió ninguna imagen.");
+            }
+
+            // Guardar o actualizar el artículo
+            $articulo = Articulo::updateOrCreate(['idarticulo' => $this->articulo_id], [
+                'idcategoria' => $this->categoria_id,
+                'nombre' => $this->nombre,
+                'descripcion' => $this->descripcion,
+                'codigo' => $this->codigo,
+                'precio_unitario' => $this->precio_unitario,
+                'stock' => $this->stock,
+                'estado' => $this->estado,
+                'imagen' => $nombreArchivo ? "locales/{$idLocal}/articulos/{$nombreArchivo}" : null,
+                'id_local' => $idLocal
+            ]);
+
+            Log::info("Artículo guardado con ID: {$articulo->idarticulo}");
+
+            session()->flash(
+                'message',
+                $this->articulo_id ? 'Artículo actualizado exitosamente.' : 'Artículo creado exitosamente.'
             );
 
-            // Guardar la ruta relativa completa para acceder al archivo
-            $nombreArchivo = $path . $nombreArchivo;
+            $this->emit('refreshDatatableArticulos');
+
+            $this->closeModal();
+            $this->resetInputFields();
+
+            Log::info("Proceso finalizado correctamente.");
+        } catch (\Exception $e) {
+            Log::error("Error al guardar el artículo: " . $e->getMessage());
+            session()->flash('error', 'Ocurrió un error al guardar el artículo.');
         }
-
-        // Procede a crear o actualizar el Artículo
-        Articulo::updateOrCreate(['idarticulo' => $this->articulo_id], [
-            'idcategoria' => $this->categoria_id,
-            'nombre' => $this->nombre,
-            'descripcion' => $this->descripcion,
-            'codigo' => $this->codigo,
-            'precio_unitario' => $this->precio_unitario,
-            'stock' => $this->stock,
-            'estado' => $this->estado,
-            'imagen' => $nombreArchivo,
-            'id_local' => $idLocal
-        ]);
-
-        session()->flash(
-            'message',
-            $this->articulo_id ? 'Artículo actualizado exitosamente.' : 'Artículo creado exitosamente.'
-        );
-
-        $this->emit('refreshDatatableArticulos');
-
-        $this->closeModal();
-        $this->resetInputFields();
     }
 
     public function editar($id)
