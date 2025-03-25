@@ -8,11 +8,12 @@ use Livewire\Component;
 
 class PersonaLivewire extends Component
 {
-    public $nombre, $tipo_persona, $monto,$dni_cuit, $direccion, $descripcion, $ingreso_id, $saldo, $mail, $estado, $telefono, $busqueda, $persona_id, $personaId, $idpersona, $clienteSeleccionado, $nombre_cliente, $totalSaldos, $ventasConSaldos;
+    public $nombre, $tipo_persona, $monto, $dni_cuit, $direccion, $descripcion, $ingreso_id, $saldo, $mail, $estado, $telefono, $busqueda, $persona_id, $personaId, $idpersona, $clienteSeleccionado, $nombre_cliente, $totalSaldos, $ventasConSaldos;
     public $isOpen = 0;
     public $isOpenIngreso = 0, $idpersonaPagos = null;
     public $saldos = [];
     public $searchCliente = '';
+    public $loading = false;
 
     protected $listeners = [
         'editarPersona' => 'editar',
@@ -33,6 +34,7 @@ class PersonaLivewire extends Component
 
     public function openModal()
     {
+        $this->resetValidation();
         $this->isOpen = true;
     }
 
@@ -60,36 +62,47 @@ class PersonaLivewire extends Component
         $this->totalSaldos = '';
         $this->dni_cuit = '';
         // $this->ver_venta = '';
+
     }
 
     public function guardarPersona()
     {
+        $this->loading = true;
+        // sleep(2);
         $this->validate([
             'nombre' => 'required',
             'tipo_persona' => 'required',
         ]);
 
-        $idLocal = auth()->user()->local->id;
+        try {
 
-        Persona::updateOrCreate(['idpersona' => $this->persona_id], [
-            'tipo_persona' => $this->tipo_persona,
-            'nombre' => $this->nombre,
-            'dni_cuit' => $this->dni_cuit,
-            'direccion' => $this->direccion,
-            'mail' => $this->mail,
-            'telefono' => $this->telefono,
-            'id_local' => $idLocal,
-            // 'estado' => $this->estado,
-        ]);
 
-        session()->flash(
-            'message',
-            $this->persona_id ? 'Persona actualizado exitosamente.' : 'Persona creada exitosamente.'
-        );
+            $idLocal = auth()->user()->local->id;
 
-        $this->emit('refreshTablePersonas');
-        $this->closeModal();
-        $this->resetInputFields();
+            Persona::updateOrCreate(['idpersona' => $this->persona_id], [
+                'tipo_persona' => $this->tipo_persona,
+                'nombre' => $this->nombre,
+                'dni_cuit' => $this->dni_cuit,
+                'direccion' => $this->direccion,
+                'mail' => $this->mail,
+                'telefono' => $this->telefono,
+                'id_local' => $idLocal,
+                // 'estado' => $this->estado,
+            ]);
+
+            session()->flash(
+                'message',
+                $this->persona_id ? 'Persona actualizado exitosamente.' : 'Persona creada exitosamente.'
+            );
+
+            $this->emit('refreshTablePersonas');
+            $this->closeModal();
+            $this->resetInputFields();
+        } catch (\Exception $e) {
+            $this->emit('error', 'Ocurrió un error al guardar la persona: ' . $e->getMessage());
+        } finally {
+            $this->loading = false; // Reactiva el botón
+        }
     }
 
     public function editar($id)

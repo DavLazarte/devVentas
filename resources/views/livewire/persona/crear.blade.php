@@ -6,10 +6,17 @@
 
         <span class="hidden sm:inline-block sm:align-middle sm:h-screen"></span>&#8203;
 
+
         <div class="inline-block  bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle max-w-full sm:max-w-md w-full"
             role="dialog" aria-modal="true" aria-labelledby="modal-headline">
-            <form>
+            <form wire:submit.prevent="guardarPersona">
                 <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                    @if (session()->has('error'))
+                        <div class="mt-4 bg-purple-100 border-l-4 border-red-500 text-red-700 p-4" role="alert">
+                            <p class="font-bold">Error</p>
+                            <p>{{ session('error') }}</p>
+                        </div>
+                    @endif
                     <h2 class="text-lg font-semibold text-gray-900">Registrar Persona</h2>
 
                     <div class="mb-4">
@@ -27,12 +34,18 @@
                                 <span class="ml-2 text-gray-700">Proveedor</span>
                             </label>
                         </div>
+                        @error('tipo_persona')
+                            <span class="text-red-500 text-sm">{{ $message }}</span>
+                        @enderror
                     </div>
 
                     <div class="mb-4">
                         <label for="nombre" class="block text-gray-700 text-sm font-bold mb-2">Nombre:</label>
                         <input type="text" id="nombre" wire:model="nombre"
                             class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-600">
+                        @error('nombre')
+                            <span class="text-red-500 text-sm">{{ $message }}</span>
+                        @enderror
                     </div>
                     <div class="mb-4">
                         <label for="dni_cuit" class="block text-gray-700 text-sm font-bold mb-2">DNI/CUIT:</label>
@@ -60,8 +73,12 @@
                 </div>
 
                 <div class="bg-gray-50 px-6 py-4 flex justify-end space-x-4">
-                    <button wire:click.prevent="guardarPersona()" type="button"
-                        class="px-4 py-2 bg-purple-600 text-white rounded-lg shadow hover:bg-purple-800 focus:outline-none focus:ring-2 focus:ring-purple-700">Guardar</button>
+                    <button type="submit"
+                        class="px-4 py-2 bg-purple-600 text-white rounded-lg shadow hover:bg-purple-800 focus:outline-none focus:ring-2 focus:ring-purple-700"
+                        wire:loading.attr="disabled" wire:target="guardarPersona">
+                        <span wire:loading.remove wire:target="guardarPersona">Guardar</span>
+                        <span wire:loading wire:target="guardarPersona">Guardando...</span>
+                    </button>
                     <button wire:click="closeModal()" type="button"
                         class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg shadow hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-300">Cancelar</button>
                 </div>

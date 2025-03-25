@@ -93,7 +93,7 @@ return [
     |
     */
 
-    'fallback_locale' => 'en',
+    'fallback_locale' => 'es',
 
     /*
     |--------------------------------------------------------------------------
@@ -164,7 +164,7 @@ return [
 
         /*
          * Package Service Providers...
-         * 
+         *
          */
         Rappasoft\LaravelLivewireTables\LaravelLivewireTablesServiceProvider::class,
 

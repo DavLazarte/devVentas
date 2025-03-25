@@ -9,6 +9,8 @@ class CategoriaLivewire extends Component
 {
     public $categorias, $categoria_id, $nombre, $descripcion, $estado, $busqueda;
     public $isOpen = 0;
+    public $loading = false;
+
 
     protected $listeners = [
         'editarCategoria' => 'editar',
@@ -28,6 +30,7 @@ class CategoriaLivewire extends Component
 
     public function openModal()
     {
+        $this->resetValidation();
         $this->isOpen = true;
     }
 
@@ -46,28 +49,35 @@ class CategoriaLivewire extends Component
 
     public function guardar()
     {
+        $this->loading = true;
+        sleep(2);
         $this->validate([
             'nombre' => 'required',
             'descripcion' => 'required',
             'estado' => 'required|in:activo,inactivo',
         ]);
+        try {
+            $idLocal = auth()->user()->local->id;
 
-        $idLocal = auth()->user()->local->id;
+            Categoria::updateOrCreate(['id_categoria' => $this->categoria_id], [
+                'nombre' => $this->nombre,
+                'descripcion' => $this->descripcion,
+                'estado' => $this->estado,
+                'id_local' => $idLocal,
+            ]);
 
-        Categoria::updateOrCreate(['id_categoria' => $this->categoria_id], [
-            'nombre' => $this->nombre,
-            'descripcion' => $this->descripcion,
-            'estado' => $this->estado,
-            'id_local' => $idLocal,
-        ]);
-
-        session()->flash(
-            'message',
-            $this->categoria_id ? 'Categoría actualizada exitosamente.' : 'Categoría creada exitosamente.'
-        );
-        $this->emit('refreshTable');
-        $this->closeModal();
-        $this->resetInputFields();
+            session()->flash(
+                'message',
+                $this->categoria_id ? 'Categoría actualizada exitosamente.' : 'Categoría creada exitosamente.'
+            );
+            $this->emit('refreshTable');
+            $this->closeModal();
+            $this->resetInputFields();
+        } catch (\Exception $e) {
+            $this->emit('error', 'Ocurrió un error al guardar la Categoria: ' . $e->getMessage());
+        } finally {
+            $this->loading = false; // Reactiva el botón
+        }
     }
 
     public function editar($id)

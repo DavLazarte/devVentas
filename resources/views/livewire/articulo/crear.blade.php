@@ -5,6 +5,12 @@
         </div>
 
         <span class="hidden sm:inline-block sm:align-middle sm:h-screen"></span>&#8203;
+        @if (session()->has('error'))
+            <div class="mt-4 bg-purple-100 border-l-4 border-red-500 text-red-700 p-4" role="alert">
+                <p class="font-bold">ERROR</p>
+                <p>{{ session('error') }}</p>
+            </div>
+        @endif
 
         <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle max-w-full sm:max-w-md w-full"
             role="dialog" aria-modal="true" aria-labelledby="modal-headline">
@@ -41,14 +47,16 @@
                         @error('imagen')
                             <span class="text-red-500 text-sm">{{ $message }}</span>
                         @enderror
+
+                        <!-- Mensaje de carga mientras se sube la imagen -->
+                        <span wire:loading wire:target="imagen" class="text-sm text-gray-600">Cargando imagen...</span>
                     </div>
 
                     <!-- Vista previa de la imagen subida -->
                     @if ($imagen_actual)
                         <div class="mb-4">
                             <label class="block text-sm font-medium text-gray-700">Imagen Actual:</label>
-                            <img src="{{ asset('storage/'. $imagen_actual) }}"
-                                class="w-32 h-32 object-cover mt-2">
+                            <img src="{{ asset('storage/' . $imagen_actual) }}" class="w-32 h-32 object-cover mt-2">
                         </div>
                     @endif
                     <div class="mb-4">
@@ -80,11 +88,13 @@
                     </div>
                 </div>
 
-                <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                <div class="bg-gray-50 px-4 py-3 flex justify-end space-x-4">
                     <span class="flex w-full rounded-md shadow-sm sm:ml-3 sm:w-auto mt-3 sm:mt-0">
                         <button wire:click.prevent="guardar()" type="button"
-                            class="inline-flex justify-center w-full rounded-md border border-transparent px-4 py-2 bg-purple-600 text-base leading-6 font-medium text-white shadow-sm hover:bg-purple-800 focus:outline-none focus:border-purple-700 focus:shadow-outline-purple transition ease-in-out duration-150 sm:text-sm sm:leading-5">
-                            Guardar
+                            class="inline-flex justify-center w-full rounded-md border border-transparent px-4 py-2 bg-purple-600 text-base leading-6 font-medium text-white shadow-sm hover:bg-purple-800 focus:outline-none focus:border-purple-700 focus:shadow-outline-purple transition ease-in-out duration-150 sm:text-sm sm:leading-5"
+                            wire:loading.attr="disabled" wire:loading.class="opacity-50" wire:target="guardar, imagen">
+                            <span wire:loading.remove wire:target="guardar">Guardar</span>
+                            <span wire:loading wire:target="guardar">Guardando...</span>
                         </button>
                     </span>
 

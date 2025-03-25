@@ -19,6 +19,8 @@ class ArticuloLivewire extends Component
     public $articulos, $articulo_id, $imagen, $imagen_actual, $nombre, $descripcion, $estado, $stock, $codigo, $precio_unitario, $busqueda, $categorias, $categoria_id, $recetas, $receta, $recetaSeleccionada;
     public $isOpen = 0;
     public $modoEdit = 0;
+    public $loading = false;
+
     // En tus componentes Livewire (por ejemplo, CategoriaLivewire)
     public $layout = 'sistema';
 
@@ -73,12 +75,13 @@ class ArticuloLivewire extends Component
         $this->codigo = '';
         $this->imagen = '';
     }
-
     public function guardar()
     {
-        try {
-            Log::info('Iniciando el guardado de artículo.');
+        $this->loading = true; // Bloquea el botón y muestra el loader
+        // Simulación de un proceso (quita esto en producción)
+        // sleep(2);
 
+        try {
             $this->validate([
                 'nombre' => 'required',
                 'descripcion' => 'required',
@@ -87,35 +90,27 @@ class ArticuloLivewire extends Component
                 'imagen' => 'nullable|image|max:2048',
             ]);
 
-            Log::info('Validación exitosa.');
-
             $idLocal = auth()->user()->local->id;
-            Log::info("ID del local obtenido: {$idLocal}");
-
             $nombreArchivo = null;
 
             if ($this->imagen) {
                 $nombreLimpio = str_replace(' ', '_', strtolower($this->nombre));
                 $extension = $this->imagen->getClientOriginalExtension();
-                $nombreArchivo = $nombreLimpio . '.' . $extension;
 
-                $rutaCarpeta = "public/locales/{$idLocal}/articulos";
-                Log::info("Ruta de almacenamiento: {$rutaCarpeta}");
+                // Si el artículo ya existe, usamos su ID, si no, generamos un nombre temporal.
+                $idArticulo = $this->articulo_id ?? uniqid();
+                $nombreArchivo = "{$nombreLimpio}_{$idArticulo}.{$extension}";
 
-                // Verificar si la carpeta existe
+                $rutaCarpeta = "locales/{$idLocal}/articulos";
+                // $rutaCarpeta = "public/locales/{$idLocal}/articulos";
+
                 if (!Storage::exists($rutaCarpeta)) {
-                    Log::info("Carpeta no encontrada, creando: {$rutaCarpeta}");
                     Storage::makeDirectory($rutaCarpeta);
                 }
 
-                // Guarda la imagen
-                $path = $this->imagen->storeAs($rutaCarpeta, $nombreArchivo);
-                Log::info("Imagen guardada en: {$path}");
-            } else {
-                Log::info("No se subió ninguna imagen.");
+                $this->imagen->storeAs($rutaCarpeta, $nombreArchivo);
             }
 
-            // Guardar o actualizar el artículo
             $articulo = Articulo::updateOrCreate(['idarticulo' => $this->articulo_id], [
                 'idcategoria' => $this->categoria_id,
                 'nombre' => $this->nombre,
@@ -128,24 +123,22 @@ class ArticuloLivewire extends Component
                 'id_local' => $idLocal
             ]);
 
-            Log::info("Artículo guardado con ID: {$articulo->idarticulo}");
-
             session()->flash(
                 'message',
                 $this->articulo_id ? 'Artículo actualizado exitosamente.' : 'Artículo creado exitosamente.'
             );
 
             $this->emit('refreshDatatableArticulos');
-
             $this->closeModal();
             $this->resetInputFields();
-
-            Log::info("Proceso finalizado correctamente.");
         } catch (\Exception $e) {
             Log::error("Error al guardar el artículo: " . $e->getMessage());
-            session()->flash('error', 'Ocurrió un error al guardar el artículo.');
+            session()->flash('error', 'Ocurrió un error al guardar el artículo.' . $e->getMessage());
+        } finally {
+            $this->loading = false; // Reactiva el botón
         }
     }
+
 
     public function editar($id)
     {

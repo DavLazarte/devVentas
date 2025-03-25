@@ -20,6 +20,7 @@
                         <p>{{ session('message') }}</p>
                     </div>
                 @endif
+               
 
                 @if ($isOpen)
                     @include('livewire.persona.crear')
