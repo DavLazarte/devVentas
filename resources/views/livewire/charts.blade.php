@@ -1,5 +1,5 @@
 <div>
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-6">
+    <div class="grid grid-cols-1 lg:grid-cols-3 md:grid-cols-2 gap-4 mt-6">
         <!-- Gráfico de Tendencia de Ventas -->
         <div class="bg-white p-4 rounded-lg shadow dark:bg-gray-800">
             <!-- Gráfico de Ventas del Mes -->

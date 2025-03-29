@@ -260,7 +260,7 @@
 
             </div>
             <div class="flex flex-col flex-1 overflow-hidden">
-                <header class="flex items-center justify-between px-6 py-4 bg-white border-b-4 border-indigo-600">
+                <header class="flex items-center justify-between px-6 py-4 bg-white border-b-4 border-purple-600">
                     <div class="flex items-center">
                         <button @click="sidebarOpen = true" class="text-gray-500 focus:outline-none lg:hidden">
                             <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none"
@@ -304,17 +304,17 @@
                                 class="absolute right-0 z-10 mt-2 overflow-hidden bg-white rounded-lg shadow-xl w-80"
                                 style="width: 20rem; display: none;">
                                 {{-- <a href="#"
-                                        class="flex items-center px-4 py-3 -mx-2 text-gray-600 hover: text-gray-400hover:bg-indigo-600">
+                                        class="flex items-center px-4 py-3 -mx-2 text-gray-600 hover: text-gray-400hover:bg-purple-600">
                                         <img class="object-cover w-8 h-8 mx-1 rounded-full"
                                             src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?ixlib=rb-1.2.1&amp;ixid=eyJhcHBfaWQiOjEyMDd9&amp;auto=format&amp;fit=crop&amp;w=334&amp;q=80"
                                             alt="avatar">
                                         <p class="mx-2 text-m">
                                             <span class="font-bold" href="#">Sara Salah</span> replied on the <span
-                                                class="font-bold text-indigo-400" href="#">Upload Image</span>
+                                                class="font-bold text-purple-400" href="#">Upload Image</span>
                                             artical . 2m
                                         </p>
                                     </a> --}}
-                                <h6>sin notificacion aun</h6>
+                                <h6 class="flex items-center px-4 py-3 -mx-2 text-gray-600 hover: text-gray-400hover:bg-purple-600">sin notificacion aun</h6>
                             </div>
                         </div>
 

@@ -30,7 +30,6 @@ class Ventas extends Component
 
     public function mount()
     {
-
         $this->idLocal = auth()->user()->local->id;
     }
 
@@ -47,6 +46,20 @@ class Ventas extends Component
             'articulo' => $this->articulo,
         ]);
     }
+
+
+    public function updated($propertyName)
+    {
+        if (in_array($propertyName, ['descuento', 'recargo'])) {
+            $this->calcularNuevoTotal();
+        }
+
+        if ($propertyName === 'pago') {
+            $this->calcularSaldo();
+        }
+    }
+
+
 
     public function filtrarCliente()
     {
@@ -121,7 +134,7 @@ class Ventas extends Component
     {
         if ($index !== null) {
 
-            // Si se proporciona un índice, se calcula el subtotal para el artículo en ese 
+            // Si se proporciona un índice, se calcula el subtotal para el artículo en ese
 
 
             // Obtenemos el artículo correspondiente al índice dado
@@ -176,7 +189,7 @@ class Ventas extends Component
     public function calcularNuevoTotal()
     {
         $this->actualizarTotal();
-        
+
         $this->venta_total_original = $this->venta_total;
 
         // Limitar descuento al rango válido (0-100%)
@@ -186,7 +199,7 @@ class Ventas extends Component
         // Calcular descuento y aplicar recargo
         $descuento_monto = ($this->venta_total_original * $this->descuento) / 100;
         $recarga_monto = ($this->venta_total_original * $this->recargo) / 100;
-        $this->venta_total = round($this->venta_total_original - $descuento_monto + $recarga_monto , 2);
+        $this->venta_total = round($this->venta_total_original - $descuento_monto + $recarga_monto, 2);
 
         // Ajustar el pago automáticamente al nuevo total
         $this->pago = $this->venta_total;
@@ -199,10 +212,12 @@ class Ventas extends Component
     }
     public function guardar()
     {
+        if ($this->tipo_venta === 'venta_rapida' && $this->saldo > 0) {
+            $this->dispatchBrowserEvent('errorVenta', ['message' => 'Una venta rápida no puede tener saldo pendiente. Seleccione un cliente o ajuste el pago.']);
+            return;
+        }
+        
         try {
-            // dd($this->idcliente);
-            // Validar datos aquí si es necesario
-
             // Iniciar una transacción para asegurar que todas las operaciones se completen correctamente o se reviertan si hay un error
             DB::beginTransaction();
             // Ajustar el valor de saldo
@@ -216,7 +231,7 @@ class Ventas extends Component
                     'total_venta' => $this->venta_total,
                     'descuento' => $this->descuento,
                     'recargo' => $this->recargo,
-                    'pago' => $this->pago,
+                    'pago' => $this->pago > $this->venta_total ? $this->venta_total : $this->pago,
                     'forma_de_pago' => $this->forma_de_pago,
                     'saldo' => $this->saldo,
                     'id_local' => $this->idLocal,
@@ -247,7 +262,6 @@ class Ventas extends Component
 
             $this->mensajeVenta = 'VENTA EXITOSA!';
 
-
             $this->reset([
                 'nombre_cliente',
                 'venta_total',
@@ -271,13 +285,6 @@ class Ventas extends Component
                 'tipo_venta',
                 'idLocal'
             ]);
-
-
-
-
-
-            // Redirección a otra página, etc.
-
         } catch (\Exception $e) {
             // En caso de error, revertir la transacción
             DB::rollback();
