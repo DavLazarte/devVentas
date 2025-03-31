@@ -13,21 +13,21 @@
                         Cargar Pago
                     </button>
                 </div>
-    
+
                 @if (session()->has('message'))
                     <div class="mt-4 bg-purple-100 border-l-4 border-purple-500 text-purple-700 p-4" role="alert">
                         <p class="font-bold">Notificación</p>
                         <p>{{ session('message') }}</p>
                     </div>
                 @endif
-               
+
                 @if ($isOpen)
                     @include('livewire.ingreso.create')
                 @endif
-    
+
             </div>
-            @livewire('ingreso.ingreso-table')  
-           
+            @livewire('ingreso.ingreso-table')
+
         </div>
     </div>
 </div>

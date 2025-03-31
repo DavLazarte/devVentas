@@ -112,29 +112,25 @@
                     <div class="col-span-1 bg-white p-6 shadow rounded-lg">
                         <h3 class="text-lg font-medium text-gray-900 mb-4">DETALLES DE LA VENTA</h3>
                         <!-- Tipo de Venta y Forma de Pago -->
-                        <div class="grid grid-cols-1 sm:grid-cols-1 gap-4 mb-6">
-                            <div>
-                                <label for="tipo_venta" class="block text-sm font-medium text-gray-700">Tipo de
-                                    Venta:</label>
-                                <div class="flex gap-2">
-                                    <div class="relative">
+                        <label for="tipo_venta" class="block text-sm font-medium text-gray-700">Tipo de
+                            Venta:</label>
+                            <div class="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-2 gap-2">
+                                    <div class="relative h-full">
                                         <input type="radio" name="tipo_venta" id="venta_rapida" value="venta_rapida"
                                             wire:model="tipo_venta" class="hidden peer">
                                         <label for="venta_rapida"
-                                            class="inline-flex items-center justify-between px-4 py-2 bg-white border-2 rounded-lg cursor-pointer border-neutral-200/70 text-neutral-600 peer-checked:border-purple-400 peer-checked:text-neutral-900 peer-checked:bg-purple-200/50 hover:text-neutral-900 hover:border-neutral-300">
-                                            <div class="w-full text-sm opacity-60">Venta Rápida</div>
+                                            class="inline-flex items-center justify-center h-full w-full px-4 py-2 bg-white border-2 rounded-lg cursor-pointer border-neutral-200/70 text-neutral-600 peer-checked:border-purple-400 peer-checked:text-neutral-900 peer-checked:bg-purple-200/50 hover:text-neutral-900 hover:border-neutral-300">
+                                            <div class="text-center text-sm opacity-60">Venta Rápida</div>
                                         </label>
                                     </div>
-                                    <div class="relative">
+                                    <div class="relative h-full">
                                         <input type="radio" name="tipo_venta" id="cuenta_corriente"
                                             value="cuenta_corriente" wire:model="tipo_venta" class="hidden peer">
                                         <label for="cuenta_corriente"
-                                            class="inline-flex items-center justify-between px-4 py-2 bg-white border-2 rounded-lg cursor-pointer border-neutral-200/70 text-neutral-600 peer-checked:border-purple-400 peer-checked:text-neutral-900 peer-checked:bg-purple-200/50 hover:text-neutral-900 hover:border-neutral-300">
-                                            <div class="w-full text-sm opacity-60">Cuenta Corriente</div>
+                                            class="inline-flex items-center justify-center h-full w-full px-4 py-2 bg-white border-2 rounded-lg cursor-pointer border-neutral-200/70 text-neutral-600 peer-checked:border-purple-400 peer-checked:text-neutral-900 peer-checked:bg-purple-200/50 hover:text-neutral-900 hover:border-neutral-300">
+                                            <div class="text-center text-sm opacity-60">Cuenta Corriente</div>
                                         </label>
                                     </div>
-                                </div>
-                            </div>
                             <!-- Cliente -->
                             @if ($tipo_venta === 'cuenta_corriente')
                                 <div class="relative mb-6">
@@ -161,49 +157,46 @@
                                     @endif
                                 </div>
                             @endif
-
-                            <div>
-                                <label for="forma_de_pago" class="block text-sm font-medium text-gray-700">Forma de
-                                    Pago:</label>
-                                <div class="flex gap-2">
-                                    <div class="relative">
-                                        <input type="radio" name="forma_de_pago" id="efectivo" value="efectivo"
-                                            wire:model="forma_de_pago" class="hidden peer">
-                                        <label for="efectivo"
-                                            class="inline-flex items-center justify-between px-4 py-2 bg-white border-2 rounded-lg cursor-pointer border-neutral-200/70 text-neutral-600 peer-checked:border-purple-400 peer-checked:text-neutral-900 peer-checked:bg-purple-200/50 hover:text-neutral-900 hover:border-neutral-300">
-                                            <div class="w-full text-sm opacity-60">Efectivo</div>
-                                        </label>
-                                    </div>
-                                    <div class="relative">
-                                        <input type="radio" name="forma_de_pago" id="transferencia"
-                                            value="transferencia" wire:model="forma_de_pago" class="hidden peer">
-                                        <label for="transferencia"
-                                            class="inline-flex items-center justify-between px-4 py-2 bg-white border-2 rounded-lg cursor-pointer border-neutral-200/70 text-neutral-600 peer-checked:border-purple-400 peer-checked:text-neutral-900 peer-checked:bg-purple-200/50 hover:text-neutral-900 hover:border-neutral-300">
-                                            <div class="w-full text-sm opacity-60">Transferencia</div>
-                                        </label>
-                                    </div>
-                                    <div class="relative">
-                                        <input type="radio" name="forma_de_pago" id="cuenta_corriente_pago"
-                                            value="cuenta_corriente" wire:model="forma_de_pago" class="hidden peer">
-                                        <label for="cuenta_corriente_pago"
-                                            class="inline-flex items-center justify-between px-4 py-2 bg-white border-2 rounded-lg cursor-pointer border-neutral-200/70 text-neutral-600 peer-checked:border-purple-400 peer-checked:text-neutral-900 peer-checked:bg-purple-200/50 hover:text-neutral-900 hover:border-neutral-300">
-                                            <div class="w-full text-sm opacity-60">Parcial</div>
-                                        </label>
-                                    </div>
-                                    <div class="relative">
-                                        <input type="radio" name="forma_de_pago" id="tarjeta" value="tarjeta"
-                                            wire:model="forma_de_pago" class="hidden peer">
-                                        <label for="tarjeta"
-                                            class="inline-flex items-center justify-between px-4 py-2 bg-white border-2 rounded-lg cursor-pointer border-neutral-200/70 text-neutral-600 peer-checked:border-purple-400 peer-checked:text-neutral-900 peer-checked:bg-purple-200/50 hover:text-neutral-900 hover:border-neutral-300">
-                                            <div class="w-full text-sm opacity-60">tarjeta</div>
-                                        </label>
-                                    </div>
+                        </div>
+                        <label for="forma_de_pago" class="block text-sm font-medium text-gray-700 mt-2">Forma de
+                            Pago:</label>
+                            <div class="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-2 gap-2">
+                                <div class="relative h-full">
+                                    <input type="radio" name="forma_de_pago" id="efectivo" value="efectivo"
+                                        wire:model="forma_de_pago" class="hidden peer">
+                                    <label for="efectivo"
+                                        class="flex items-center justify-center h-full w-full px-4 py-2 bg-white border-2 rounded-lg cursor-pointer border-neutral-200/70 text-neutral-600 peer-checked:border-purple-400 peer-checked:text-neutral-900 peer-checked:bg-purple-200/50 hover:text-neutral-900 hover:border-neutral-300">
+                                        <div class="text-sm opacity-60 text-center">Efectivo</div>
+                                    </label>
                                 </div>
-                            </div>
+                                <div class="relative h-full">
+                                    <input type="radio" name="forma_de_pago" id="transferencia"
+                                        value="transferencia" wire:model="forma_de_pago" class="hidden peer">
+                                    <label for="transferencia"
+                                        class="flex items-center justify-center h-full w-full px-4 py-2 bg-white border-2 rounded-lg cursor-pointer border-neutral-200/70 text-neutral-600 peer-checked:border-purple-400 peer-checked:text-neutral-900 peer-checked:bg-purple-200/50 hover:text-neutral-900 hover:border-neutral-300">
+                                        <div class="text-sm opacity-60 text-center">Transferencia</div>
+                                    </label>
+                                </div>
+                                <div class="relative h-full">
+                                    <input type="radio" name="forma_de_pago" id="cuenta_corriente_pago"
+                                        value="cuenta_corriente" wire:model="forma_de_pago" class="hidden peer">
+                                    <label for="cuenta_corriente_pago"
+                                        class="flex items-center justify-center h-full w-full px-4 py-2 bg-white border-2 rounded-lg cursor-pointer border-neutral-200/70 text-neutral-600 peer-checked:border-purple-400 peer-checked:text-neutral-900 peer-checked:bg-purple-200/50 hover:text-neutral-900 hover:border-neutral-300">
+                                        <div class="text-sm opacity-60 text-center">Parcial</div>
+                                    </label>
+                                </div>
+                                <div class="relative h-full">
+                                    <input type="radio" name="forma_de_pago" id="tarjeta" value="tarjeta"
+                                        wire:model="forma_de_pago" class="hidden peer">
+                                    <label for="tarjeta"
+                                        class="flex items-center justify-center h-full w-full px-4 py-2 bg-white border-2 rounded-lg cursor-pointer border-neutral-200/70 text-neutral-600 peer-checked:border-purple-400 peer-checked:text-neutral-900 peer-checked:bg-purple-200/50 hover:text-neutral-900 hover:border-neutral-300">
+                                        <div class="text-sm opacity-60 text-center">Tarjeta</div>
+                                    </label>
+                                </div>
                         </div>
 
 
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-3 mt-2">
                             <div>
                                 <label for="descuento"
                                     class="block text-sm font-medium text-gray-700">Descuento</label>
@@ -264,17 +257,16 @@
     </div>
 </div>
 @push('js')
-        <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-        <script>
-            window.addEventListener('errorVenta', event => {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Error en la Venta',
-                    text: event.detail.message,
-                    confirmButtonColor: '#d33',
-                    confirmButtonText: 'Entendido'
-                });
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        window.addEventListener('errorVenta', event => {
+            Swal.fire({
+                icon: 'error',
+                title: 'Error en la Venta',
+                text: event.detail.message,
+                confirmButtonColor: '#d33',
+                confirmButtonText: 'Entendido'
             });
-        </script>
-
-    @endpush
+        });
+    </script>
+@endpush

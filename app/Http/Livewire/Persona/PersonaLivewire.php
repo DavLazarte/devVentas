@@ -18,6 +18,7 @@ class PersonaLivewire extends Component
     protected $listeners = [
         'editarPersona' => 'editar',
         'openModal' => 'openModal',
+        'closeModal' => 'closeModal',
         'verPagos' => 'mostrarPagos',
         'NoVerPagos' => 'ocultarPagos'
     ];

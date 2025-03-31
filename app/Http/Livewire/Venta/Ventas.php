@@ -216,7 +216,7 @@ class Ventas extends Component
             $this->dispatchBrowserEvent('errorVenta', ['message' => 'Una venta rápida no puede tener saldo pendiente. Seleccione un cliente o ajuste el pago.']);
             return;
         }
-        
+
         try {
             // Iniciar una transacción para asegurar que todas las operaciones se completen correctamente o se reviertan si hay un error
             DB::beginTransaction();

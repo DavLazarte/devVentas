@@ -118,7 +118,7 @@ class IngresoComponent extends Component
         session()->flash('message', 'ingreso eliminado exitosamente.');
         $this->emit('refreshDatatableIngresos');
     }
-   
+
     public function ver($id)
     {
         $this->ver_venta = Venta::with('detalles.producto', 'persona')->findOrFail($id);

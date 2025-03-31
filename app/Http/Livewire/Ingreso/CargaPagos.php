@@ -23,6 +23,16 @@ class CargaPagos extends Component
     {
         return view('livewire.ingreso.carga-pagos');
     }
+    public function updated($propertyName)
+    {
+        // if (in_array($propertyName, ['descuento', 'recargo'])) {
+        //     $this->calcularNuevoTotal();
+        // }
+
+        if ($propertyName === 'monto') {
+            $this->distribuirPago();
+        }
+    }
 
     public function cargarVentasConSaldos($idpersona)
     {
