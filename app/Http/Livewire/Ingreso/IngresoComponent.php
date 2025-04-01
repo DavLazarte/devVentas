@@ -26,6 +26,7 @@ class IngresoComponent extends Component
 
     public function handlePagoGuardado()
     {
+        // Emitir el mensaje
         $this->closeModal();
         $this->clienteSeleccionado = null; // Limpia la variable clienteSeleccionado
         // También puedes limpiar otros campos si es necesario

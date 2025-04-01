@@ -114,88 +114,89 @@
                         <!-- Tipo de Venta y Forma de Pago -->
                         <label for="tipo_venta" class="block text-sm font-medium text-gray-700">Tipo de
                             Venta:</label>
-                            <div class="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-2 gap-2">
-                                    <div class="relative h-full">
-                                        <input type="radio" name="tipo_venta" id="venta_rapida" value="venta_rapida"
-                                            wire:model="tipo_venta" class="hidden peer">
-                                        <label for="venta_rapida"
-                                            class="inline-flex items-center justify-center h-full w-full px-4 py-2 bg-white border-2 rounded-lg cursor-pointer border-neutral-200/70 text-neutral-600 peer-checked:border-purple-400 peer-checked:text-neutral-900 peer-checked:bg-purple-200/50 hover:text-neutral-900 hover:border-neutral-300">
-                                            <div class="text-center text-sm opacity-60">Venta Rápida</div>
-                                        </label>
-                                    </div>
-                                    <div class="relative h-full">
-                                        <input type="radio" name="tipo_venta" id="cuenta_corriente"
-                                            value="cuenta_corriente" wire:model="tipo_venta" class="hidden peer">
-                                        <label for="cuenta_corriente"
-                                            class="inline-flex items-center justify-center h-full w-full px-4 py-2 bg-white border-2 rounded-lg cursor-pointer border-neutral-200/70 text-neutral-600 peer-checked:border-purple-400 peer-checked:text-neutral-900 peer-checked:bg-purple-200/50 hover:text-neutral-900 hover:border-neutral-300">
-                                            <div class="text-center text-sm opacity-60">Cuenta Corriente</div>
-                                        </label>
-                                    </div>
+                        <div class="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-2 gap-2">
+                            <div class="relative h-full">
+                                <input type="radio" name="tipo_venta" id="venta_rapida" value="venta_rapida"
+                                    wire:model="tipo_venta" class="hidden peer">
+                                <label for="venta_rapida"
+                                    class="inline-flex items-center justify-center h-full w-full px-4 py-2 bg-white border-2 rounded-lg cursor-pointer border-neutral-200/70 text-neutral-600 peer-checked:border-purple-400 peer-checked:text-neutral-900 peer-checked:bg-purple-200/50 hover:text-neutral-900 hover:border-neutral-300">
+                                    <div class="text-center text-sm opacity-60">Venta Rápida</div>
+                                </label>
+                            </div>
+                            <div class="relative h-full">
+                                <input type="radio" name="tipo_venta" id="cuenta_corriente" value="cuenta_corriente"
+                                    wire:model="tipo_venta" class="hidden peer">
+                                <label for="cuenta_corriente"
+                                    class="inline-flex items-center justify-center h-full w-full px-4 py-2 bg-white border-2 rounded-lg cursor-pointer border-neutral-200/70 text-neutral-600 peer-checked:border-purple-400 peer-checked:text-neutral-900 peer-checked:bg-purple-200/50 hover:text-neutral-900 hover:border-neutral-300">
+                                    <div class="text-center text-sm opacity-60">Cuenta Corriente</div>
+                                </label>
+                            </div>
                         </div>
                         <div class="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-1 gap-2 mt-2">
-                             <!-- Cliente -->
-                             @if ($tipo_venta === 'cuenta_corriente')
-                             <div class="relative mb-6">
-                                 <label for="cliente"
-                                     class="block text-sm font-medium text-gray-700">Cliente:</label>
-                                 <input type="text" wire:model.debounce.300ms="searchCliente"
-                                     class="block w-full mt-1 border border-gray-300 rounded-md py-2 px-3 text-black shadow-purple-200 focus:ring-purple-500 focus:border-purple-500"
-                                     placeholder="Buscar un cliente">
-                                 @if ($searchCliente)
-                                     <div class="absolute z-50 bg-white w-full rounded-md shadow-lg mt-1">
-                                         @foreach ($persona as $opcion)
-                                             <div wire:click="agregarCliente({{ $opcion['idpersona'] }})"
-                                                 class="py-2 px-3 cursor-pointer hover:bg-gray-100">
-                                                 {{ $opcion['nombre'] }}</div>
-                                         @endforeach
-                                     </div>
-                                 @endif
-                                 @if ($clienteSeleccionado)
-                                     <div class="mt-4">
-                                        <label class="block text-sm font-medium text-gray-700">Cliente seleccionado</label>
-                                         <input type="text" wire:model="nombre_cliente"
-                                             class="block w-full bg-purple-500 text-white rounded-md py-2 px-3 shadow-sm sm:text-sm"
-                                             placeholder="Cliente seleccionado">
-                                     </div>
-                                 @endif
-                             </div>
-                         @endif
+                            <!-- Cliente -->
+                            @if ($tipo_venta === 'cuenta_corriente')
+                                <div class="relative mb-6">
+                                    <label for="cliente"
+                                        class="block text-sm font-medium text-gray-700">Cliente:</label>
+                                    <input type="text" wire:model.debounce.300ms="searchCliente"
+                                        class="block w-full mt-1 border border-gray-300 rounded-md py-2 px-3 text-black shadow-purple-200 focus:ring-purple-500 focus:border-purple-500"
+                                        placeholder="Buscar un cliente">
+                                    @if ($searchCliente)
+                                        <div class="absolute z-50 bg-white w-full rounded-md shadow-lg mt-1">
+                                            @foreach ($persona as $opcion)
+                                                <div wire:click="agregarCliente({{ $opcion['idpersona'] }})"
+                                                    class="py-2 px-3 cursor-pointer hover:bg-gray-100">
+                                                    {{ $opcion['nombre'] }}</div>
+                                            @endforeach
+                                        </div>
+                                    @endif
+                                    @if ($clienteSeleccionado)
+                                        <div class="mt-4">
+                                            <label class="block text-sm font-medium text-gray-700">Cliente
+                                                seleccionado</label>
+                                            <input type="text" wire:model="nombre_cliente"
+                                                class="block w-full bg-purple-500 text-white rounded-md py-2 px-3 shadow-sm sm:text-sm"
+                                                placeholder="Cliente seleccionado">
+                                        </div>
+                                    @endif
+                                </div>
+                            @endif
                         </div>
                         <label for="forma_de_pago" class="block text-sm font-medium text-gray-700 mt-2">Forma de
                             Pago:</label>
-                            <div class="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-2 gap-2">
-                                <div class="relative h-full">
-                                    <input type="radio" name="forma_de_pago" id="efectivo" value="efectivo"
-                                        wire:model="forma_de_pago" class="hidden peer">
-                                    <label for="efectivo"
-                                        class="flex items-center justify-center h-full w-full px-4 py-2 bg-white border-2 rounded-lg cursor-pointer border-neutral-200/70 text-neutral-600 peer-checked:border-purple-400 peer-checked:text-neutral-900 peer-checked:bg-purple-200/50 hover:text-neutral-900 hover:border-neutral-300">
-                                        <div class="text-sm opacity-60 text-center">Efectivo</div>
-                                    </label>
-                                </div>
-                                <div class="relative h-full">
-                                    <input type="radio" name="forma_de_pago" id="transferencia"
-                                        value="transferencia" wire:model="forma_de_pago" class="hidden peer">
-                                    <label for="transferencia"
-                                        class="flex items-center justify-center h-full w-full px-4 py-2 bg-white border-2 rounded-lg cursor-pointer border-neutral-200/70 text-neutral-600 peer-checked:border-purple-400 peer-checked:text-neutral-900 peer-checked:bg-purple-200/50 hover:text-neutral-900 hover:border-neutral-300">
-                                        <div class="text-sm opacity-60 text-center">Transferencia</div>
-                                    </label>
-                                </div>
-                                <div class="relative h-full">
-                                    <input type="radio" name="forma_de_pago" id="cuenta_corriente_pago"
-                                        value="cuenta_corriente" wire:model="forma_de_pago" class="hidden peer">
-                                    <label for="cuenta_corriente_pago"
-                                        class="flex items-center justify-center h-full w-full px-4 py-2 bg-white border-2 rounded-lg cursor-pointer border-neutral-200/70 text-neutral-600 peer-checked:border-purple-400 peer-checked:text-neutral-900 peer-checked:bg-purple-200/50 hover:text-neutral-900 hover:border-neutral-300">
-                                        <div class="text-sm opacity-60 text-center">A cuenta</div>
-                                    </label>
-                                </div>
-                                <div class="relative h-full">
-                                    <input type="radio" name="forma_de_pago" id="tarjeta" value="tarjeta"
-                                        wire:model="forma_de_pago" class="hidden peer">
-                                    <label for="tarjeta"
-                                        class="flex items-center justify-center h-full w-full px-4 py-2 bg-white border-2 rounded-lg cursor-pointer border-neutral-200/70 text-neutral-600 peer-checked:border-purple-400 peer-checked:text-neutral-900 peer-checked:bg-purple-200/50 hover:text-neutral-900 hover:border-neutral-300">
-                                        <div class="text-sm opacity-60 text-center">Tarjeta</div>
-                                    </label>
-                                </div>
+                        <div class="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-2 gap-2">
+                            <div class="relative h-full">
+                                <input type="radio" name="forma_de_pago" id="efectivo" value="efectivo"
+                                    wire:model="forma_de_pago" class="hidden peer">
+                                <label for="efectivo"
+                                    class="flex items-center justify-center h-full w-full px-4 py-2 bg-white border-2 rounded-lg cursor-pointer border-neutral-200/70 text-neutral-600 peer-checked:border-purple-400 peer-checked:text-neutral-900 peer-checked:bg-purple-200/50 hover:text-neutral-900 hover:border-neutral-300">
+                                    <div class="text-sm opacity-60 text-center">Efectivo</div>
+                                </label>
+                            </div>
+                            <div class="relative h-full">
+                                <input type="radio" name="forma_de_pago" id="transferencia" value="transferencia"
+                                    wire:model="forma_de_pago" class="hidden peer">
+                                <label for="transferencia"
+                                    class="flex items-center justify-center h-full w-full px-4 py-2 bg-white border-2 rounded-lg cursor-pointer border-neutral-200/70 text-neutral-600 peer-checked:border-purple-400 peer-checked:text-neutral-900 peer-checked:bg-purple-200/50 hover:text-neutral-900 hover:border-neutral-300">
+                                    <div class="text-sm opacity-60 text-center">Transferencia</div>
+                                </label>
+                            </div>
+                            <div class="relative h-full">
+                                <input type="radio" name="forma_de_pago" id="cuenta_corriente_pago"
+                                    value="cuenta_corriente" wire:model="forma_de_pago" class="hidden peer">
+                                <label for="cuenta_corriente_pago"
+                                    class="flex items-center justify-center h-full w-full px-4 py-2 bg-white border-2 rounded-lg cursor-pointer border-neutral-200/70 text-neutral-600 peer-checked:border-purple-400 peer-checked:text-neutral-900 peer-checked:bg-purple-200/50 hover:text-neutral-900 hover:border-neutral-300">
+                                    <div class="text-sm opacity-60 text-center">A cuenta</div>
+                                </label>
+                            </div>
+                            <div class="relative h-full">
+                                <input type="radio" name="forma_de_pago" id="tarjeta" value="tarjeta"
+                                    wire:model="forma_de_pago" class="hidden peer">
+                                <label for="tarjeta"
+                                    class="flex items-center justify-center h-full w-full px-4 py-2 bg-white border-2 rounded-lg cursor-pointer border-neutral-200/70 text-neutral-600 peer-checked:border-purple-400 peer-checked:text-neutral-900 peer-checked:bg-purple-200/50 hover:text-neutral-900 hover:border-neutral-300">
+                                    <div class="text-sm opacity-60 text-center">Tarjeta</div>
+                                </label>
+                            </div>
                         </div>
 
 
