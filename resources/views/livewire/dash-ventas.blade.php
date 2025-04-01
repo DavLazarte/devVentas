@@ -72,7 +72,9 @@
                 <div>
                     <p class="mb-2 text-sm font-medium text-gray-600 dark:text-gray-800">Total Ventas de Cuentas y
                         Tarjetas </p>
-                    <p class="text-lg font-semibold text-gray-700 dark:text-gray-600">{{ $ventas_tarjeta }}</p>
+                        <p class="text-lg font-semibold text-gray-700 dark:text-gray-600">
+                            {{ number_format($ventas_tarjeta + $ventas_credito, 2) }}
+                        </p>
                 </div>
             </div>
 

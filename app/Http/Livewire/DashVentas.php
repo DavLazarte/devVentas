@@ -36,44 +36,60 @@ class DashVentas extends Component
 
     public function render()
     {
-        // Modificar todas las consultas para usar $this->selectedDate en lugar de now()->toDateString()
-        $this->monto_total_ventas = Venta::where('id_local', $this->idLocal)
-            ->whereDate('created_at', $this->selectedDate)
-            ->where('estado', 'activo')
-            ->sum('pago');
-
-
-        $ventas = Venta::where('id_local', $this->idLocal)
+        // 1️⃣ - Consulta única para las ventas
+        $ventasQuery = Venta::where('id_local', $this->idLocal)
             ->whereDate('created_at', $this->selectedDate)
             ->where('estado', 'activo')
             ->selectRaw("
-        SUM(CASE WHEN forma_de_pago = 'efectivo' THEN pago ELSE 0 END) as total_efectivo,
-        SUM(CASE WHEN forma_de_pago = 'transferencia' THEN pago ELSE 0 END) as total_transferencia,
-        SUM(CASE WHEN forma_de_pago = 'tarjeta' THEN pago ELSE 0 END) as total_tarjeta,
-        SUM(CASE WHEN forma_de_pago = 'cuenta_corriente' THEN pago ELSE 0 END) as total_credito
-    ")
-            ->first() ?? (object) ['total_efectivo' => 0, 'total_transferencia' => 0, 'total_tarjeta' => 0, 'total_credito' => 0];
+                SUM(total_venta) as ventas_totales,
+                SUM(CASE WHEN forma_de_pago IN ('efectivo', 'transferencia', 'tarjeta') THEN total_venta ELSE 0 END) as ventas_efectivas,
+                SUM(CASE WHEN forma_de_pago = 'cuenta_corriente' THEN total_venta ELSE 0 END) as ventas_credito,
+                SUM(CASE WHEN forma_de_pago = 'cuenta_corriente' THEN pago ELSE 0 END) as pagos_credito,
+                SUM(CASE WHEN forma_de_pago = 'efectivo' THEN pago ELSE 0 END) as total_efectivo,
+                SUM(CASE WHEN forma_de_pago = 'transferencia' THEN pago ELSE 0 END) as total_transferencia,
+                SUM(CASE WHEN forma_de_pago = 'tarjeta' THEN pago ELSE 0 END) as total_tarjeta,
+                SUM(pago) as monto_total_ventas
+            ")->first() ?? (object) [
+                'ventas_totales' => 0,
+                'ventas_efectivas' => 0,
+                'ventas_credito' => 0,
+                'pagos_credito' => 0,
+                'total_efectivo' => 0,
+                'total_transferencia' => 0,
+                'total_tarjeta' => 0,
+                'monto_total_ventas' => 0,
+            ];
 
-        $this->ventas_efectivo = $ventas->total_efectivo ?? 0;
-        $this->ventas_transferencia = $ventas->total_transferencia ?? 0;
-        $this->ventas_tarjeta = $ventas->total_tarjeta ?? 0;
-        $this->ventas_credito = $ventas->total_credito ?? 0;
+        // Asignación de valores
+        $this->ventas_totales = $ventasQuery->ventas_totales ?? 0;
+        $this->ventas_efectivas = $ventasQuery->ventas_efectivas ?? 0;
+        $this->ventas_credito = $ventasQuery->ventas_credito ?? 0;
+        $this->pagos_credito = $ventasQuery->pagos_credito ?? 0;
+        $this->ventas_efectivo = $ventasQuery->total_efectivo ?? 0;
+        $this->ventas_transferencia = $ventasQuery->total_transferencia ?? 0;
+        $this->ventas_tarjeta = $ventasQuery->total_tarjeta ?? 0;
+        $this->monto_total_ventas = $ventasQuery->monto_total_ventas ?? 0;
 
+        // 2️⃣ - Consulta única para las compras
         $compras = Compra::where('id_local', $this->idLocal)
             ->whereDate('created_at', $this->selectedDate)
             ->where('estado', 'activo')
             ->selectRaw("
-            SUM(CASE WHEN tipo_pago = 'efectivo' THEN pago ELSE 0 END) as total_efectivo,
-            SUM(CASE WHEN tipo_pago = 'transferencia' THEN pago ELSE 0 END) as total_transferencia,
-            SUM(total) as monto_total
-        ")
-            ->first() ?? (object) ['total_efectivo' => 0, 'total_transferencia' => 0, 'monto_total_compras' => 0];
+                SUM(CASE WHEN tipo_pago = 'efectivo' THEN pago ELSE 0 END) as total_efectivo,
+                SUM(CASE WHEN tipo_pago = 'transferencia' THEN pago ELSE 0 END) as total_transferencia,
+                SUM(total) as monto_total
+            ")->first() ?? (object) [
+                'total_efectivo' => 0,
+                'total_transferencia' => 0,
+                'monto_total' => 0,
+            ];
 
+        // Asignación de valores de compras
         $this->compras_efectivo = $compras->total_efectivo ?? 0;
         $this->compras_transferencia = $compras->total_transferencia ?? 0;
         $this->monto_total_compras = $compras->monto_total ?? 0;
 
-
+        // 3️⃣ - Consultas individuales (ya son eficientes)
         $this->ingresos = Ingreso::where('id_local', $this->idLocal)
             ->whereDate('created_at', $this->selectedDate)
             ->sum('monto');
@@ -82,34 +98,15 @@ class DashVentas extends Component
             ->whereDate('created_at', $this->selectedDate)
             ->sum('monto');
 
+        // 4️⃣ - Cálculo de cierre
         $this->monto_cierre = $this->ventas_efectivo - $this->salidas + $this->ingresos + $this->monto_apertura;
 
-
-        // Filtros base
-        $ventasQuery = Venta::where('id_local', $this->idLocal)
-            ->whereDate('created_at', $this->selectedDate)
-            ->where('estado', 'activo');
-
-        // 1. Total general de ventas
-        $this->ventas_totales = $ventasQuery->sum('total_venta');
-
-        // 2. Ventas efectivas (excluye cuentas corrientes)
-        $this->ventas_efectivas = $ventasQuery->whereIn('forma_de_pago', ['efectivo', 'transferencia', 'tarjeta'])->sum('total_venta');
-
-        // 3. Ventas a crédito (cuenta corriente)
-        $this->ventas_credito = $ventasQuery->where('forma_de_pago', 'cuenta_corriente')->sum('total_venta');
-
-        // 4. Pagos recibidos de cuentas corrientes
-        $this->pagos_credito = $ventasQuery->where('forma_de_pago', 'cuenta_corriente')->sum('pago');
-
-        // 5. Desglose detallado por método de pago
+        // 5️⃣ - Desglose de pagos (ya calculado en la consulta de ventas)
         $this->desglose_pagos = [
-            'efectivo' => $ventasQuery->where('forma_de_pago', 'efectivo')->sum('pago'),
-            'transferencia' => $ventasQuery->where('forma_de_pago', 'transferencia')->sum('pago'),
-            'tarjeta' => $ventasQuery->where('forma_de_pago', 'tarjeta')->sum('pago'),
+            'efectivo' => $this->ventas_efectivo,
+            'transferencia' => $this->ventas_transferencia,
+            'tarjeta' => $this->ventas_tarjeta,
         ];
-
-
 
         return view('livewire.dash-ventas');
     }

@@ -50,6 +50,7 @@ class CargaPagos extends Component
             $this->ventasConSaldos = Venta::with('detalles.producto', 'persona')
                 ->where('idcliente', $this->idpersona)
                 ->where('saldo', '>', 0)
+                ->where('estado', 'Activo') // Filtra solo las ventas activas
                 ->orderBy('created_at', 'desc')
                 ->get();
 

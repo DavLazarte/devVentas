@@ -62,7 +62,6 @@ class IngresoComponent extends Component
         $this->emit('agregarCliente', $id);
         $this->searchCliente = '';
         $this->clienteSeleccionado = true;
-
     }
     public function crear()
     {
