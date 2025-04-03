@@ -9,6 +9,7 @@ use App\Models\Persona;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\DB;
 
 
 class CargaPagos extends Component
@@ -110,62 +111,62 @@ class CargaPagos extends Component
 
     public function guardar()
     {
+        $this->validate([
+            'idpersona' => 'required',
+            'monto' => 'required',
+            'saldo' => 'required',
+            'descripcion' => 'required|string|min:3|max:255', // Validación de descripción
+        ]);
+
         try {
-            $this->validate([
-                'idpersona' => 'required',
-                'monto' => 'required',
-                'saldo' => 'required',
-            ]);
+            DB::beginTransaction(); // Iniciar la transacción
 
             $this->idLocal = auth()->user()->local->id;
 
-            // Procesar las ventas con saldo
+            // 1️⃣ Crear o actualizar el ingreso
+            $ingreso = Ingreso::updateOrCreate(
+                ['id_ingreso' => $this->ingreso_id],
+                [
+                    'idpersona' => $this->idpersona,
+                    'monto' => $this->monto,
+                    'descripcion' => $this->descripcion,
+                    'saldo' => $this->saldo,
+                    'id_local' => $this->idLocal,
+                ]
+            );
+
+            if (!$ingreso) {
+                throw new \Exception('Error al registrar el ingreso.');
+            }
+
+            // 2️⃣ Actualizar las ventas con saldo si el ingreso fue exitoso
             foreach ($this->ventasConSaldos as $venta) {
                 $montoVenta = $this->saldos[$venta->id] ?? 0;
 
-                try {
-                    $ventaModel = Venta::findOrFail($venta->id);
-                    if ($montoVenta !== $ventaModel->saldo) {
-                        $montoRedondeado = round($montoVenta, 2);
-                        $ventaModel->saldo = $montoRedondeado;
-                        $ventaModel->save();
-                    }
-                } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-                    session()->flash('error', 'Error al encontrar la venta con ID ' . $venta->id);
-                } catch (\Exception $e) {
-                    session()->flash('error', 'Error al guardar la venta con ID ' . $venta->id . ': ' . $e->getMessage());
+                $ventaModel = Venta::find($venta->id);
+                if (!$ventaModel) {
+                    throw new \Exception('Venta con ID ' . $venta->id . ' no encontrada.');
+                }
+
+                $montoRedondeado = round($montoVenta, 2);
+                if ($montoRedondeado !== $ventaModel->saldo) {
+                    $ventaModel->saldo = $montoRedondeado;
+                    $ventaModel->save();
                 }
             }
 
-            // Intentar crear o actualizar el ingreso
-            try {
-                Ingreso::updateOrCreate(
-                    ['id_ingreso' => $this->ingreso_id],
-                    [
-                        'idpersona' => $this->idpersona,
-                        'monto' => $this->monto,
-                        'descripcion' => $this->descripcion,
-                        'saldo' => $this->saldo,
-                        'id_local' => $this->idLocal,
-                    ]
-                );
+            DB::commit(); // Confirmar los cambios en la base de datos
 
-                session()->flash(
-                    'message',
-                    $this->ingreso_id ? 'Ingreso actualizado exitosamente.' : 'Pago creado exitosamente.'
-                );
-                $this->emit('pagoGuardado');
-                $this->emit('refreshDatatableIngresos');
-            } catch (\Exception $e) {
-                session()->flash('error', 'Error al crear o actualizar el ingreso: ' . $e->getMessage());
-            }
+            // Emitir mensaje de éxito con Livewire
+            $this->emit('pagoGuardado');
+            $this->emit('refreshDatatableIngresos');
+            $this->emit('mostrarNotificacion', $this->ingreso_id ? 'Ingreso actualizado exitosamente.' : 'Pago creado exitosamente.');
 
-            // Cerrar modal y resetear campos
-
+            // Limpiar campos
             $this->resetInputFields();
         } catch (\Exception $e) {
-            // Capturar cualquier error inesperado en el flujo completo
-            session()->flash('error', 'Error inesperado: ' . $e->getMessage());
+            DB::rollBack(); // Deshacer cambios si hay error
+            $this->emit('mostrarNotificacion', 'Error: ' . $e->getMessage());
         }
     }
     private function resetInputFields()

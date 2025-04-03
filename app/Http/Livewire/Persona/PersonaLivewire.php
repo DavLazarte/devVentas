@@ -20,11 +20,24 @@ class PersonaLivewire extends Component
         'openModal' => 'openModal',
         'closeModal' => 'closeModal',
         'verPagos' => 'mostrarPagos',
-        'NoVerPagos' => 'ocultarPagos'
+        'NoVerPagos' => 'ocultarPagos',
+        'mostrarNotificacion' => 'mostrarNotificacion',
+        'pagoGuardado' => 'handlePagoGuardado',
     ];
+    public function handlePagoGuardado()
+    {
+        // Emitir el mensaje
+        $this->closeModal();
+        $this->clienteSeleccionado = null; // Limpia la variable clienteSeleccionado
+        // También puedes limpiar otros campos si es necesario
+    }
     public function render()
     {
         return view('livewire.persona.persona-livewire');
+    }
+    public function mostrarNotificacion($mensaje)
+    {
+        session()->flash('message', $mensaje);
     }
 
     public function crear()
@@ -39,10 +52,7 @@ class PersonaLivewire extends Component
         $this->isOpen = true;
     }
 
-    public function closeModal()
-    {
-        $this->isOpen = false;
-    }
+
 
     private function resetInputFields()
     {
@@ -145,5 +155,9 @@ class PersonaLivewire extends Component
     public function generarPdf()
     {
         $this->emit('descargarPdf');
+    }
+    public function closeModal()
+    {
+        $this->isOpen = false;
     }
 }

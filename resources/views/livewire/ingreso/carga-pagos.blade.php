@@ -20,14 +20,18 @@
                                 Pagar:</label>
                             <input type="number" id="monto" wire:model="monto" wire:change="distribuirPago"
                                 class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-purple-500 focus:border-purple-500"
-                                placeholder="Ingrese monto" />
+                                placeholder="Ingrese monto" autofocus/>
                         </div>
                         <div>
                             <label for="descripcion"
-                                class="block text-sm font-medium text-gray-700 mb-1">Descripción/Referencia (obligatorio):</label>
+                                class="block text-sm font-medium text-gray-700 mb-1">Descripción/Referencia
+                                (obligatorio):</label>
                             <input type="text" id="descripcion" wire:model="descripcion"
                                 class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-purple-500 focus:border-purple-500"
-                                placeholder="Ej: Transferencia #12345, Efectivo..." />
+                                placeholder="Ej: Pago de cuenta de tal venta" required minlength="3" maxlength="255" />
+                            @error('descripcion')
+                                <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
+                            @enderror
                         </div>
                     </div>
 
@@ -53,10 +57,13 @@
 
                     <div class="flex justify-center mt-4">
                         <button wire:click.prevent="guardar"
-                            class="bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-6 rounded-md transition duration-200 w-full sm:w-auto">
-                            Registrar Pago
+                            class="bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-6 rounded-md transition duration-200 w-full sm:w-auto"
+                            wire:loading.attr="disabled" wire:target="guardar">
+                            <span wire:loading.remove wire:target="guardar">Registrar Pago</span>
+                            <span wire:loading wire:target="guardar">Registrando...</span>
                         </button>
                     </div>
+
                 </div>
                 <!-- Lista de ventas con saldo - Sección completa -->
                 <div class="lg:col-span-2">

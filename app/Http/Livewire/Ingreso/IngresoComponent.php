@@ -21,7 +21,7 @@ class IngresoComponent extends Component
     public $ver_venta;
     public $detallesVisibles = [];
 
-    protected $listeners = ['pagoGuardado' => 'handlePagoGuardado'];
+    protected $listeners = ['pagoGuardado' => 'handlePagoGuardado', 'mostrarNotificacion' => 'mostrarNotificacion'];
 
 
     public function handlePagoGuardado()
@@ -44,6 +44,10 @@ class IngresoComponent extends Component
         return view('livewire.ingreso.ingreso-component', [
             'personas' => $this->personas
         ]);
+    }
+    public function mostrarNotificacion($mensaje)
+    {
+        session()->flash('message', $mensaje);
     }
 
     public function filtrarCliente()
