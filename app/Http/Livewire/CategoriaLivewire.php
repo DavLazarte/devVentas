@@ -50,7 +50,7 @@ class CategoriaLivewire extends Component
     public function guardar()
     {
         $this->loading = true;
-        sleep(2);
+        // sleep(2);
         $this->validate([
             'nombre' => 'required',
             'descripcion' => 'required',

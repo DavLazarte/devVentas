@@ -47,6 +47,12 @@ class Ventas extends Component
         ]);
     }
 
+    public function updatedSearchArticulo()
+    {
+        $this->filtrarArticulo();
+    }
+
+
 
     public function updated($propertyName)
     {
@@ -282,6 +288,7 @@ class Ventas extends Component
                 'idcliente',
                 'searchCliente',
                 'searchArticulo',
+                'agregarArticulo',
                 'tipo_venta',
                 'idLocal'
             ]);
