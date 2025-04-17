@@ -1,0 +1,24 @@
+<!-- resources/views/livewire/articulo/actions.blade.php -->
+<div class="flex space-x-1 justify-around">
+  {{-- @dd($row) --}}
+    <button wire:click="mostrarPagos({{ $row->{'persona.idpersona'} }})"
+        wire:loading.attr="disabled"
+        wire:loading.class="opacity-50 cursor-not-allowed"
+        wire:target="mostrarPagos"
+        class="flex items-center bg-green-500 hover:bg-green-600 text-white text-sm font-bold py-2 px-4 rounded relative">
+
+        <span wire:loading.remove wire:target="mostrarPagos">Ver Cuenta</span>
+        <span wire:loading wire:target="mostrarPagos">Abriendo...</span>
+
+        <!-- Loader animado -->
+        <svg wire:loading wire:target="mostrarPagos" class="animate-spin h-4 w-4 ml-2 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 0116 0h-2a6 6 0 10-12 0H4z"></path>
+        </svg>
+
+    </button>
+
+
+
+</div>
+

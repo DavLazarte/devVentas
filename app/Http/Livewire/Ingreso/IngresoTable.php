@@ -48,7 +48,7 @@ class IngresoTable extends DataTableComponent
                 ),
         ];
     }
-    
+
     public function borrar($id)
     {
         Ingreso::find($id)->delete();

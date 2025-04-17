@@ -8,6 +8,7 @@ use App\Http\Livewire\Compras;
 use App\Http\Livewire\Venta\Ventas;
 use App\Http\Livewire\DashVentas;
 use App\Http\Livewire\Ingreso\IngresoComponent;
+use App\Http\Livewire\Ingreso\DeudoresComponent;
 use App\Http\Livewire\List\ListCompras;
 use App\Http\Livewire\List\ListVentas;
 use App\Http\Livewire\Salida\SalidaComponent;
@@ -33,7 +34,7 @@ Route::group(['prefix' => 'admin'], function () {
 
         return 'Optimización y limpieza de caché completada ✔';
     });
-    
+
     Voyager::routes();
 
 
@@ -45,6 +46,7 @@ Route::group(['prefix' => 'admin'], function () {
         Route::get('/ventas', Ventas::class)->name('ventas');
         Route::get('/compras', Compras::class)->name('compras');
         Route::get('/ingresos', IngresoComponent::class)->name('ingresos');
+        Route::get('/ventas-saldos', DeudoresComponent::class)->name('saldos');
         Route::get('/salidas', SalidaComponent::class)->name('salidas');
         Route::get('/caja', AdminCajas::class)->name('caja');
         Route::get('/list-ventas', ListVentas::class)->name('/list-ventas');

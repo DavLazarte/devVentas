@@ -194,8 +194,12 @@
                         </a>
                         <div role="menu" x-show="open" class="mt-2 space-y-2 px-7" aria-label="Finanzas">
                             <a class="flex items-center px-6 py-2 mt-4 text-gray-500 hover:bg-gray-700 hover:bg-opacity-25 hover:text-gray-100"
+                                href="{{ url('admin/ventas-saldos') }}">
+                                <span class="ml-2 text-m">📋 Ventas con Saldos</span>
+                            </a>
+                            <a class="flex items-center px-6 py-2 mt-4 text-gray-500 hover:bg-gray-700 hover:bg-opacity-25 hover:text-gray-100"
                                 href="{{ url('admin/ingresos') }}">
-                                <span class="ml-2 text-m">🏦 Cuentas Corrientes</span>
+                                <span class="ml-2 text-m">🏦 Listados de Pagos </span>
                             </a>
                             <a class="flex items-center px-6 py-2 mt-4 text-gray-500 hover:bg-gray-700 hover:bg-opacity-25 hover:text-gray-100"
                                 href="{{ url('admin/salidas') }}">
