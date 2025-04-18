@@ -2,25 +2,34 @@
 
 namespace App\Http\Livewire\Ingreso;
 
+use Illuminate\Support\Facades\DB;
 use Livewire\Component;
+use App\Models\Venta;
+use App\Models\Articulo;
+
 
 class DeudoresComponent extends Component
 {
-    public $nombre, $tipo_persona, $monto, $dni_cuit, $direccion, $descripcion, $ingreso_id, $saldo, $mail, $estado, $telefono, $busqueda, $persona_id, $personaId, $idpersona, $clienteSeleccionado, $nombre_cliente, $totalSaldos, $ventasConSaldos;
+    public $tipo_persona, $monto, $ingreso_id, $saldo, $estado, $busqueda, $persona_id, $personaId, $idpersona, $clienteSeleccionado, $nombre_cliente, $totalSaldos, $ventasConSaldos;
     public $isOpen = 0;
     public $isOpenIngreso = 0, $idpersonaPagos = null;
     public $saldos = [];
     public $searchCliente = '';
     public $loading = false;
+    public $ventaIdToDelete;
+    public $motivoCancelacion = '';
+
+    public $isLoading = false;
+    public $idLocal;
 
     protected $listeners = [
-        'editarPersona' => 'editar',
         'openModal' => 'openModal',
         'closeModal' => 'closeModal',
         'verPagos' => 'mostrarPagos',
         'NoVerPagos' => 'ocultarPagos',
         'mostrarNotificacion' => 'mostrarNotificacion',
         'pagoGuardado' => 'handlePagoGuardado',
+        'cancelarVentaConDeuda' => 'cancelarVentaConDeuda',
     ];
     public function handlePagoGuardado()
     {
@@ -64,6 +73,59 @@ class DeudoresComponent extends Component
     {
         $this->emit('guardarPago');
     }
+
+    public function cancelarVentaConDeuda($id, $motivo)
+    {
+        $this->isLoading = true;
+
+        DB::beginTransaction();
+
+        try {
+            $venta = Venta::findOrFail($id);
+
+            foreach ($venta->detalles as $detalle) {
+                $articulo = Articulo::find($detalle->idarticulo);
+                if ($articulo) {
+                    $articulo->stock += $detalle->cantidad;
+                    $articulo->save();
+                }
+            }
+
+            $venta->estado = 'Inactivo';
+            $venta->motivo_cancelacion = $motivo;
+            $venta->save();
+
+            DB::commit();
+
+            session()->flash('message', 'Venta con deuda cancelada con éxito y stock restaurado.');
+            $this->emit('refreshTableVentasConSaldo');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            session()->flash('error', 'Error al cancelar la venta: ' . $e->getMessage());
+        }
+
+        $this->isLoading = false;
+    }
+
+    // public function cancelarVentaConDeuda($id, $motivo)
+    // {
+
+    //     $this->isLoading = true;
+
+
+    //     $venta = Venta::findOrFail($id);
+
+    //     // Cambiar el estado de la venta a "Cancelada" y guardar el motivo
+    //     $venta->estado = 'Inactivo';
+    //     $venta->motivo_cancelacion = $motivo; // Usar el argumento pasado
+    //     $venta->save();
+
+    //     $this->isLoading = false;
+
+    //     session()->flash('message', 'Venta con deuda cancelada con éxito.');
+    //     // Actualizamos la lista de ventas
+    //     $this->emit('refreshTableVentasConSaldo');
+    // }
     public function generarPdf()
     {
         $this->emit('descargarPdf');
@@ -74,23 +136,13 @@ class DeudoresComponent extends Component
     }
     private function resetInputFields()
     {
-        $this->nombre = '';
         $this->tipo_persona = '';
-        $this->telefono = '';
-        $this->direccion = '';
         $this->persona_id = '';
-        $this->mail = '';
         $this->estado = '';
-        $this->monto = '';
-        $this->descripcion = '';
         $this->estado = '';
         $this->idpersona = '';
-        $this->saldo = '';
         $this->nombre_cliente = '';
         $this->clienteSeleccionado = '';
         $this->totalSaldos = '';
-        $this->dni_cuit = '';
-        // $this->ver_venta = '';
-
     }
 }

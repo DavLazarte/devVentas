@@ -268,8 +268,11 @@
                 icon: 'error',
                 title: 'Error en la Venta',
                 text: event.detail.message,
-                confirmButtonColor: '#d33',
-                confirmButtonText: 'Entendido'
+                buttonsStyling: false,
+                confirmButtonText: 'Entendido',
+                customClass: {
+                    confirmButton: 'bg-indigo-800 text-white px-4 py-2 rounded mr-2',
+                }
             });
         });
     </script>

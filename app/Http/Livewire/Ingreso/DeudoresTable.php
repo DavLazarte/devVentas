@@ -12,7 +12,7 @@ class DeudoresTable extends DataTableComponent
 {
     public $mostrarPagos;
     protected $model = Venta::class;
-    protected $listeners = ['refreshTablePersonas' => '$refresh', 'pagoGuardado' => 'handlePagoGuardado'];
+    protected $listeners = ['refreshTablePersonas' => '$refresh', 'refreshTableVentasConSaldo' => '$refresh','pagoGuardado' => 'handlePagoGuardado'];
 
     public function builder(): Builder
     {
@@ -21,6 +21,7 @@ class DeudoresTable extends DataTableComponent
         return Venta::with('persona') // cargamos relación con cliente
             ->where('saldo', '>', 0)
             ->where('tipo_venta', 'cuenta_corriente')
+            ->where('ventas.estado', 'Activo')
             ->where('ventas.id_local', $idLocal)
             ->orderBy('ventas.created_at', 'asc'); // más antigua primero
     }
@@ -41,6 +42,10 @@ class DeudoresTable extends DataTableComponent
                 ->searchable()
                 ->sortable(),
             Column::make("idpersona", "persona.idpersona")
+                ->searchable()
+                ->sortable()
+                ->hideIf(true),
+            Column::make("Estado", "estado")
                 ->searchable()
                 ->sortable()
                 ->hideIf(true),

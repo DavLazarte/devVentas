@@ -25,7 +25,7 @@
             @if ($isOpen)
                 @include('livewire.list.show-ventas')
             @endif
-           
+
         </div>
     </div>
 
@@ -40,10 +40,13 @@
                     input: 'text', // Esto permite que el usuario ingrese el motivo
                     inputPlaceholder: 'Ingresa el motivo de cancelación...',
                     showCancelButton: true,
-                    confirmButtonColor: '#3085d6',
-                    cancelButtonColor: '#d33',
+                    buttonsStyling: false,
                     confirmButtonText: 'Sí, cancelar venta',
-                    cancelButtonText: 'Cancelar'
+                    cancelButtonText: 'Cancelar',
+                    customClass: {
+                        confirmButton: 'bg-indigo-800 text-white px-4 py-2 rounded mr-2',
+                        cancelButton: 'bg-red-600 text-white px-4 py-2 rounded'
+                    }
                 }).then((result) => {
                     if (result.isConfirmed) {
                         // Pasar el id y el motivo ingresado

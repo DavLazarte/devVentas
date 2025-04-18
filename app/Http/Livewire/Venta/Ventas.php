@@ -52,6 +52,14 @@ class Ventas extends Component
         $this->filtrarArticulo();
     }
 
+    public function updatedTipoVenta($value)
+    {
+        if ($value === 'cuenta_corriente') {
+            $this->forma_de_pago = 'cuenta_corriente';
+        }
+    }
+
+
 
 
     public function updated($propertyName)
@@ -220,6 +228,10 @@ class Ventas extends Component
     {
         if ($this->tipo_venta === 'venta_rapida' && $this->saldo > 0) {
             $this->dispatchBrowserEvent('errorVenta', ['message' => 'Una venta rápida no puede tener saldo pendiente. Seleccione un cliente o ajuste el pago.']);
+            return;
+        }
+        if ($this->tipo_venta === 'cuenta_corriente' && !$this->clienteSeleccionado) {
+            $this->dispatchBrowserEvent('errorVenta', ['message' => 'No Podes Hacer una venta a cuenta sin seleccionar un cliente.']);
             return;
         }
 

@@ -2,7 +2,9 @@
 
 namespace App\Http\Livewire\List;
 
+use Illuminate\Support\Facades\DB;
 use App\Models\Venta;
+use App\Models\Articulo;
 use Livewire\Component;
 
 class ListVentas extends Component
@@ -15,9 +17,12 @@ class ListVentas extends Component
     public $ventaIdToDelete;
     public $motivoCancelacion = '';
 
-    protected $listeners = ['cancelarVenta', 'ver'];
+    protected $listeners = [
+        'cancelarVenta' => 'cancelarVenta',
+        'ver'
+    ];
 
-    public function mount($fecha= null)
+    public function mount($fecha = null)
     {
         $this->idLocal = auth()->user()->local->id;
         // Asignar la fecha si se pasa
@@ -45,26 +50,59 @@ class ListVentas extends Component
     {
         $this->isOpen = false;
     }
-    
 
+
+    // public function cancelarVenta($id, $motivo)
+    // {
+
+    //     $this->isLoading = true;
+
+
+    //     $venta = Venta::findOrFail($id);
+
+    //     // Cambiar el estado de la venta a "Cancelada" y guardar el motivo
+    //     $venta->estado = 'Inactivo';
+    //     $venta->motivo_cancelacion = $motivo; // Usar el argumento pasado
+    //     $venta->save();
+
+    //     $this->isLoading = false;
+
+    //     session()->flash('message', 'Venta cancelada con éxito.');
+    //     // Actualizamos la lista de ventas
+    //     $this->emit('refreshDatatableVantas');
+    // }
 
 
     public function cancelarVenta($id, $motivo)
     {
         $this->isLoading = true;
-        
-        
-        $venta = Venta::findOrFail($id);
 
-        // Cambiar el estado de la venta a "Cancelada" y guardar el motivo
-        $venta->estado = 'Inactivo';
-        $venta->motivo_cancelacion = $motivo; // Usar el argumento pasado
-        $venta->save();
+        DB::beginTransaction();
+
+        try {
+            $venta = Venta::findOrFail($id);
+
+            foreach ($venta->detalles as $detalle) {
+                $articulo = Articulo::find($detalle->idarticulo);
+                if ($articulo) {
+                    $articulo->stock += $detalle->cantidad;
+                    $articulo->save();
+                }
+            }
+
+            $venta->estado = 'Inactivo';
+            $venta->motivo_cancelacion = $motivo;
+            $venta->save();
+
+            DB::commit();
+
+            session()->flash('message', 'Venta con deuda cancelada con éxito y stock restaurado.');
+            $this->emit('refreshDatatableVantas');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            session()->flash('error', 'Error al cancelar la venta: ' . $e->getMessage());
+        }
 
         $this->isLoading = false;
-        
-        session()->flash('message', 'Venta cancelada con éxito.');
-        // Actualizamos la lista de ventas
-        $this->emit('refreshDatatableVantas');
     }
 }

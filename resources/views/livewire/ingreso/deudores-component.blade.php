@@ -28,54 +28,83 @@
             </div>
             @livewire('ingreso.deudores-table')
             @if ($idpersonaPagos)
-            <div class="fixed inset-0 z-50 overflow-y-auto">
-                <div class="flex justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-                    <!-- Fondo oscuro -->
-                    <div class="fixed inset-0 transition-opacity">
-                        <div class="absolute inset-0 bg-gray-500 opacity-75"></div>
-                    </div>
+                <div class="fixed inset-0 z-50 overflow-y-auto">
+                    <div class="flex justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+                        <!-- Fondo oscuro -->
+                        <div class="fixed inset-0 transition-opacity">
+                            <div class="absolute inset-0 bg-gray-500 opacity-75"></div>
+                        </div>
 
-                    <!-- Truco para centrar el modal -->
-                    <span class="hidden sm:inline-block sm:align-middle sm:h-screen">&#8203;</span>
+                        <!-- Truco para centrar el modal -->
+                        <span class="hidden sm:inline-block sm:align-middle sm:h-screen">&#8203;</span>
 
-                    <!-- Contenedor del modal más grande -->
-                    <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-6xl sm:w-full"
-                        role="dialog" aria-modal="true" aria-labelledby="modal-headline">
+                        <!-- Contenedor del modal más grande -->
+                        <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-6xl sm:w-full"
+                            role="dialog" aria-modal="true" aria-labelledby="modal-headline">
 
-                        <!-- Contenido del modal -->
-                        <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-                            <div class="sm:flex sm:items-start">
-                                <div class="text-center sm:mt-0 sm:ml-4 sm:text-left">
-                                    @if (session()->has('message'))
-                                    <div class="mt-4 bg-purple-100 border-l-4 border-purple-500 text-purple-700 p-4" role="alert">
-                                        <p class="font-bold">Notificación</p>
-                                        <p>{{ session('message') }}</p>
-                                    </div>
-                                @endif
-                                    <h3 class="text-lg leading-6 font-medium text-gray-900" id="modal-headline">
-                                        Pagos de Persona
-                                    </h3>
-                                    <div class="mt-2">
-                                        <!-- Componente de pagos dentro del modal -->
-                                        @livewire('ingreso.carga-pagos', ['idpersona' => $idpersonaPagos])
+                            <!-- Contenido del modal -->
+                            <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                                <div class="sm:flex sm:items-start">
+                                    <div class="text-center sm:mt-0 sm:ml-4 sm:text-left">
+                                        @if (session()->has('message'))
+                                            <div class="mt-4 bg-purple-100 border-l-4 border-purple-500 text-purple-700 p-4"
+                                                role="alert">
+                                                <p class="font-bold">Notificación</p>
+                                                <p>{{ session('message') }}</p>
+                                            </div>
+                                        @endif
+                                        <h3 class="text-lg leading-6 font-medium text-gray-900" id="modal-headline">
+                                            Pagos de Persona
+                                        </h3>
+                                        <div class="mt-2">
+                                            <!-- Componente de pagos dentro del modal -->
+                                            @livewire('ingreso.carga-pagos', ['idpersona' => $idpersonaPagos])
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
 
-                        <!-- Pie del modal -->
-                        <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-                            <button wire:click="ocultarPagos"
-                                class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
-                                Cerrar
-                            </button>
+                            <!-- Pie del modal -->
+                            <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                                <button wire:click="ocultarPagos"
+                                    class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
+                                    Cerrar
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
-        @endif
+            @endif
 
         </div>
     </div>
 </div>
+@push('js')
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        Livewire.on('confirmarCancelacionVentaDeuda', id => {
+            Swal.fire({
+                title: '¿Estás seguro?',
+                text: 'Estás a punto de cancelar esta venta.',
+                icon: 'warning',
+                input: 'text', // Esto permite que el usuario ingrese el motivo
+                inputPlaceholder: 'Ingresa el motivo de cancelación...',
+                showCancelButton: true,
+                buttonsStyling: false,
+                confirmButtonText: 'Sí, cancelar venta',
+                cancelButtonText: 'Cancelar',
+                customClass: {
+                    confirmButton: 'bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded mr-2',
+                    cancelButton: 'bg-red-600 text-white px-4 py-2 rounded'
+                }
+            }).then((result) => {
+                console.log('Resultado del SweetAlert:', result);
 
+            if (result.isConfirmed) {
+                console.log('Venta confirmada para cancelar. ID:', id, 'Motivo:', result.value);
+                Livewire.emit('cancelarVentaConDeuda', id, result.value);
+            }
+            });
+        });
+    </script>
+@endpush
