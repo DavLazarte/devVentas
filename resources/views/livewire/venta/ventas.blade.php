@@ -79,63 +79,54 @@
                                                 </td>
 
                                                 <!-- Precio -->
-                                                <td
-                                                    class="py-2 px-4 md:px-6 flex justify-between items-center md:table-cell">
+                                                <td class="py-2 px-2 md:px-4 flex justify-between items-center md:table-cell">
                                                     <span class="font-medium md:hidden text-gray-700">Precio:</span>
-                                                    <div
-                                                        class="relative rounded-md shadow-sm w-24 sm:w-32 md:w-32 lg:w-32 px-2">
-                                                        <div
-                                                            class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                                    <div class="relative ">
+                                                        <div class="absolute inset-y-0 left-0 pl-2 flex items-center pointer-events-none">
                                                             <span class="text-gray-500 sm:text-sm">$</span>
                                                         </div>
-                                                        <input type="number" id="precio_unitario_{{ $index }}"
+                                                        <input type="text" id="precio_unitario_{{ $index }}"
                                                             wire:model="articuloSeleccionado.{{ $index }}.precio_unitario"
                                                             wire:change="calcularSubTotalProducto({{ $index }})"
-                                                            class="w-full focus:ring-purple-500 focus:border-purple-500 block sm:text-sm border-gray-300 rounded-md"
-                                                            >
+                                                            class="pl-6 pr-2 py-1 w-full focus:ring-purple-500 focus:border-purple-500 block sm:text-sm border-gray-300 rounded-md text-right" />
                                                     </div>
                                                 </td>
 
+
                                                 <!-- Cantidad -->
-                                                <td
-                                                    class=" py-2 px-4 md:px-6 flex justify-between items-center md:table-cell">
+                                                <td class="py-2 px-2 md:px-4 flex justify-between items-center md:table-cell">
                                                     <span class="font-medium md:hidden text-gray-700">Cantidad:</span>
-                                                    <div
-                                                        class="flex items-center w-24 sm:w-24 md:w-24 lg:w-32 ">
+                                                    <div class="flex items-center w-24 sm:w-28 md:w-28 lg:w-32">
                                                         <button type="button"
                                                             wire:click="decrementarCantidad({{ $index }})"
-                                                            class="bg-gray-200 p-1 rounded-l-md hover:bg-gray-300">
-                                                            <svg class="w-4 h-4" fill="none" stroke="currentColor"
-                                                                viewBox="0 0 24 24">
-                                                                <path d="M20 12H4" stroke-width="2"
-                                                                    stroke-linecap="round" stroke-linejoin="round">
-                                                                </path>
+                                                            class="bg-gray-200 px-2 py-1 rounded-l-md hover:bg-gray-300 transition">
+                                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path d="M20 12H4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
                                                             </svg>
                                                         </button>
-                                                        <input type="number" id="cantidad_{{ $index }}"
+                                                        <input type="text" id="cantidad_{{ $index }}"
                                                             wire:model="articuloSeleccionado.{{ $index }}.cantidad"
                                                             wire:change="calcularSubTotalProducto({{ $index }})"
-                                                            class="rounded-full border-gray-300 w-full text-center focus:ring-purple-500 focus:border-purple-500 sm:text-sm"
+                                                            class="text-center w-full px-2 py-1 border-gray-300 focus:ring-purple-500 focus:border-purple-500 text-sm"
                                                             min="1">
                                                         <button type="button"
                                                             wire:click="incrementarCantidad({{ $index }})"
-                                                            class="bg-gray-200 p-1 rounded-r-md hover:bg-gray-300">
-                                                            <svg class="w-4 h-4" fill="none" stroke="currentColor"
-                                                                viewBox="0 0 24 24">
-                                                                <path d="M12 4v16m8-8H4" stroke-width="2"
-                                                                    stroke-linecap="round" stroke-linejoin="round">
-                                                                </path>
+                                                            class="bg-gray-200 px-2 py-1 rounded-r-md hover:bg-gray-300 transition">
+                                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path d="M12 4v16m8-8H4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
                                                             </svg>
                                                         </button>
                                                     </div>
                                                 </td>
 
                                                 <!-- Subtotal -->
-                                                <td class="py-2 px-4 md:px-6 flex justify-between md:table-cell">
+                                                <td class="py-2 px-4 md:px-6 flex justify-between items-center md:table-cell">
                                                     <span class="font-medium md:hidden text-gray-700">Subtotal:</span>
-                                                    <span class="font-medium text-gray-900">$
-                                                        {{ isset($art['subtotal']) ? number_format($art['subtotal'], 2) : '0.00' }}</span>
+                                                    <span class="font-medium text-gray-900">
+                                                        ${{ isset($art['subtotal']) ? number_format($art['subtotal'], 2) : '0.00' }}
+                                                    </span>
                                                 </td>
+
 
                                                 <!-- Acción -->
                                                 <td
