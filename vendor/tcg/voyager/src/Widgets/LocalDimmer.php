@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 use TCG\Voyager\Facades\Voyager;
 
+
 class LocalDimmer extends BaseDimmer
 {
     /**
@@ -21,20 +22,28 @@ class LocalDimmer extends BaseDimmer
      */
     public function run()
     {
-        // $count = Voyager::model('User')->count();
-        // $string = trans_choice('voyager::dimmer.user', $count);
+        $local = auth()->user()->local;
 
-        return view('voyager::dimmer', array_merge($this->config, [
-            'icon'   => 'voyager-basket',
-            'title'  => "Sistema de Ventas",
-            'text'  => "click en el botón de abajo para ingresar al sistema",
-            // 'text'   => __('voyager::dimmer.user_text', ['count' => $count, 'string' => Str::lower($string)]),
-            'button' => [
-                'text' =>"Ingresar",
-                'link' => route('sistema'),
-            ],
-            'image' => asset('images/bg-login-register.png'),
-        ]));
+        if ($local && $local->estado === 'activo') {
+            return view('voyager::dimmer', array_merge($this->config, [
+                'icon'   => 'voyager-basket',
+                'title'  => "Sistema de Ventas",
+                'text'   => "Click en el botón de abajo para ingresar al sistema",
+                'button' => [
+                    'text' => "Ingresar",
+                    'link' => route('sistema'),
+                ],
+                'image'  => asset('images/bg-login-register.png'),
+            ]));
+        } else {
+            return view('voyager::dimmer', array_merge($this->config, [
+                'icon'   => 'voyager-warning',
+                'title'  => "Acceso restringido",
+                'text'   => "No tenés un local activo asignado. Contactá al administrador.",
+                // 'button' => null,
+                'image'  => asset('images/bg-login-register.png'),
+            ]));
+        }
     }
 
     /**

@@ -42,8 +42,4 @@ class User extends \TCG\Voyager\Models\User
         'email_verified_at' => 'datetime',
     ];
 
-    public function locales()
-    {
-        return $this->hasMany(Local::class, 'id_user');
-    }
 }

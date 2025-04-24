@@ -1,4 +1,5 @@
 <main class="flex-1 overflow-x-hidden overflow-y-auto bg-gray-200">
+    
     <div class="container px-6 py-8 mx-auto">
         <div class="flex items-center justify-between mb-6">
             <div class="flex items-center space-x-4">
@@ -72,9 +73,9 @@
                 <div>
                     <p class="mb-2 text-sm font-medium text-gray-600 dark:text-gray-800">Total Ventas de Cuentas y
                         Tarjetas </p>
-                        <p class="text-lg font-semibold text-gray-700 dark:text-gray-600">
-                            {{ number_format($ventas_tarjeta + $ventas_credito, 2) }}
-                        </p>
+                    <p class="text-lg font-semibold text-gray-700 dark:text-gray-600">
+                        {{ number_format($ventas_tarjeta + $ventas_credito, 2) }}
+                    </p>
                 </div>
             </div>
 

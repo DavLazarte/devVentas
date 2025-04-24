@@ -73,12 +73,17 @@ class Ventas extends Component
         }
     }
 
+    // Método privado que retorna un query base para clientes del local
+    private function clienteQuery()
+    {
+        return Persona::where('id_local', $this->idLocal)
+            ->where('tipo_persona', 'cliente');
+    }
 
 
     public function filtrarCliente()
     {
-        $query = Persona::where('id_local', $this->idLocal);
-        // $this->persona->where('tipo_persona', 'cliente');
+        $query = $this->clienteQuery();
 
         if (!empty($this->searchCliente)) {
             $query->where(function ($q) {
@@ -89,12 +94,10 @@ class Ventas extends Component
 
         $this->persona = $query->get();
     }
+
     public function agregarCliente($id)
     {
-        // Aquí se busca el cliente por ID solo si corresponde al 'id_local' y al tipo 'cliente'.
-        $clienteSe = Persona::where('id_local', $this->idLocal)
-            ->where('tipo_persona', 'cliente')
-            ->find($id);
+        $clienteSe = $this->clienteQuery()->find($id);
 
         if ($clienteSe) {
             $this->clienteSeleccionado = $clienteSe;
@@ -102,10 +105,10 @@ class Ventas extends Component
             $this->nombre_cliente = $clienteSe->nombre;
             $this->searchCliente = '';
         } else {
-            // Opcional: Agregar algún manejo si no se encuentra el cliente, como un mensaje de error.
             session()->flash('error', 'Cliente no encontrado en su local.');
         }
     }
+
     public function filtrarArticulo()
     {
         // Asumiendo que $this->idLocal ya está definido y es el ID del local correcto.
@@ -128,7 +131,7 @@ class Ventas extends Component
         $this->articuloSeleccionado[] = [
             'idarticulo' => $articuloSe->idarticulo,
             'nombre' => $articuloSe->nombre,
-            'precio_unitario' => number_format($articuloSe->precio_unitario, 2, '.', ''),
+            'precio_unitario' => $articuloSe->precio_unitario,
             'stock' => $articuloSe->stock,
             'cantidad' => 1,
             'descripcion' => $articuloSe->descripcion,
@@ -279,6 +282,8 @@ class Ventas extends Component
             DB::commit();
 
             $this->mensajeVenta = 'VENTA EXITOSA!';
+            $this->tipo_venta = "venta_rapida";
+            $this->forma_de_pago = "efectivo";
 
             $this->reset([
                 'nombre_cliente',
@@ -301,7 +306,6 @@ class Ventas extends Component
                 'searchCliente',
                 'searchArticulo',
                 'agregarArticulo',
-                'tipo_venta',
                 'idLocal'
             ]);
         } catch (\Exception $e) {
@@ -319,6 +323,19 @@ class Ventas extends Component
 
             // Puedes redirigir a la página anterior o mostrar un mensaje de error en la misma página
             return back();
+        }
+    }
+    public function incrementarCantidad($index)
+    {
+        $this->articuloSeleccionado[$index]['cantidad']++;
+        $this->calcularSubTotalProducto($index);
+    }
+
+    public function decrementarCantidad($index)
+    {
+        if ($this->articuloSeleccionado[$index]['cantidad'] > 1) {
+            $this->articuloSeleccionado[$index]['cantidad']--;
+            $this->calcularSubTotalProducto($index);
         }
     }
 }

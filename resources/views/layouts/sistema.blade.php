@@ -320,6 +320,9 @@
 
                 </header>
                 <main class="flex-1 overflow-x-hidden overflow-y-auto bg-gray-200">
+                    <div class="max-w-xl mx-auto mt-2 px-1 sm:px-1 lg:px-1">
+                        @include('livewire.accesos-directos')
+                    </div>
                     <div class="font-sans text-gray-900 antialiased">
                         {{ $slot }}
                     </div>
