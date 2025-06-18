@@ -52,6 +52,8 @@ class ArticulosTable extends DataTableComponent
                 ->sortable(),
             Column::make("Precio", "precio_unitario")
                 ->sortable(),
+            Column::make("Ver en Feed", "mostrar_feed")
+                ->sortable(),
             Column::make("Estado", "estado")
                 ->sortable(),
             Column::make("Acciones")

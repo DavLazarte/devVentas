@@ -120,10 +120,17 @@
                                 href="{{ url('admin/categorias') }}">
                                 <span class="ml-2 text-m"> 📌 Categorías</span>
                             </a>
-                            <a class="flex items-center px-6 py-2 mt-4 text-gray-500 hover:bg-gray-700 hover:bg-opacity-25 hover:text-gray-100"
-                                href="{{ url('admin/articulos') }}">
-                                <span class="ml-2 text-m"> 📦 Productos</span>
-                            </a>
+                            @if (auth()->user()->local->tipo == 'venta')
+                                <a class="flex items-center px-6 py-2 mt-4 text-gray-500 hover:bg-gray-700 hover:bg-opacity-25 hover:text-gray-100"
+                                    href="{{ url('admin/articulos') }}">
+                                    <span class="ml-2 text-m"> 📦 Productos</span>
+                                </a>
+                            @else
+                                <a class="flex items-center px-6 py-2 mt-4 text-gray-500 hover:bg-gray-700 hover:bg-opacity-25 hover:text-gray-100"
+                                    href="{{ url('admin/servicios') }}">
+                                    <span class="ml-2 text-m"> 🛅 Servicios</span>
+                                </a>
+                            @endif
                         </div>
                     </div>
                     <div x-data="{ isActive: false, open: false }">
@@ -153,6 +160,10 @@
                             </a>
                         </div>
                     </div>
+                    <a class="flex items-center px-6 py-2 mt-4  text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors rounded-md   hover:bg-purple-100 dark:hover:bg-purple-600"
+                        href="{{ url('admin/pedidos') }}">
+                        <span class="ml-2 text-m"> 📋 Pedidos</span>
+                    </a>
                     <div x-data="{ isActive: false, open: false }">
                         <a href="#" @click="$event.preventDefault(); open = !open"
                             class="flex items-center px-6 py-2 mt-4 text-gray-400   transition-colors rounded-md   hover:bg-purple-100 dark:hover:bg-purple-600 hover:text-gray-900 dark:hover:text-gray-100"

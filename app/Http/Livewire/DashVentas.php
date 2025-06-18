@@ -6,6 +6,7 @@ use App\Models\Ingreso;
 use App\Models\Compra;
 use App\Models\Salida;
 use App\Models\Venta;
+use App\Models\Pedido;
 use Livewire\Component;
 
 class DashVentas extends Component
@@ -21,12 +22,22 @@ class DashVentas extends Component
     public $ventas_credito;   // Ventas a cuenta corriente
     public $pagos_credito;    // Pagos recibidos de cuentas corrientes
     public $desglose_pagos;
+    public $pedidosPendientes = 0;
 
     public function mount()
     {
         $this->idLocal = auth()->user()->local->id;
         $this->selectedDate = now()->toDateString();
+        $this->actualizarPedidosPendientes();
     }
+
+    public function actualizarPedidosPendientes()
+    {
+        $this->pedidosPendientes = Pedido::where('id_local', $this->idLocal)
+            ->where('estado', 'pendiente')
+            ->count();
+    }
+
     // Nuevo método para actualizar la fecha
     public function updatedSelectedDate($value)
     {

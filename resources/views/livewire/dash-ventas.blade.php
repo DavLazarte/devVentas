@@ -14,6 +14,26 @@
 
 
         <div class="grid gap-6 mb-8 md:grid-cols-2 xl:grid-cols-3">
+            <!-- Pedidos Pendientes -->
+            <div class="flex items-center p-4 bg-white border-l-4 border-purple-500 rounded-lg shadow-sm dark:bg-gray-800 animate-pulse">
+                <div class="p-3 mr-4 bg-gradient-to-br from-purple-400 to-purple-600 rounded-full">
+                    <svg class="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                    </svg>
+                </div>
+                <div>
+                    <p class="mb-2 text-sm font-medium text-gray-600 dark:text-gray-800">Pedidos Pendientes</p>
+                    <p class="text-lg font-semibold text-gray-700 dark:text-gray-600">
+                        {{ $pedidosPendientes }}
+                        @if($pedidosPendientes > 0)
+                            <a href="{{ url('admin/pedidos') }}" class="ml-2 text-sm text-purple-600 hover:text-purple-800">
+                                Ver pedidos →
+                            </a>
+                        @endif
+                    </p>
+                </div>
+            </div>
+
             <!-- Ventas Totales -->
             <div
                 class="flex items-center p-4 bg-white border-l-4 border-orange-500 rounded-lg shadow-sm dark:bg-gray-800">

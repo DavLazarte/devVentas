@@ -16,7 +16,7 @@ class ArticuloLivewire extends Component
 
     use WithFileUploads;
 
-    public $articulos, $articulo_id, $imagen, $imagen_actual, $nombre, $descripcion, $estado, $stock, $codigo, $precio_unitario, $busqueda, $categorias, $categoria_id, $recetas, $receta, $recetaSeleccionada;
+    public $articulos, $articulo_id,$mostrar_feed, $destacado, $imagen, $imagen_actual, $nombre, $descripcion, $estado, $stock, $codigo, $precio_unitario, $busqueda, $categorias, $categoria_id, $recetas, $receta, $recetaSeleccionada;
     public $isOpen = 0;
     public $modoEdit = 0;
     public $loading = false;
@@ -69,6 +69,8 @@ class ArticuloLivewire extends Component
         $this->nombre = '';
         $this->descripcion = '';
         $this->estado = '';
+        $this->mostrar_feed = '';
+        $this->destacado = '';
         $this->articulo_id = '';
         $this->stock = '';
         $this->precio_unitario = '';
@@ -119,6 +121,8 @@ class ArticuloLivewire extends Component
                 'precio_unitario' => $this->precio_unitario,
                 'stock' => $this->stock,
                 'estado' => $this->estado,
+                'mostrar_feed' => $this->mostrar_feed,
+                'destacado' => $this->destacado,
                 'imagen' => $nombreArchivo ? "locales/{$idLocal}/articulos/{$nombreArchivo}" : null,
                 'id_local' => $idLocal
             ]);
@@ -153,6 +157,8 @@ class ArticuloLivewire extends Component
         $this->precio_unitario = floatval($articulo->precio_unitario);
         $this->stock = $articulo->stock;
         $this->estado = $articulo->estado;
+        $this->mostrar_feed = $articulo->mostrar_feed;
+        $this->destacado = $articulo->destacado;
 
         // Cargar la imagen actual
         $this->imagen_actual = $articulo->imagen;
