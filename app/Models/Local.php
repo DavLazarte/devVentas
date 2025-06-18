@@ -44,6 +44,6 @@ class Local extends Model
     }
 
     public function subcategories() {
-        return $this->belongsToMany(subcategory::class, 'local_subcategory');
+        return $this->belongsToMany(Subcategory::class, 'local_subcategory');
     }
 }
