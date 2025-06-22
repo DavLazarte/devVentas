@@ -16,8 +16,11 @@ class Servicios extends Component
 
     use WithFileUploads;
 
-    public $servicios, $servicio_id, $mostrar_feed, $destacado, $imagen, $imagen_actual, $nombre, $descripcion, $estado, $precio, $duracion, $busqueda, $categorias, $categoria_id;
+    public $servicios, $servicio_id, $imagen, $imagen_actual, $nombre, $descripcion,  $precio, $duracion, $busqueda, $categorias, $categoria_id;
     public $isOpen = 0;
+    public $estado = 0;
+    public $mostrar_feed = 0;
+    public $destacado = 0;
     public $modoEdit = 0;
     public $loading = false;
 
@@ -61,9 +64,9 @@ class Servicios extends Component
     {
         $this->nombre = '';
         $this->descripcion = '';
-        $this->estado = '';
-        $this->mostrar_feed = '';
-        $this->destacado = '';
+        $this->estado = 0;
+        $this->mostrar_feed = 0;
+        $this->destacado = 0;
         $this->servicio_id = '';
         $this->precio = '';
         $this->duracion = '';
@@ -74,6 +77,11 @@ class Servicios extends Component
         $this->loading = true; // Bloquea el botón y muestra el loader
         // Simulación de un proceso (quita esto en producción)
         // sleep(2);
+
+        // Forzar a enteros antes de validar y guardar
+        $this->estado = (int) $this->estado;
+        $this->mostrar_feed = (int) $this->mostrar_feed;
+        $this->destacado = (int) $this->destacado;
 
         try {
             $this->validate([
@@ -97,8 +105,8 @@ class Servicios extends Component
                 $idServicio = $this->servicio_id ?? uniqid();
                 $nombreArchivo = "{$nombreLimpio}_{$idServicio}.{$extension}";
 
-                 $rutaCarpeta = "locales/{$idLocal}/servicios";
-                // $rutaCarpeta = "public/locales/{$idLocal}/servicios"; descomentar para  local
+                $rutaCarpeta = "locales/{$idLocal}/servicios";
+                // $rutaCarpeta = "public/locales/{$idLocal}/servicios";
 
                 if (!Storage::exists($rutaCarpeta)) {
                     Storage::makeDirectory($rutaCarpeta);
@@ -116,7 +124,9 @@ class Servicios extends Component
                 'estado' => $this->estado,
                 'mostrar_feed' => $this->mostrar_feed,
                 'destacado' => $this->destacado,
-                'imagen' => $nombreArchivo ? "locales/{$idLocal}/servicios/{$nombreArchivo}" : null,
+                'imagen' => $nombreArchivo
+                    ? "locales/{$idLocal}/servicios/{$nombreArchivo}"
+                    : ($this->imagen_actual ?? null),
                 'id_local' => $idLocal
             ]);
 

@@ -240,6 +240,18 @@
                 @endif
             </div>
         </div>
+        @if($hasMorePages)
+            <div class="mt-6 text-center">
+                <button
+                    wire:click="loadMore"
+                    wire:loading.attr="disabled"
+                    class="inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                    <span wire:loading.remove>Cargar más {{ $activeTab === 'productos' ? 'productos' : ($activeTab === 'servicios' ? 'servicios' : 'elementos') }}</span>
+                    <span wire:loading>Cargando...</span>
+                </button>
+            </div>
+        @endif
     </main>
     <livewire:footer-menu />
 

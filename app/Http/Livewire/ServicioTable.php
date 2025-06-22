@@ -37,18 +37,22 @@ class ServicioTable extends DataTableComponent
 
             Column::make("Categoría", "categoria.nombre")
                 ->sortable()
-                ->searchable(),
+                ->searchable()
+                ->collapseOnMobile(),
             Column::make("Nombre", "nombre")
                 ->sortable()
                 ->searchable(),
             Column::make("Descripcion", "descripcion")
-                ->sortable(),
+                ->sortable()
+                ->collapseOnMobile(),
             Column::make("Precio", "precio")
                 ->sortable(),
             Column::make("Duracion", "duracion")
-                ->sortable(),
+                ->sortable()
+                ->collapseOnMobile(),
             Column::make("Destacado", "destacado")
                 ->sortable()
+                ->collapseOnMobile()
                 ->format(function ($row) {
                     return $row
                         ? '<span class="text-green-600">✅</span>'
@@ -57,14 +61,16 @@ class ServicioTable extends DataTableComponent
                 ->html(),
             Column::make("Estado", "estado")
                 ->sortable()
+                ->collapseOnMobile()
                 ->format(function ($row) {
                     return $row
                         ? '<span class="text-green-600">✅</span>'
                         : '<span class="text-red-600">❌</span>';
                 })
                 ->html(),
-            Column::make("Mostrar feed", "mostrar_feed")
+            Column::make("En catalogo", "mostrar_feed")
                 ->sortable()
+                ->collapseOnMobile()
                 ->format(function ($row) {
                     return $row
                         ? '<span class="text-green-600">✅</span>'

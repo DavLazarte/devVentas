@@ -265,7 +265,7 @@
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
                             <div>
                                 <label for="pago" class="block text-sm font-medium text-gray-700">Pago</label>
-                                <input type="text" id="pago" wire:model.debounce.500ms="pago"
+                                <input type="number" id="pago" wire:model.debounce.500ms="pago"
                                     class="block w-full mt-1 border-gray-300 rounded-md py-2 px-3 text-gray-700 shadow-purple-200
                                     focus:ring-purple-500 focus:border-purple-500"
                                     placeholder="$0.00">

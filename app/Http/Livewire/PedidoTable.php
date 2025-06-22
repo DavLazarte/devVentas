@@ -56,37 +56,71 @@ class PedidoTable extends DataTableComponent
                 ->sortable()
                 ->searchable(),
             Column::make("Email", "email")
-                ->sortable(),
+                ->sortable()
+                ->collapseOnMobile(),
             Column::make("Telefono", "telefono")
-                ->sortable(),
+                ->sortable()
+                ->collapseOnMobile(),
             Column::make("Direccion", "direccion")
-                ->sortable(),
+                ->sortable()
+                ->collapseOnMobile(),
             Column::make("Ciudad", "ciudad")
-                ->sortable(),
+                ->sortable()
+                ->searchable()
+                ->collapseOnMobile(),
             Column::make("Codigo postal", "codigo_postal")
-                ->sortable(),
+                ->sortable()
+                ->collapseOnMobile(),
             Column::make("Notas entrega", "notas_entrega")
-                ->sortable(),
+                ->sortable()
+                ->collapseOnMobile(),
             Column::make("Subtotal", "subtotal")
                 ->sortable(),
             Column::make("Envio", "envio")
-                ->sortable(),
+                ->sortable()
+                ->collapseOnMobile(),
             Column::make("Descuento", "descuento")
-                ->sortable(),
+                ->sortable()
+                ->collapseOnMobile(),
             Column::make("Total", "total")
                 ->sortable(),
             Column::make("Estado", "estado")
-                ->sortable(),
-            Column::make("Metodo pago", "metodo_pago")
-                ->sortable(),
-            Column::make("Crear cuenta", "crear_cuenta")
                 ->sortable()
-                ->format(function ($row) {
-                    return $row
-                        ? '<span class="text-green-600">✅</span>'
-                        : '<span class="text-red-600">❌</span>';
+                ->format(function ($estado) {
+                    $clases = [
+                        'pendiente'    => 'bg-black text-white',   // negro
+                        'confirmado'   => 'bg-blue-500 text-white',  // azul
+                        'en_proceso'   => 'bg-purple-500 text-white',  // Morado
+                        'entregado'    => 'bg-green-500 text-white',   // Verde
+                        'cancelado'    => 'bg-red-500 text-white',     // Rojo
+                    ];
+
+                    $textos = [
+                        'pendiente'    => 'Pendiente',
+                        'confirmado'   => 'Confirmado',
+                        'en_proceso'   => 'En proceso',
+                        'entregado'    => 'Entregado',
+                        'cancelado'    => 'Cancelado',
+                    ];
+
+                    $clase = $clases[$estado] ?? 'bg-gray-500 text-white';
+                    $texto = $textos[$estado] ?? ucfirst($estado);
+
+                    return "<span class='px-3 py-1 rounded-full text-xs font-semibold {$clase}'>$texto</span>";
                 })
                 ->html(),
+
+            Column::make("Metodo pago", "metodo_pago")
+                ->sortable()
+                ->collapseOnMobile(),
+            // Column::make("Crear cuenta", "crear_cuenta")
+            //     ->sortable()
+            //     ->format(function ($row) {
+            //         return $row
+            //             ? '<span class="text-green-600">✅</span>'
+            //             : '<span class="text-red-600">❌</span>';
+            //     })
+            //     ->html(),
             Column::make("Acciones")
                 ->label(
                     fn($row, Column $column) => view('livewire.pedido.actions', ['row' => $row])

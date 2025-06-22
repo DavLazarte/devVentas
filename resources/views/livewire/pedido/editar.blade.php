@@ -203,7 +203,7 @@
                     <select id="estado" wire:model="estado" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-purple-500 focus:border-purple-500">
                         <option value="pendiente">Pendiente</option>
                         <option value="en_proceso">En Proceso</option>
-                        <option value="enviado">Enviado</option>
+                        <option value="confirmado">Confirmado</option>
                         <option value="entregado">Entregado</option>
                         <option value="cancelado">Cancelado</option>
                     </select>

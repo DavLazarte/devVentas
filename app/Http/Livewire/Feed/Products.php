@@ -77,7 +77,7 @@ class Products extends Component
                 'categoria:id_categoria,nombre',
                 'local:id,nombre'
             ])
-            ->where('estado', 1)
+            ->where('estado', 'activo')
             ->where('mostrar_feed', 1);
 
         // Aplicar búsqueda si existe

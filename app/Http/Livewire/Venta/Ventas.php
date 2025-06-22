@@ -223,9 +223,10 @@ class Ventas extends Component
     }
     public function calcularSaldo()
     {
-        $calc_new_saldo = $this->venta_total - $this->pago;
-        $new_saldo = round($calc_new_saldo, 2);
-        $this->saldo = $new_saldo;
+        $pago = is_numeric($this->pago) ? floatval($this->pago) : 0;
+        $venta = is_numeric($this->venta_total) ? floatval($this->venta_total) : 0;
+
+        $this->saldo = round($venta - $pago, 2);
     }
     public function guardar()
     {

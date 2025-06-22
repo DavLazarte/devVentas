@@ -16,10 +16,13 @@ class ArticuloLivewire extends Component
 
     use WithFileUploads;
 
-    public $articulos, $articulo_id,$mostrar_feed, $destacado, $imagen, $imagen_actual, $nombre, $descripcion, $estado, $stock, $codigo, $precio_unitario, $busqueda, $categorias, $categoria_id, $recetas, $receta, $recetaSeleccionada;
+    public $articulos, $articulo_id, $imagen, $imagen_actual, $nombre, $descripcion, $stock, $codigo, $precio_unitario, $busqueda, $categorias, $categoria_id, $recetas, $receta, $recetaSeleccionada;
     public $isOpen = 0;
     public $modoEdit = 0;
     public $loading = false;
+    public $estado = 'inactivo';
+    public $mostrar_feed = 0;
+    public $destacado = 0;
 
     // En tus componentes Livewire (por ejemplo, CategoriaLivewire)
     public $layout = 'sistema';
@@ -68,9 +71,9 @@ class ArticuloLivewire extends Component
     {
         $this->nombre = '';
         $this->descripcion = '';
-        $this->estado = '';
-        $this->mostrar_feed = '';
-        $this->destacado = '';
+        $this->estado = 'activo';
+        $this->mostrar_feed = 0;
+        $this->destacado = 0;
         $this->articulo_id = '';
         $this->stock = '';
         $this->precio_unitario = '';
@@ -83,14 +86,27 @@ class ArticuloLivewire extends Component
         // Simulación de un proceso (quita esto en producción)
         // sleep(2);
 
+        // Forzar a enteros antes de validar y guardar
+        $this->mostrar_feed = (int) $this->mostrar_feed;
+        $this->destacado = (int) $this->destacado;
+
+        $reglas = [
+            'nombre' => 'required',
+            'descripcion' => 'required',
+           'estado' => 'required|in:activo,inactivo', 
+            'destacado' => 'boolean',
+            'mostrar_feed' => 'boolean',
+        ];
+
+        if ($this->imagen) {
+            $reglas['imagen'] = 'image|max:2048';
+        }
+
+
+
+
         try {
-            $this->validate([
-                'nombre' => 'required',
-                'descripcion' => 'required',
-                'codigo' => 'required',
-                'estado' => 'required|in:activo,inactivo',
-                'imagen' => 'nullable|image|max:2048',
-            ]);
+            $this->validate($reglas);
 
             $idLocal = auth()->user()->local->id;
             $nombreArchivo = null;
@@ -104,7 +120,7 @@ class ArticuloLivewire extends Component
                 $nombreArchivo = "{$nombreLimpio}_{$idArticulo}.{$extension}";
 
                 $rutaCarpeta = "locales/{$idLocal}/articulos";
-                // $rutaCarpeta = "public/locales/{$idLocal}/articulos";
+                // $rutaCarpeta = "public/locales/{$idLocal}/articulos"; //local
 
                 if (!Storage::exists($rutaCarpeta)) {
                     Storage::makeDirectory($rutaCarpeta);
@@ -123,7 +139,7 @@ class ArticuloLivewire extends Component
                 'estado' => $this->estado,
                 'mostrar_feed' => $this->mostrar_feed,
                 'destacado' => $this->destacado,
-                'imagen' => $nombreArchivo ? "locales/{$idLocal}/articulos/{$nombreArchivo}" : null,
+                'imagen' => $nombreArchivo ? "locales/{$idLocal}/articulos/{$nombreArchivo}" : ($this->imagen_actual ?? null),
                 'id_local' => $idLocal
             ]);
 

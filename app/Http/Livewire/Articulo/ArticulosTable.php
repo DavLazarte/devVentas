@@ -16,46 +16,77 @@ class ArticulosTable extends DataTableComponent
     {
         $idLocal = auth()->user()->local->id;
 
-        // Construir la consulta de artículos pertenecientes al local del usuario
-        $query = Articulo::where('articulos.id_local', $idLocal);
-
-        // Obtener los artículos con sus categorías
-        return $query->with('categoria')->select('articulos.*');;
+        // Ordenar por ID descendente para ver los más recientes primero
+        return Articulo::where('articulos.id_local', $idLocal)
+            ->with('categoria')
+            ->select('articulos.*')
+            ->orderByDesc('idarticulo');
     }
 
     public function configure(): void
     {
         $this->setPrimaryKey('idarticulo');
         $this->setSearchEnabled(); // Habilitar la búsqueda
+
     }
+
 
 
     public function columns(): array
     {
         return [
-           
-            Column::make("Id", "idarticulo")->sortable(),
+
+            Column::make("Id", "idarticulo")
+                ->sortable()
+                ->collapseOnMobile(),
             Column::make("Categoría", "categoria.nombre")
                 ->sortable()
-                ->searchable(),
+                ->searchable()
+                ->collapseOnMobile(),
             Column::make("Codigo", "codigo")
                 ->sortable()
-                ->searchable(),
+                ->searchable()
+                ->collapseOnMobile(),
             Column::make("Nombre", "nombre")
                 ->sortable()
                 ->searchable(),
             Column::make("Imagen", "imagen")
                 ->label(fn($row) => view('livewire.articulo.imagen', ['imagen' => $row->imagen])),
             Column::make("Stock", "stock")
-                ->sortable(),
+                ->sortable()
+                ->collapseOnMobile(),
             Column::make("Descripcion", "descripcion")
-                ->sortable(),
+                ->sortable()
+                ->collapseOnMobile(),
             Column::make("Precio", "precio_unitario")
                 ->sortable(),
-            Column::make("Ver en Feed", "mostrar_feed")
-                ->sortable(),
+            Column::make("Destacado", "destacado")
+                ->sortable()
+                ->collapseOnMobile()
+                ->format(function ($row) {
+                    return $row
+                        ? '<span class="text-green-600">✅</span>'
+                        : '<span class="text-red-600">❌</span>';
+                })
+                ->html(),
             Column::make("Estado", "estado")
-                ->sortable(),
+                ->sortable()
+                ->collapseOnMobile()
+                ->format(function ($row) {
+                    return $row
+                        ? '<span class="text-green-600">✅</span>'
+                        : '<span class="text-red-600">❌</span>';
+                })
+                ->html(),
+            Column::make("En Catalogo", "mostrar_feed")
+                ->sortable()
+                ->collapseOnMobile()
+                ->format(function ($row) {
+                    return $row
+                        ? '<span class="text-green-600">✅</span>'
+                        : '<span class="text-red-600">❌</span>';
+                })
+                ->html(),
             Column::make("Acciones")
                 ->label(
                     fn($row, Column $column) => view('livewire.articulo.actions', ['row' => $row])

@@ -15,7 +15,11 @@ class ShowStore extends Component
     public $isFavorite = false;
     public $isFollowing = false;
     public $activeTab = 'productos';
-    public $perPage = 6;
+    public $perPage = 12;
+    public $page = 1;
+    public $hasMorePages = true;
+    public $products;
+    public $services;
 
     protected $queryString = ['activeTab'];
 
@@ -26,10 +30,9 @@ class ShowStore extends Component
                 ->with(['categories', 'subcategories'])
                 ->firstOrFail();
         });
-
-        // Aquí podrías cargar el estado de favorito y seguimiento del usuario actual
-        // $this->isFavorite = auth()->user() ? $this->local->favoritos()->where('user_id', auth()->id())->exists() : false;
-        // $this->isFollowing = auth()->user() ? $this->local->seguidores()->where('user_id', auth()->id())->exists() : false;
+        $this->products = collect();
+        $this->services = collect();
+        $this->loadItems();
     }
 
     public function toggleFavorite()
@@ -55,43 +58,79 @@ class ShowStore extends Component
     public function setActiveTab($tab)
     {
         $this->activeTab = $tab;
+        $this->resetPage();
+        $this->loadItems();
+    }
+
+    public function resetPage()
+    {
+        $this->page = 1;
+        $this->products = collect();
+        $this->services = collect();
+        $this->hasMorePages = true;
+    }
+
+    public function loadMore()
+    {
+        $this->page++;
+        $this->loadItems();
+    }
+
+    public function loadItems()
+    {
+        if ($this->activeTab === 'productos') {
+            $this->loadProducts();
+        } elseif ($this->activeTab === 'servicios') {
+            $this->loadServices();
+        } else {
+            $this->loadProducts();
+            $this->loadServices();
+        }
+    }
+
+    public function loadProducts()
+    {
+        $query = Articulo::where('id_local', $this->local->id)
+            ->where('estado', true)
+            ->where('mostrar_feed', true);
+        $total = $query->count();
+        $newProducts = $query->skip(($this->page - 1) * $this->perPage)
+            ->take($this->perPage)
+            ->orderBy('destacado', 'desc')
+            ->orderBy('created_at', 'desc')
+            ->get();
+        if ($this->page === 1) {
+            $this->products = $newProducts;
+        } else {
+            $this->products = $this->products->concat($newProducts);
+        }
+        $this->hasMorePages = ($this->page * $this->perPage) < $total;
+    }
+
+    public function loadServices()
+    {
+        $query = Servicio::where('id_local', $this->local->id)
+            ->where('estado', true)
+            ->where('mostrar_feed', true);
+        $total = $query->count();
+        $newServices = $query->skip(($this->page - 1) * $this->perPage)
+            ->take($this->perPage)
+            ->orderBy('destacado', 'desc')
+            ->orderBy('created_at', 'desc')
+            ->get();
+        if ($this->page === 1) {
+            $this->services = $newServices;
+        } else {
+            $this->services = $this->services->concat($newServices);
+        }
+        $this->hasMorePages = ($this->page * $this->perPage) < $total;
     }
 
     public function render()
     {
-        $products = collect();
-        $services = collect();
-
-        if ($this->activeTab === 'productos') {
-            $products = Articulo::where('id_local', $this->local->id)
-                ->where('estado', true)
-                ->where('mostrar_feed', true)
-                ->take($this->perPage)
-                ->get();
-        } elseif ($this->activeTab === 'servicios') {
-            $services = Servicio::where('id_local', $this->local->id)
-                ->where('estado', true)
-                ->where('mostrar_feed', true)
-                ->take($this->perPage)
-                ->get();
-        } else {
-            // Tab "Todo" - Combinamos ambos y tomamos los primeros 10
-            $products = Articulo::where('id_local', $this->local->id)
-                ->where('estado', true)
-                ->where('mostrar_feed', true)
-                ->take(5)
-                ->get();
-
-            $services = Servicio::where('id_local', $this->local->id)
-                ->where('estado', true)
-                ->where('mostrar_feed', true)
-                ->take(5)
-                ->get();
-        }
-
         return view('livewire.feed.show-store', [
-            'products' => $products,
-            'services' => $services
+            'products' => $this->products,
+            'services' => $this->services
         ])->layout('layouts.app');
     }
 }

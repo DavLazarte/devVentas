@@ -78,7 +78,7 @@ class Stores extends Component
                 'subcategories:id,name'
             ])
             ->where('estado', 'activo')
-            ->where('mostrar_feed', true); // o ->where('mostrar_feed', 1)
+            ->where('mostrar_feed', 1); // o ->where('mostrar_feed', 1)
 
         // Aplicar búsqueda si existe
         if ($this->search) {

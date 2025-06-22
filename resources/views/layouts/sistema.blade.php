@@ -11,12 +11,13 @@
     <!-- Fonts -->
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&display=swap">
 
-    <!-- Tu CSS (cárgalo antes para que Bootstrap lo sobrescriba en caso de conflicto) -->
-    <link href="{{ mix('css/app.css') }}" rel="stylesheet">
+
 
     <!-- Bootstrap (ahora está después de tu CSS) -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" rel="stylesheet"
         integrity="sha384-rbsA2VBKQhggwzxH7pPCaAqO46MgnOM80zW1RWuH61DGLwZJEdK2Kadq2F9CUG65" crossorigin="anonymous">
+    <!-- Tu CSS (cárgalo antes para que Bootstrap lo sobrescriba en caso de conflicto) -->
+    <link href="{{ mix('css/app.css') }}" rel="stylesheet">
     <!-- SweetAlert2 CSS (después de Bootstrap para evitar conflictos) -->
     <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
 
@@ -133,6 +134,10 @@
                             @endif
                         </div>
                     </div>
+                    <a class="flex items-center px-6 py-2 mt-4  text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors rounded-md   hover:bg-purple-100 dark:hover:bg-purple-600"
+                        href="{{ url('admin/pedidos') }}">
+                        <span class="ml-2 text-m"> 📋 Pedidos</span>
+                    </a>
                     <div x-data="{ isActive: false, open: false }">
                         <a href="#" @click="$event.preventDefault(); open = !open"
                             class="flex items-center px-6 py-2 mt-4  text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors rounded-md   hover:bg-purple-100 dark:hover:bg-purple-600"
@@ -150,20 +155,25 @@
                             </span>
                         </a>
                         <div role="menu" x-show="open" class="mt-2 space-y-2 px-7" aria-label="Ventas">
-                            <a class="flex items-center px-6 py-2 mt-4 text-gray-500 hover:bg-gray-700 hover:bg-opacity-25 hover:text-gray-100"
-                                href="{{ url('admin/ventas') }}">
-                                <span class="ml-2 text-m"> 🛍 Punto de Venta</span>
-                            </a>
-                            <a class="flex items-center px-6 py-2 mt-4 text-gray-500 hover:bg-gray-700 hover:bg-opacity-25 hover:text-gray-100"
-                                href="{{ url('admin/list-ventas') }}">
-                                <span class="ml-2 text-m"> 📊 Ver Ventas</span>
-                            </a>
+                            @if (auth()->user()->local->tipo == 'venta')
+                                <a class="flex items-center px-6 py-2 mt-4 text-gray-500 hover:bg-gray-700 hover:bg-opacity-25 hover:text-gray-100"
+                                    href="{{ url('admin/ventas') }}">
+                                    <span class="ml-2 text-m"> 🛍 Punto de Venta</span>
+                                </a>
+                                <a class="flex items-center px-6 py-2 mt-4 text-gray-500 hover:bg-gray-700 hover:bg-opacity-25 hover:text-gray-100"
+                                    href="{{ url('admin/list-ventas') }}">
+                                    <span class="ml-2 text-m"> 📊 Ver Ventas</span>
+                                </a>
+                            @else
+                                <a class="flex items-center px-6 py-2 mt-4 text-gray-500 hover:bg-gray-700 hover:bg-opacity-25 hover:text-gray-100"
+                                    href="#">
+                                    <span class="ml-2 text-m"> 📊 Muy Pronto</span>
+                                </a>
+                            @endif
                         </div>
+
                     </div>
-                    <a class="flex items-center px-6 py-2 mt-4  text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors rounded-md   hover:bg-purple-100 dark:hover:bg-purple-600"
-                        href="{{ url('admin/pedidos') }}">
-                        <span class="ml-2 text-m"> 📋 Pedidos</span>
-                    </a>
+
                     <div x-data="{ isActive: false, open: false }">
                         <a href="#" @click="$event.preventDefault(); open = !open"
                             class="flex items-center px-6 py-2 mt-4 text-gray-400   transition-colors rounded-md   hover:bg-purple-100 dark:hover:bg-purple-600 hover:text-gray-900 dark:hover:text-gray-100"
@@ -181,14 +191,21 @@
                             </span>
                         </a>
                         <div role="menu" x-show="open" class="mt-2 space-y-2 px-7" aria-label="Compras">
-                            <a class="flex items-center px-6 py-2 mt-4 text-gray-500 hover:bg-gray-700 hover:bg-opacity-25 hover:text-gray-100"
-                                href="{{ url('admin/compras') }}">
-                                <span class="ml-2 text-m">📥 Cargar Compras</span>
-                            </a>
-                            <a class="flex items-center px-6 py-2 mt-4 text-gray-500 hover:bg-gray-700 hover:bg-opacity-25 hover:text-gray-100"
-                                href="{{ url('admin/list-compras') }}">
-                                <span class="ml-2 text-m"> 📊 Ver Compras</span>
-                            </a>
+                            @if (auth()->user()->local->tipo == 'venta')
+                                <a class="flex items-center px-6 py-2 mt-4 text-gray-500 hover:bg-gray-700 hover:bg-opacity-25 hover:text-gray-100"
+                                    href="{{ url('admin/compras') }}">
+                                    <span class="ml-2 text-m">📥 Cargar Compras</span>
+                                </a>
+                                <a class="flex items-center px-6 py-2 mt-4 text-gray-500 hover:bg-gray-700 hover:bg-opacity-25 hover:text-gray-100"
+                                    href="{{ url('admin/list-compras') }}">
+                                    <span class="ml-2 text-m"> 📊 Ver Compras</span>
+                                </a>
+                            @else
+                                <a class="flex items-center px-6 py-2 mt-4 text-gray-500 hover:bg-gray-700 hover:bg-opacity-25 hover:text-gray-100"
+                                    href="#">
+                                    <span class="ml-2 text-m"> 📊 Muy Pronto</span>
+                                </a>
+                            @endif
                         </div>
                     </div>
                     <div x-data="{ isActive: false, open: false }">
@@ -208,24 +225,31 @@
                             </span>
                         </a>
                         <div role="menu" x-show="open" class="mt-2 space-y-2 px-7" aria-label="Finanzas">
-                            <a class="flex items-center px-6 py-2 mt-4 text-gray-500 hover:bg-gray-700 hover:bg-opacity-25 hover:text-gray-100"
-                                href="{{ url('admin/ventas-saldos') }}">
-                                <span class="ml-2 text-m">📋 Ventas con Saldos</span>
-                            </a>
-                            <a class="flex items-center px-6 py-2 mt-4 text-gray-500 hover:bg-gray-700 hover:bg-opacity-25 hover:text-gray-100"
-                                href="{{ url('admin/ingresos') }}">
-                                <span class="ml-2 text-m">🏦 Listados de Pagos </span>
-                            </a>
-                            <a class="flex items-center px-6 py-2 mt-4 text-gray-500 hover:bg-gray-700 hover:bg-opacity-25 hover:text-gray-100"
-                                href="{{ url('admin/salidas') }}">
+                            @if (auth()->user()->local->tipo == 'venta')
+                                <a class="flex items-center px-6 py-2 mt-4 text-gray-500 hover:bg-gray-700 hover:bg-opacity-25 hover:text-gray-100"
+                                    href="{{ url('admin/ventas-saldos') }}">
+                                    <span class="ml-2 text-m">📋 Ventas con Saldos</span>
+                                </a>
+                                <a class="flex items-center px-6 py-2 mt-4 text-gray-500 hover:bg-gray-700 hover:bg-opacity-25 hover:text-gray-100"
+                                    href="{{ url('admin/ingresos') }}">
+                                    <span class="ml-2 text-m">🏦 Listados de Pagos </span>
+                                </a>
+                                <a class="flex items-center px-6 py-2 mt-4 text-gray-500 hover:bg-gray-700 hover:bg-opacity-25 hover:text-gray-100"
+                                    href="{{ url('admin/salidas') }}">
 
 
-                                <span class="ml-2 text-m">📉 Gastos</span>
-                            </a>
-                            <a class="flex items-center px-6 py-2 mt-4 text-gray-500 hover:bg-gray-700 hover:bg-opacity-25 hover:text-gray-100"
-                                href="{{ url('admin/caja') }}">
-                                <span class="ml-2 text-m">💵 Ver Caja </span>
-                            </a>
+                                    <span class="ml-2 text-m">📉 Gastos</span>
+                                </a>
+                                <a class="flex items-center px-6 py-2 mt-4 text-gray-500 hover:bg-gray-700 hover:bg-opacity-25 hover:text-gray-100"
+                                    href="{{ url('admin/caja') }}">
+                                    <span class="ml-2 text-m">💵 Ver Caja </span>
+                                </a>
+                            @else
+                                <a class="flex items-center px-6 py-2 mt-4 text-gray-500 hover:bg-gray-700 hover:bg-opacity-25 hover:text-gray-100"
+                                    href="#">
+                                    <span class="ml-2 text-m"> 📊 Muy Pronto</span>
+                                </a>
+                            @endif
                         </div>
                     </div>
                     {{-- </div> --}}
@@ -331,9 +355,11 @@
 
                 </header>
                 <main class="flex-1 overflow-x-hidden overflow-y-auto bg-gray-200">
+                    @if (auth()->user()->local->tipo == 'venta')
                     <div class="max-w-xl mx-auto mt-2 px-1 sm:px-1 lg:px-1">
                         @include('livewire.accesos-directos')
                     </div>
+                    @endif
                     <div class="font-sans text-gray-900 antialiased">
                         {{ $slot }}
                     </div>
