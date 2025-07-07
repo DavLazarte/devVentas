@@ -121,8 +121,8 @@ class ArticuloLivewire extends Component
                 $idArticulo = $this->articulo_id ?? uniqid();
                 $nombreArchivo = "{$nombreLimpio}_{$idArticulo}.webp";
 
-                // $rutaCarpeta = "locales/{$idLocal}/articulos"; produ
-                $rutaCarpeta = "public/locales/{$idLocal}/articulos";
+                 $rutaCarpeta = "locales/{$idLocal}/articulos";
+                // $rutaCarpeta = "public/locales/{$idLocal}/articulos"; locl
 
                 if (!Storage::exists($rutaCarpeta)) {
                     Storage::makeDirectory($rutaCarpeta);
