@@ -8,6 +8,8 @@ use App\Models\Categoria;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Intervention\Image\Facades\Image;
+
 
 use Livewire\WithFileUploads;
 
@@ -93,7 +95,7 @@ class ArticuloLivewire extends Component
         $reglas = [
             'nombre' => 'required',
             'descripcion' => 'required',
-           'estado' => 'required|in:activo,inactivo', 
+            'estado' => 'required|in:activo,inactivo',
             'destacado' => 'boolean',
             'mostrar_feed' => 'boolean',
         ];
@@ -113,20 +115,30 @@ class ArticuloLivewire extends Component
 
             if ($this->imagen) {
                 $nombreLimpio = str_replace(' ', '_', strtolower($this->nombre));
-                $extension = $this->imagen->getClientOriginalExtension();
+                // $extension = $this->imagen->getClientOriginalExtension();
 
                 // Si el artículo ya existe, usamos su ID, si no, generamos un nombre temporal.
                 $idArticulo = $this->articulo_id ?? uniqid();
-                $nombreArchivo = "{$nombreLimpio}_{$idArticulo}.{$extension}";
+                $nombreArchivo = "{$nombreLimpio}_{$idArticulo}.webp";
 
-                $rutaCarpeta = "locales/{$idLocal}/articulos";
-                // $rutaCarpeta = "public/locales/{$idLocal}/articulos"; //local
+                // $rutaCarpeta = "locales/{$idLocal}/articulos"; produ
+                $rutaCarpeta = "public/locales/{$idLocal}/articulos";
 
                 if (!Storage::exists($rutaCarpeta)) {
                     Storage::makeDirectory($rutaCarpeta);
                 }
 
-                $this->imagen->storeAs($rutaCarpeta, $nombreArchivo);
+                // Procesamiento de imagen con Intervention
+                $img = Image::make($this->imagen->getRealPath())
+                    ->resize(800, null, function ($constraint) {
+                        $constraint->aspectRatio();
+                        $constraint->upsize(); // no agrandar si es más chica
+                    })
+                    ->encode('webp', 80); // calidad entre 0 y 100
+
+                Storage::put("{$rutaCarpeta}/{$nombreArchivo}", $img);
+
+                // $this->imagen->storeAs($rutaCarpeta, $nombreArchivo);
             }
 
             $articulo = Articulo::updateOrCreate(['idarticulo' => $this->articulo_id], [

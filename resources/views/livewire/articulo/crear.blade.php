@@ -2,7 +2,7 @@
     <!-- Backdrop -->
     <div class="absolute inset-0 bg-black bg-opacity-50" wire:click="closeModal"></div>
     <!-- Drawer -->
-    <div class="absolute inset-y-0 right-0 w-full sm:w-[500px] sm:max-w-lg bg-white shadow-xl max-h-[92vh] flex flex-col">
+    <div class="absolute inset-y-0 right-0 w-full sm:w-[500px] sm:max-w-lg bg-white shadow-xl flex flex-col">
         <!-- Header -->
         <div class="sticky top-0 bg-white border-b border-gray-200 p-4 flex justify-between items-center z-10">
             <h2 class="text-lg font-semibold text-gray-900">{{ $modoEdit ? 'Editar Artículo' : 'Crear Artículo' }}</h2>
@@ -14,8 +14,8 @@
             </button>
         </div>
         <!-- Formulario -->
-        <form class="flex flex-col h-full" wire:submit.prevent="guardar">
-            <div class="flex-1 overflow-y-auto p-4 space-y-4">
+        <form class="flex flex-col h-full overflow-hidden" wire:submit.prevent="guardar">
+            <div class="flex-1 overflow-y-auto p-4 space-y-4 min-h-0">
                 @if (session()->has('error'))
                     <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4" role="alert">
                         <p class="font-bold">ERROR</p>

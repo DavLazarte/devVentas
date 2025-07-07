@@ -42,11 +42,13 @@ class ArticulosTable extends DataTableComponent
             Column::make("Categoría", "categoria.nombre")
                 ->sortable()
                 ->searchable()
-                ->collapseOnMobile(),
+                ->collapseOnMobile()
+                ->deselected(),
             Column::make("Codigo", "codigo")
                 ->sortable()
                 ->searchable()
-                ->collapseOnMobile(),
+                ->collapseOnMobile()
+                ->deselected(),
             Column::make("Nombre", "nombre")
                 ->sortable()
                 ->searchable(),
@@ -57,7 +59,8 @@ class ArticulosTable extends DataTableComponent
                 ->collapseOnMobile(),
             Column::make("Descripcion", "descripcion")
                 ->sortable()
-                ->collapseOnMobile(),
+                ->collapseOnMobile()
+                ->deselected(),
             Column::make("Precio", "precio_unitario")
                 ->sortable(),
             Column::make("Destacado", "destacado")
