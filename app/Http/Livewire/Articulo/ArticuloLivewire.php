@@ -100,9 +100,9 @@ class ArticuloLivewire extends Component
             'mostrar_feed' => 'boolean',
         ];
 
-        if ($this->imagen) {
-            $reglas['imagen'] = 'image|max:2048';
-        }
+        // if ($this->imagen) {
+        //     $reglas['imagen'] = 'image|max:2048';
+        // }
 
 
 
@@ -121,7 +121,7 @@ class ArticuloLivewire extends Component
                 $idArticulo = $this->articulo_id ?? uniqid();
                 $nombreArchivo = "{$nombreLimpio}_{$idArticulo}.webp";
 
-                //  $rutaCarpeta = "locales/{$idLocal}/articulos";
+                 $rutaCarpeta = "locales/{$idLocal}/articulos";
                 // $rutaCarpeta = "public/locales/{$idLocal}/articulos"; locl
 
                 if (!Storage::exists($rutaCarpeta)) {
