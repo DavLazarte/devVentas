@@ -8,9 +8,10 @@
             model="globalSearch"
         />
     </div>
+    <x-adv-slider/>
 
-    <x-promo-banner />
     <x-categories-carousel :categories="$categorias" />
+    <x-promo-banner />
     <x-shops-carousel :shops="$localesDestacados"/>
 
     <!-- Productos Destacados -->

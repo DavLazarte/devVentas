@@ -84,7 +84,7 @@
                             </g>
                         </svg>
 
-                        <span class="mx-2 text-2xl font-semibold text-white">DUX VENTAS</span>
+                        <a href="https://ventas.tiendadux.ar/" class="mx-2 text-2xl font-semibold text-white">DUX VENTAS</a>
                     </div>
                 </div>
 

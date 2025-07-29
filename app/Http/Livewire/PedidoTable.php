@@ -60,7 +60,32 @@ class PedidoTable extends DataTableComponent
                 ->collapseOnMobile(),
             Column::make("Telefono", "telefono")
                 ->sortable()
-                ->collapseOnMobile(),
+                ->collapseOnMobile()
+                ->format(function ($telefono) {
+                    if (empty($telefono)) {
+                        return '-';
+                    }
+
+                    // Mensaje predefinido
+                    $mensaje = "Hola, me comunico de Tienda Dux para confirmar el pedido realizado en nuestra plataforma";
+
+                    // Codificar el mensaje para URL
+                    $mensajeCodificado = urlencode($mensaje);
+
+                    // Limpiar el número de teléfono (remover espacios, guiones, etc.)
+                    $telefonoLimpio = preg_replace('/[^0-9+]/', '', $telefono);
+
+                    // Crear el enlace de WhatsApp
+                    $urlWhatsApp = "https://wa.me/{$telefonoLimpio}?text={$mensajeCodificado}";
+
+                    return "<a href='{$urlWhatsApp}' target='_blank' class='text-green-600 hover:text-green-800 hover:underline font-medium'>
+                                <i class='fab fa-whatsapp mr-1'></i>{$telefono}
+                            </a>";
+                })
+                ->html(),
+            // Column::make("Telefono", "telefono")
+            //     ->sortable()
+            //     ->collapseOnMobile(),
             Column::make("Direccion", "direccion")
                 ->sortable()
                 ->collapseOnMobile(),
