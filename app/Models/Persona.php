@@ -31,4 +31,9 @@ class Persona extends Model
     {
         return $this->hasMany(Compra::class, 'idpersona');
     }
+
+    public function servicios()
+    {
+        return $this->belongsToMany(Servicio::class, 'servicio_empleado', 'empleado_id', 'servicio_id');
+    }
 }

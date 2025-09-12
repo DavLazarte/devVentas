@@ -84,6 +84,7 @@ class ProductCard extends Component
         session()->put('cart', $cart);
         $this->emit('cartItemAdded', count($cart));
     }
+   
 
     public function render()
     {

@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -20,7 +21,8 @@
         <div class="bg-white px-4 py-8 mb-2 text-center">
             <!-- Success Icon -->
             <div class="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-green-600" fill="none"
+                    viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
                 </svg>
             </div>
@@ -43,25 +45,29 @@
         <div class="bg-white px-4 py-4 mb-2">
             <h2 class="text-lg font-semibold text-gray-900 mb-4">Detalles de tu pedido</h2>
 
-            @foreach($pedido->detalles as $detalle)
-            <div class="flex items-center space-x-3 mb-4">
-                {{-- <div class="w-16 h-16 rounded-lg overflow-hidden border border-gray-200">
+            @foreach ($pedido->detalles as $detalle)
+                <div class="flex items-center space-x-3 mb-4">
+                    {{-- <div class="w-16 h-16 rounded-lg overflow-hidden border border-gray-200">
                     <img src="{{ $detalle->producto->imagen ?? asset('images/placeholder.jpg') }}"
                          alt="{{ $detalle->producto->nombre ?? 'Producto' }}"
                          class="w-full h-full object-cover">
                 </div> --}}
-                <div class="flex-1">
-                    <h3 class="font-semibold text-gray-900">{{ $detalle->producto->nombre ?? 'Producto' }}</h3>
-                    <p class="text-sm text-gray-600">{{ $detalle->producto->local->nombre ?? 'Tienda' }}</p>
-                    @if($detalle->variante)
-                        <p class="text-sm text-gray-600">{{ $detalle->variante }}</p>
-                    @endif
+                    <div class="flex-1">
+                        <h3 class="font-semibold text-gray-900">{{ $detalle->producto->nombre ?? 'Producto' }}</h3>
+                        <p class="text-sm text-gray-600">{{ $detalle->producto->local->nombre ?? 'Tienda' }}</p>
+                        @if ($detalle->empleado)
+                            <p class="text-sm text-gray-700 mt-1">Profesional: <span class="font-medium">{{ $detalle->empleado->nombre }}</span></p>
+                        @endif
+                        @if ($detalle->variante)
+                            <p class="text-sm text-gray-600">{{ $detalle->variante }}</p>
+                        @endif
+                    </div>
+                    <div class="text-right">
+                        <p class="font-semibold text-purple-600">${{ number_format($detalle->subtotal, 2) }}</p>
+                        <p class="text-sm text-gray-600">{{ $detalle->cantidad }} x
+                            ${{ number_format($detalle->precio_unitario, 2) }}</p>
+                    </div>
                 </div>
-                <div class="text-right">
-                    <p class="font-semibold text-purple-600">${{ number_format($detalle->subtotal, 2) }}</p>
-                    <p class="text-sm text-gray-600">{{ $detalle->cantidad }} x ${{ number_format($detalle->precio_unitario, 2) }}</p>
-                </div>
-            </div>
             @endforeach
 
             <!-- Order Summary -->
@@ -71,17 +77,17 @@
                         <span class="text-gray-600">Subtotal</span>
                         <span class="font-medium">${{ number_format($pedido->subtotal, 2) }}</span>
                     </div>
-                    @if($pedido->envio > 0)
-                    <div class="flex justify-between">
-                        <span class="text-gray-600">Envío</span>
-                        <span class="font-medium">${{ number_format($pedido->envio, 2) }}</span>
-                    </div>
+                    @if ($pedido->envio > 0)
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Envío</span>
+                            <span class="font-medium">${{ number_format($pedido->envio, 2) }}</span>
+                        </div>
                     @endif
-                    @if($pedido->descuento > 0)
-                    <div class="flex justify-between">
-                        <span class="text-gray-600">Descuento</span>
-                        <span class="font-medium">-${{ number_format($pedido->descuento, 2) }}</span>
-                    </div>
+                    @if ($pedido->descuento > 0)
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Descuento</span>
+                            <span class="font-medium">-${{ number_format($pedido->descuento, 2) }}</span>
+                        </div>
                     @endif
                     <div class="flex justify-between pt-2 border-t border-gray-200">
                         <span class="font-semibold text-gray-900">Total</span>
@@ -107,23 +113,34 @@
                     <span class="text-gray-600">Teléfono</span>
                     <span class="font-medium">{{ $pedido->telefono }}</span>
                 </div>
-                <div class="flex justify-between">
-                    <span class="text-gray-600">Dirección</span>
-                    <span class="font-medium">{{ $pedido->direccion }}</span>
-                </div>
-                <div class="flex justify-between">
-                    <span class="text-gray-600">Ciudad</span>
-                    <span class="font-medium">{{ $pedido->ciudad }}</span>
-                </div>
-                <div class="flex justify-between">
-                    <span class="text-gray-600">Código Postal</span>
-                    <span class="font-medium">{{ $pedido->codigo_postal }}</span>
-                </div>
-                @if($pedido->notas_entrega)
-                <div class="flex justify-between">
-                    <span class="text-gray-600">Notas de entrega</span>
-                    <span class="font-medium">{{ $pedido->notas_entrega }}</span>
-                </div>
+
+                <!-- Solo mostrar información de dirección si NO es solo servicio -->
+                @if ($pedido->tipo_pedido !== 'servicio')
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">Dirección</span>
+                        <span class="font-medium">{{ $pedido->direccion }}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">Ciudad</span>
+                        <span class="font-medium">{{ $pedido->ciudad }}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">Código Postal</span>
+                        <span class="font-medium">{{ $pedido->codigo_postal }}</span>
+                    </div>
+                @endif
+
+                @if ($pedido->notas_entrega)
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">
+                            @if ($pedido->tipo_pedido === 'servicio')
+                                Notas
+                            @else
+                                Notas de entrega
+                            @endif
+                        </span>
+                        <span class="font-medium">{{ $pedido->notas_entrega }}</span>
+                    </div>
                 @endif
             </div>
         </div>
@@ -133,8 +150,10 @@
             <h2 class="text-lg font-semibold text-gray-900 mb-4">Método de pago</h2>
             <div class="flex items-center space-x-3">
                 <div class="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-purple-600" fill="none"
+                        viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
                     </svg>
                 </div>
                 <div>
@@ -146,7 +165,8 @@
         <!-- Action Buttons -->
         <div class="space-y-3 px-4">
             <!-- Back to Home -->
-            <a href="{{ url('/') }}" class="block w-full bg-purple-600 text-white py-3 px-4 rounded-lg font-medium text-center hover:bg-purple-700 transition-colors">
+            <a href="{{ url('/') }}"
+                class="block w-full bg-purple-600 text-white py-3 px-4 rounded-lg font-medium text-center hover:bg-purple-700 transition-colors">
                 Volver al inicio
             </a>
 
@@ -159,4 +179,5 @@
 
     <script src="{{ asset('js/app.js') }}"></script>
 </body>
+
 </html>

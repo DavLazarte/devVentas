@@ -23,11 +23,18 @@ class Servicio extends Model
         'estado',
         'mostrar_feed',
         'imagen',
+        'es_reservable',
+        'buffer_tiempo',         // tiempo entre servicios (5-15 min)
+        'anticipacion_minima',   // ej: 24 horas mínimo para reservar
+        'anticipacion_maxima',   // ej: 30 días máximo adelante
+        'cancelacion_limite',    // horas antes para cancelar
+        'tipo_reserva', // 'sin_reserva', 'coordinacion', 'turno_fijo'
     ];
     protected $casts = [
         'estado' => 'boolean',
         'destacado' => 'boolean',
         'mostrar_feed' => 'boolean',
+        'es_reservable' => 'boolean',
     ];
 
 
@@ -41,6 +48,18 @@ class Servicio extends Model
     public function getPrecioUnitarioAttribute()
     {
         return $this->precio;
+    }
+
+    // En App/Models/Servicio.php
+    public function horarios()
+    {
+        return $this->hasMany(HorarioDisponibilidad::class, 'idservicio', 'idservicio');
+    }
+    // app/Models/Servicio.php
+
+    public function empleados()
+    {
+        return $this->belongsToMany(Persona::class, 'servicio_empleado', 'servicio_id', 'empleado_id');
     }
 
     public function local()

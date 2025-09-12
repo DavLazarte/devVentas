@@ -33,6 +33,11 @@
                                     class="form-radio text-purple-600">
                                 <span class="ml-2 text-gray-700">Proveedor</span>
                             </label>
+                            <label class="inline-flex items-center">
+                                <input type="radio" wire:model="tipo_persona" value="empleado"
+                                    class="form-radio text-purple-600">
+                                <span class="ml-2 text-gray-700">Empleado</span>
+                            </label>
                         </div>
                         @error('tipo_persona')
                             <span class="text-red-500 text-sm">{{ $message }}</span>

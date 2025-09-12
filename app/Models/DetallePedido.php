@@ -16,7 +16,8 @@ class DetallePedido extends Model
         'cantidad',
         'precio_unitario',
         'subtotal',
-        'variante'
+        'variante',
+        'id_empleado'
     ];
 
     protected $casts = [
@@ -25,20 +26,23 @@ class DetallePedido extends Model
         'subtotal' => 'decimal:2'
     ];
 
-    // app/Models/PedidoDetalle.php
-
-public function getProductoAttribute()
-{
-    if ($this->idarticulo) {
-        return Articulo::find($this->idarticulo);
+    public function empleado()
+    {
+        return $this->belongsTo(Persona::class, 'id_empleado', 'idpersona');
     }
 
-    if ($this->idservicio) {
-        return Servicio::find($this->idservicio);
-    }
+    public function getProductoAttribute()
+    {
+        if ($this->idarticulo) {
+            return Articulo::find($this->idarticulo);
+        }
 
-    return null;
-}
+        if ($this->idservicio) {
+            return Servicio::find($this->idservicio);
+        }
+
+        return null;
+    }
 
 
     public function pedido()

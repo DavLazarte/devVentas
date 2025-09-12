@@ -11,8 +11,8 @@ class Articulo extends Model
 
     protected $table = 'articulos';
     protected $primaryKey = 'idarticulo';
-    protected $fillable = ['idcategoria', 'codigo', 'nombre', 'stock', 'descripcion', 'imagen', 'precio_unitario', 'estado','mostrar_feed', 'destacado', 'id_local'];
-    
+    protected $fillable = ['idcategoria', 'codigo', 'nombre', 'stock', 'descripcion', 'imagen', 'precio_unitario', 'estado', 'mostrar_feed', 'destacado', 'id_local'];
+
     protected $appends = ['imagen_url'];
 
     public function getImagenUrlAttribute()

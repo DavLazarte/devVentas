@@ -25,7 +25,15 @@ class Pedido extends Model
         'total',
         'estado',
         'metodo_pago',
-        'crear_cuenta'
+        'crear_cuenta',
+        'fecha_servicio',        // date
+        'hora_inicio',          // time
+        'hora_fin',             // time (calculado automáticamente)
+        'tipo_pedido',          // 'producto' o 'servicio'
+        'estado_reserva',       // 'pendiente', 'confirmada', 'cancelada', 'completada'
+        'fecha_confirmacion',   // timestamp
+        'cancelado_por',        // 'cliente' o 'local'
+        'motivo_cancelacion'    // text
     ];
 
     protected $casts = [

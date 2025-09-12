@@ -10,7 +10,15 @@
             </button>
 
             <!-- Title -->
-            <h1 class="text-lg font-semibold text-gray-900">Detalle del Pedido</h1>
+            <h1 class="text-lg font-semibold text-gray-900">
+                @if($tipo_pedido === 'servicio')
+                    Detalle de la Reserva
+                @elseif($tipo_pedido === 'mixto')
+                    Detalle del Pedido y Reserva
+                @else
+                    Detalle del Pedido
+                @endif
+            </h1>
 
             <!-- Close Button -->
             <button wire:click="closeModal" class="p-2 rounded-full hover:bg-gray-100">
@@ -29,7 +37,7 @@
             </div>
 
             <div class="px-4 py-4">
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="grid grid-cols-1 {{ $tipo_pedido === 'producto' ? 'md:grid-cols-3' : 'md:grid-cols-2' }} gap-4">
                     <!-- Customer Info -->
                     <div class="bg-gray-50 rounded-lg p-4">
                         <h3 class="font-medium text-gray-900 mb-3 flex items-center">
@@ -60,7 +68,8 @@
                         </div>
                     </div>
 
-                    <!-- Delivery Info -->
+                    <!-- Delivery Info - Solo para productos -->
+                    @if($tipo_pedido === 'producto' || $tipo_pedido === 'mixto')
                     <div class="bg-gray-50 rounded-lg p-4">
                         <h3 class="font-medium text-gray-900 mb-3 flex items-center">
                             <svg class="h-5 w-5 text-gray-400 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -99,6 +108,65 @@
                             @endif
                         </div>
                     </div>
+                    @endif
+
+                    <!-- Service Info - Solo para servicios -->
+                    @if($tipo_pedido === 'servicio' || $tipo_pedido === 'mixto')
+                        <div class="bg-purple-50 rounded-lg p-4">
+                            <h3 class="font-medium text-gray-900 mb-3 flex items-center">
+                                <svg class="h-5 w-5 text-purple-400 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                </svg>
+                                Información del Servicio
+                            </h3>
+                            <div class="space-y-2">
+                                @php
+                                    $servicios = collect($detalles)->filter(function($detalle) {
+                                        return $detalle->idservicio;
+                                    });
+                                @endphp
+                                
+                                <!-- Información del pedido principal -->
+                                @if($fecha_servicio)
+                                    <div class="flex items-center">
+                                        <svg class="h-5 w-5 text-purple-400 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                        </svg>
+                                        <p class="text-sm"><span class="font-medium">Fecha:</span> {{ \Carbon\Carbon::parse($fecha_servicio)->format('d/m/Y') }}</p>
+                                    </div>
+                                @endif
+                                
+                                @if($hora_inicio)
+                                    <div class="flex items-center">
+                                        <svg class="h-5 w-5 text-purple-400 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                        </svg>
+                                        <p class="text-sm"><span class="font-medium">Hora:</span> {{ $hora_inicio }}</p>
+                                    </div>
+                                @endif
+                                
+                                <!-- Información de los servicios individuales -->
+                                @foreach($servicios as $detalle)
+                                    @if($detalle->duracion_servicio)
+                                        <div class="flex items-center">
+                                            <svg class="h-5 w-5 text-purple-400 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                            </svg>
+                                            <p class="text-sm"><span class="font-medium">Duración:</span> {{ $detalle->duracion_servicio }} min</p>
+                                        </div>
+                                    @endif
+                                    @if($detalle->empleado)
+                                        <div class="flex items-center">
+                                            <svg class="h-5 w-5 text-purple-400 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.121 17.804A13.937 13.937 0 0112 15c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0z" />
+                                            </svg>
+                                            <p class="text-sm"><span class="font-medium">Profesional:</span> {{ $detalle->empleado->nombre }}</p>
+                                        </div>
+                                    @endif
+                                @endforeach
+                            </div>
+                        </div>
+                    @endif
 
                     <!-- Payment Info -->
                     <div class="bg-gray-50 rounded-lg p-4">
@@ -115,7 +183,11 @@
                                 </svg>
                                 <p class="text-sm">
                                     <span class="font-medium">Método de Pago:</span>
+                                    @if($tipo_pedido === 'servicio')
+                                        {{ $metodo_pago === 'efectivo' ? 'Pago al recibir el servicio' : 'Tarjeta de crédito/débito' }}
+                                    @else
                                     {{ $metodo_pago === 'efectivo' ? 'Efectivo contra entrega' : 'Tarjeta de crédito/débito' }}
+                                    @endif
                                 </p>
                             </div>
                         </div>
@@ -127,7 +199,15 @@
         <!-- Order Items -->
         <div class="bg-white mb-2">
             <div class="px-4 py-3 border-b border-gray-200">
-                <h2 class="text-lg font-semibold text-gray-900">Productos</h2>
+                <h2 class="text-lg font-semibold text-gray-900">
+                    @if($tipo_pedido === 'servicio')
+                        Servicios
+                    @elseif($tipo_pedido === 'mixto')
+                        Productos y Servicios
+                    @else
+                        Productos
+                    @endif
+                </h2>
             </div>
 
             <div class="divide-y divide-gray-200">
@@ -152,6 +232,28 @@
                                         </h3>
                                         @if($detalle->variante)
                                             <p class="text-xs text-gray-500">{{ $detalle->variante }}</p>
+                                        @endif
+
+                                        <!-- Service specific info -->
+                                        @if($detalle->idservicio)
+                                            <div class="mt-2 space-y-1">
+                                                @if($detalle->fecha_reserva && $detalle->hora_reserva)
+                                                    <div class="flex items-center text-xs text-purple-600">
+                                                        <svg class="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                                        </svg>
+                                                        <span>{{ \Carbon\Carbon::parse($detalle->fecha_reserva)->format('d/m/Y') }} - {{ $detalle->hora_reserva }}</span>
+                                                    </div>
+                                                @endif
+                                                @if($detalle->empleado)
+                                                    <div class="flex items-center text-xs text-purple-600">
+                                                        <svg class="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.121 17.804A13.937 13.937 0 0112 15c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                        </svg>
+                                                        <span>{{ $detalle->empleado->nombre }}</span>
+                                                    </div>
+                                                @endif
+                                            </div>
                                         @endif
                                     </div>
                                 </div>

@@ -95,7 +95,7 @@
                     </a>
                     <a class="flex items-center px-6 py-2 mt-4  text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors rounded-md   hover:bg-purple-100 dark:hover:bg-purple-600"
                         href="{{ url('admin/personas') }}">
-                        <span class="ml-2 text-m"> 👥 Clientes y Proveedores</span>
+                        <span class="ml-2 text-m"> 👥 Gestión de Personas</span>
                     </a>
 
                     <div x-data="{ isActive: false, open: false }">
@@ -103,7 +103,13 @@
                             class="flex items-center px-6 py-2 mt-4  text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors rounded-md   hover:bg-purple-100 dark:hover:bg-purple-600"
                             :class="{ 'bg-purple-100 dark:bg-purple-600': isActive || open }" role="button"
                             aria-haspopup="true" :aria-expanded="(open || isActive) ? 'true' : 'false'">
-                            <span class="ml-2 text-m"> 📦 Depósito </span>
+                            <span class="ml-2 text-m"> 
+                                @if (auth()->user()->local->tipo == 'venta')
+                                    📦 Depósito
+                                @else
+                                    🛠️ Gestión
+                                @endif
+                            </span>
                             <span class="ml-auto" aria-hidden="true">
                                 <!-- active class 'rotate-180' -->
                                 <svg class="w-4 h-4 transition-transform transform" :class="{ 'rotate-180': open }"
@@ -116,7 +122,8 @@
 
                             {{-- </span> --}}
                         </a>
-                        <div role="menu" x-show="open" class="mt-2 space-y-2 px-7" aria-label="Depósito">
+                        <div role="menu" x-show="open" class="mt-2 space-y-2 px-7" 
+                             aria-label="{{ auth()->user()->local->tipo == 'venta' ? 'Depósito' : 'Gestión' }}">
                             <a class="flex items-center px-6 py-2 mt-4 text-gray-500 hover:bg-gray-700 hover:bg-opacity-25 hover:text-gray-100"
                                 href="{{ url('admin/categorias') }}">
                                 <span class="ml-2 text-m"> 📌 Categorías</span>
@@ -136,14 +143,26 @@
                     </div>
                     <a class="flex items-center px-6 py-2 mt-4  text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors rounded-md   hover:bg-purple-100 dark:hover:bg-purple-600"
                         href="{{ url('admin/pedidos') }}">
-                        <span class="ml-2 text-m"> 📋 Pedidos</span>
+                        <span class="ml-2 text-m"> 
+                            @if (auth()->user()->local->tipo == 'venta')
+                                📋 Pedidos
+                            @else
+                                📅 Reservas
+                            @endif
+                        </span>
                     </a>
                     <div x-data="{ isActive: false, open: false }">
                         <a href="#" @click="$event.preventDefault(); open = !open"
                             class="flex items-center px-6 py-2 mt-4  text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors rounded-md   hover:bg-purple-100 dark:hover:bg-purple-600"
                             :class="{ 'bg-purple-100 dark:bg-purple-600': isActive || open }" role="button"
                             aria-haspopup="true" :aria-expanded="(open || isActive) ? 'true' : 'false'">
-                            <span class="ml-2 text-m"> 🛒 Ventas </span>
+                            <span class="ml-2 text-m"> 
+                                @if (auth()->user()->local->tipo == 'venta')
+                                    🛒 Ventas
+                                @else
+                                    🛠️ Servicios
+                                @endif
+                            </span>
                             <span class="ml-auto" aria-hidden="true">
                                 <!-- active class 'rotate-180' -->
                                 <svg class="w-4 h-4 transition-transform transform" :class="{ 'rotate-180': open }"
@@ -154,20 +173,21 @@
                                 </svg>
                             </span>
                         </a>
-                        <div role="menu" x-show="open" class="mt-2 space-y-2 px-7" aria-label="Ventas">
+                        <div role="menu" x-show="open" class="mt-2 space-y-2 px-7" 
+                             aria-label="{{ auth()->user()->local->tipo == 'venta' ? 'Ventas' : 'Servicios' }}">
                             @if (auth()->user()->local->tipo == 'venta')
                                 <a class="flex items-center px-6 py-2 mt-4 text-gray-500 hover:bg-gray-700 hover:bg-opacity-25 hover:text-gray-100"
                                     href="{{ url('admin/ventas') }}">
-                                    <span class="ml-2 text-m"> 🛍 Punto de Venta</span>
+                                    <span class="ml-2 text-m"> 🛍 Punto de Venta</span>
                                 </a>
                                 <a class="flex items-center px-6 py-2 mt-4 text-gray-500 hover:bg-gray-700 hover:bg-opacity-25 hover:text-gray-100"
                                     href="{{ url('admin/list-ventas') }}">
-                                    <span class="ml-2 text-m"> 📊 Ver Ventas</span>
+                                    <span class="ml-2 text-m"> 📊 Ver Ventas</span>
                                 </a>
                             @else
                                 <a class="flex items-center px-6 py-2 mt-4 text-gray-500 hover:bg-gray-700 hover:bg-opacity-25 hover:text-gray-100"
                                     href="#">
-                                    <span class="ml-2 text-m"> 📊 Muy Pronto</span>
+                                    <span class="ml-2 text-m"> 📊 Muy Pronto</span>
                                 </a>
                             @endif
                         </div>

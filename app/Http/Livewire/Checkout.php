@@ -59,9 +59,21 @@ class Checkout extends Component
 
     public function mount()
     {
-        // Obtener items del carrito desde la sesión
-        $this->items = session('cart', []);
+        // Verificar si hay una reserva directa de servicio
+        $directService = session()->get('direct_service_booking');
 
+        if ($directService) {
+            // Si hay una reserva directa, usar solo ese servicio
+            $this->items = [$directService];
+        } else {
+            // Tu código existente para cargar items del carrito
+            $this->items = session()->get('cart', []);
+        }
+        // Si no hay items, redirigir o mostrar error
+        if (empty($this->items)) {
+            session()->flash('error', 'No hay elementos en el carrito');
+            return redirect()->route('home'); // o la ruta que prefieras
+        }
         // Calcular totales
         $this->calcularTotales();
 
@@ -83,11 +95,14 @@ class Checkout extends Component
         $this->total = $this->subtotal + $this->envio - $this->descuento;
     }
 
+
+
     public function procesarPedido()
     {
+
         try {
             if (empty($this->items)) {
-                session()->flash('error', 'El carrito está vacío');
+                session()->flash('error', 'No hay elementos para procesar');
                 return;
             }
 
@@ -99,27 +114,62 @@ class Checkout extends Component
                 return;
             }
 
-            $this->validate([
+            // Determinar qué tipos de elementos tenemos
+            $tieneServicios = collect($this->items)->contains('type', 'servicio');
+            $tieneProductos = collect($this->items)->contains('type', 'articulo');
+
+            // Validaciones condicionales
+            $rules = [
                 'nombre_cliente' => 'required|min:3',
                 'email' => 'required|email',
                 'telefono' => 'required',
-                'direccion' => 'required',
-                'ciudad' => 'required',
-                'codigo_postal' => 'required',
                 'metodo_pago' => 'required',
                 'acepto_terminos' => 'required|accepted'
-            ], [
+            ];
+
+            $messages = [
                 'nombre_cliente.required' => 'El nombre es obligatorio',
                 'email.required' => 'El email es obligatorio',
                 'email.email' => 'El email debe ser válido',
                 'telefono.required' => 'El teléfono es obligatorio',
-                'direccion.required' => 'La dirección es obligatoria',
-                'ciudad.required' => 'La ciudad es obligatoria',
-                'codigo_postal.required' => 'El código postal es obligatorio',
                 'metodo_pago.required' => 'Debes seleccionar un método de pago',
                 'acepto_terminos.required' => 'Debes aceptar los términos y condiciones',
                 'acepto_terminos.accepted' => 'Debes aceptar los términos y condiciones'
-            ]);
+            ];
+
+            // Solo requerir dirección para productos
+            if ($tieneProductos) {
+                $rules['direccion'] = 'required';
+                $rules['ciudad'] = 'required';
+                $rules['codigo_postal'] = 'required';
+
+                $messages['direccion.required'] = 'La dirección es obligatoria';
+                $messages['ciudad.required'] = 'La ciudad es obligatoria';
+                $messages['codigo_postal.required'] = 'El código postal es obligatorio';
+            }
+
+            $this->validate($rules, $messages);
+
+            // Determinar el tipo de pedido
+            $tipoPedido = $tieneServicios && $tieneProductos ? 'mixto' : ($tieneServicios ? 'servicio' : 'producto');
+
+            // Para servicios, obtener fecha y hora de reserva del primer servicio
+            $fechaServicio = null;
+            $horaInicio = null;
+
+            if ($tieneServicios) {
+
+                $primerServicio = collect($this->items)->first(function ($item) {
+                    return $item['type'] === 'servicio';
+                });
+
+                if (isset($primerServicio['fecha_servicio'])) {
+                    $fechaServicio = $primerServicio['fecha_servicio'];
+                }
+                if (isset($primerServicio['hora_inicio'])) {
+                    $horaInicio = $primerServicio['hora_inicio'];
+                }
+            }
 
             $pedido = Pedido::create([
                 'id_local' => $id_local,
@@ -132,12 +182,16 @@ class Checkout extends Component
                 'codigo_postal' => $this->codigo_postal,
                 'notas_entrega' => $this->notas_entrega,
                 'subtotal' => $this->subtotal,
-                'envio' => $this->envio,
+                'envio' => $tieneProductos ? $this->envio : 0, // Sin envío para solo servicios
                 'descuento' => $this->descuento,
                 'total' => $this->total,
                 'metodo_pago' => $this->metodo_pago,
-                'crear_cuenta' => $this->crear_cuenta,
-                'estado' => 'pendiente'
+                'crear_cuenta' => $this->crear_cuenta ?? false,
+                'estado' => 'pendiente',
+                'tipo_pedido' => $tipoPedido,
+                'fecha_servicio' => $fechaServicio,
+                'hora_inicio' => $horaInicio,
+                'estado_reserva' => $tieneServicios ? 'pendiente' : null,
             ]);
 
             foreach ($this->items as $item) {
@@ -152,16 +206,30 @@ class Checkout extends Component
                     $detalleData['idarticulo'] = $item['id'];
                 } elseif ($item['type'] === 'servicio') {
                     $detalleData['idservicio'] = $item['id'];
+
+                    // Agregar información de reserva si existe
+                    if (isset($item['id_empleado'])) {
+                        $detalleData['id_empleado'] = $item['id_empleado'];
+                    }
+                    if (isset($item['fecha_servicio'])) {
+                        $detalleData['fecha_reserva'] = $item['fecha_servicio'];
+                    }
+                    if (isset($item['hora_inicio'])) {
+                        $detalleData['hora_reserva'] = $item['hora_inicio'];
+                    }
+                    if (isset($item['duracion'])) {
+                        $detalleData['duracion_servicio'] = $item['duracion'];
+                    }
                 }
 
                 $pedido->detalles()->create($detalleData);
             }
 
-            session()->forget('cart');
+            // Limpiar tanto el carrito como la reserva directa
+            session()->forget(['cart', 'direct_service_booking']);
             $this->items = [];
 
             return redirect()->route('checkout.confirmation', $pedido);
-
         } catch (\Exception $e) {
             session()->flash('error', 'Error al procesar el pedido: ' . $e->getMessage());
         }

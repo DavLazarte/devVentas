@@ -28,6 +28,9 @@ class Pedidos extends Component
     public $envio = 0;
     public $descuento = 0;
     public $total = 0;
+    public $tipo_pedido = 'producto'; // producto, servicio, mixto
+    public $fecha_servicio = null;
+    public $hora_inicio = null;
 
     protected $listeners = [
         'editarPedido' => 'editar',
@@ -54,10 +57,10 @@ class Pedidos extends Component
         $this->metodo_pago = $pedido->metodo_pago;
         $this->estado = $pedido->estado;
 
-        // Convertir detalles a formato de items
+        // Convertir detalles a formato de items con información específica de servicios
         $this->items = $pedido->detalles->map(function($detalle) {
             $producto = $detalle->producto; // sea Articulo o Servicio
-            return [
+            $item = [
                 'id' => $detalle->idarticulo ?? $detalle->idservicio,
                 'name' => $producto->nombre ?? 'Producto',
                 'price' => $detalle->precio_unitario,
@@ -67,6 +70,17 @@ class Pedidos extends Component
                 'shop' => $pedido->local->nombre ?? 'Tienda',
                 'type' => $detalle->idarticulo ? 'articulo' : 'servicio'
             ];
+
+            // Agregar información específica de servicios
+            if ($detalle->idservicio) {
+                $item['fecha_reserva'] = $detalle->fecha_reserva;
+                $item['hora_reserva'] = $detalle->hora_reserva;
+                $item['duracion_servicio'] = $detalle->duracion_servicio;
+                $item['empleado_nombre'] = $detalle->empleado ? $detalle->empleado->nombre : null;
+                $item['tipo_reserva'] = $producto->tipo_reserva ?? null;
+            }
+
+            return $item;
         })->toArray();
 
 
@@ -74,6 +88,11 @@ class Pedidos extends Component
         $this->envio = $pedido->envio;
         $this->descuento = $pedido->descuento;
         $this->total = $pedido->total;
+        $this->fecha_servicio = $pedido->fecha_servicio;
+        $this->hora_inicio = $pedido->hora_inicio;
+
+        // Determinar el tipo de pedido
+        $this->tipo_pedido = $pedido->tipo_pedido ?? $this->determineOrderType();
 
         $this->isOpen = true;
     }
@@ -96,6 +115,12 @@ class Pedidos extends Component
         $this->envio = $pedido->envio;
         $this->descuento = $pedido->descuento;
         $this->total = $pedido->total;
+        $this->fecha_servicio = $pedido->fecha_servicio;
+        $this->hora_inicio = $pedido->hora_inicio;
+
+        // Determinar el tipo de pedido
+        $this->tipo_pedido = $pedido->tipo_pedido ?? $this->determineOrderType();
+
         $this->isDetailOpen = true;
     }
 
@@ -141,6 +166,20 @@ class Pedidos extends Component
         $this->resetInputFields();
     }
 
+    private function determineOrderType()
+    {
+        $tieneArticulos = collect($this->items)->contains('type', 'articulo');
+        $tieneServicios = collect($this->items)->contains('type', 'servicio');
+
+        if ($tieneArticulos && $tieneServicios) {
+            return 'mixto';
+        } elseif ($tieneServicios) {
+            return 'servicio';
+        } else {
+            return 'producto';
+        }
+    }
+
     private function resetInputFields()
     {
         $this->pedido_id = null;
@@ -159,6 +198,9 @@ class Pedidos extends Component
         $this->envio = 0;
         $this->descuento = 0;
         $this->total = 0;
+        $this->tipo_pedido = 'producto';
+        $this->fecha_servicio = null;
+        $this->hora_inicio = null;
     }
 
     public function render()
