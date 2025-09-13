@@ -41,14 +41,20 @@ class ProductDetail extends Component
 
     public function mount($type = null, $id = null)
     {
+        $this->type = $type;
+
         if ($type && $id) {
             if ($type === 'articulo') {
                 $this->product = Articulo::with(['categoria', 'local'])->findOrFail($id);
             } else {
-                $this->product = Servicio::with(['categoria', 'local', 'empleados'])->findOrFail($id); // Agregamos empleados aquí
+                $this->product = Servicio::with(['categoria', 'local', 'empleados'])->findOrFail($id);
             }
-            $this->type = $type;
-
+    
+            // Esta lógica ahora funcionará correctamente
+            if ($this->type === 'servicio' && $this->product->empleados->count() === 1) {
+                $this->selectedEmployeeId = $this->product->empleados->first()->idpersona;
+            }
+    
             if ($this->type === 'servicio') {
                 $this->currentMonth = now()->month;
                 $this->currentYear = now()->year;
@@ -128,7 +134,7 @@ class ProductDetail extends Component
             $query->where('fecha_servicio', $date)
                 ->where('estado_reserva', '!=', 'cancelada');
         })
-            ->where('idservicio', $this->product->idservicio)
+            // ->where('idservicio', $this->product->idservicio)
             ->get();
 
         $allBloqueos = \App\Models\BloqueoHorario::where('id_local', $this->product->id_local)
@@ -162,7 +168,7 @@ class ProductDetail extends Component
                     // Permitir slots que empiecen en los próximos minutos definidos
                     $minStartTime = $now->copy()->addMinutes(self::TODAY_BUFFER_MINUTES);
                     $inicio = max($inicio, $minStartTime);
-                    
+
                     // Si no hay slots disponibles con el buffer principal, intentar con el fallback
                     if ($inicio->gte($fin)) {
                         $minStartTime = $now->copy()->addMinutes(self::TODAY_FALLBACK_MINUTES);
@@ -177,7 +183,9 @@ class ProductDetail extends Component
                     if ($slotFinConBuffer->lte($fin)) {
                         $slots[] = $inicio->format('H:i');
                     }
-                    $inicio->addMinutes(self::SLOT_INTERVAL_MINUTES);
+                    // $inicio->addMinutes(self::SLOT_INTERVAL_MINUTES);
+                     $inicio->addMinutes($this->product->duracion + ($this->product->buffer_tiempo ?? 0));
+
                 }
             }
 

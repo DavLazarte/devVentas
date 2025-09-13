@@ -193,9 +193,9 @@ class Servicios extends Component
         $this->imagen = '';
         $this->tipo_reserva = '';
         $this->buffer_tiempo = '';
-        $this->anticipacion_minima = '';
-        $this->anticipacion_maxima = '';
-        $this->cancelacion_limite = '';
+        // $this->anticipacion_minima = '';
+        // $this->anticipacion_maxima = '';
+        // $this->cancelacion_limite = '';
         $this->es_reservable = 0;
 
         // Reset horarios
@@ -261,25 +261,43 @@ class Servicios extends Component
         if ($this->tipo_reserva !== 'turno_fijo') {
             return true;
         }
-
+    
         if (empty($this->dias_disponibles)) {
             throw new \Exception('Debes seleccionar al menos un día disponible.');
         }
-
+    
         foreach ($this->dias_disponibles as $dia) {
-            if (!isset($this->horarios[$dia])) continue;
-
-            foreach ($this->horarios[$dia] as $index => $horario) {
-                if (empty($horario['inicio']) || empty($horario['fin'])) {
-                    throw new \Exception("Completa todos los horarios para {$this->dias_semana[$dia]}.");
+            if (!isset($this->horarios[$dia])) {
+                continue;
+            }
+    
+            $horariosDia = $this->horarios[$dia];
+            $horariosCompletos = 0;
+    
+            foreach ($horariosDia as $horario) {
+                // Contamos los horarios que están completos (ambos campos llenos)
+                if (!empty($horario['inicio']) && !empty($horario['fin'])) {
+                    $horariosCompletos++;
                 }
-
+            }
+            
+            // Si no hay ningún horario completo para este día, mostramos el error
+            if ($horariosCompletos === 0) {
+                 throw new \Exception("Debes completar al menos un horario para {$this->dias_semana[$dia]} o desmarcar el día.");
+            }
+    
+            // Si hay horarios completos, hacemos las validaciones de solapamiento y orden
+            foreach ($horariosDia as $index => $horario) {
+                if (empty($horario['inicio']) || empty($horario['fin'])) {
+                    continue; // Ignoramos si el horario está vacío
+                }
+    
                 if ($horario['inicio'] >= $horario['fin']) {
                     throw new \Exception("La hora de fin debe ser mayor que la de inicio en {$this->dias_semana[$dia]}.");
                 }
-
+    
                 // Validar solapamientos en el mismo día
-                foreach ($this->horarios[$dia] as $otherIndex => $otroHorario) {
+                foreach ($horariosDia as $otherIndex => $otroHorario) {
                     if ($index !== $otherIndex && !empty($otroHorario['inicio']) && !empty($otroHorario['fin'])) {
                         if (($horario['inicio'] < $otroHorario['fin']) && ($horario['fin'] > $otroHorario['inicio'])) {
                             throw new \Exception("Los horarios se solapan en {$this->dias_semana[$dia]}.");
@@ -288,7 +306,6 @@ class Servicios extends Component
                 }
             }
         }
-
         return true;
     }
 
@@ -402,9 +419,9 @@ class Servicios extends Component
                     'precio' => $this->precio,
                     'duracion' => $this->duracion,
                     'buffer_tiempo' => $this->buffer_tiempo,
-                    'anticipacion_minima' => $this->anticipacion_minima,
-                    'anticipacion_maxima' => $this->anticipacion_maxima,
-                    'cancelacion_limite' => $this->cancelacion_limite,
+                    // 'anticipacion_minima' => $this->anticipacion_minima,
+                    // 'anticipacion_maxima' => $this->anticipacion_maxima,
+                    // 'cancelacion_limite' => $this->cancelacion_limite,
                     'es_reservable' => $this->es_reservable,
                     'tipo_reserva' => $this->tipo_reserva,
                     'estado' => $this->estado,
@@ -460,9 +477,9 @@ class Servicios extends Component
         $this->precio = floatval($servicio->precio);
         $this->duracion = $servicio->duracion;
         $this->buffer_tiempo = $servicio->buffer_tiempo;
-        $this->anticipacion_minima = $servicio->anticipacion_minima;
-        $this->anticipacion_maxima = $servicio->anticipacion_maxima;
-        $this->cancelacion_limite = $servicio->cancelacion_limite;
+        // $this->anticipacion_minima = $servicio->anticipacion_minima;
+        // $this->anticipacion_maxima = $servicio->anticipacion_maxima;
+        // $this->cancelacion_limite = $servicio->cancelacion_limite;
         $this->es_reservable = $servicio->es_reservable;
         $this->tipo_reserva = $servicio->tipo_reserva;
         $this->estado = $servicio->estado;

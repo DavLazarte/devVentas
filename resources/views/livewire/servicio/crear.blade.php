@@ -232,11 +232,11 @@
                 </div>
                 <div>
                     <label for="buffer_tiempo" class="block text-gray-700 text-sm font-bold mb-2">Tiempo entre
-                        Turnos:</label>
+                        Turnos (en minutos):</label>
                     <input type="text" id="buffer_tiempo" wire:model="buffer_tiempo"
                         class="block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 sm:text-sm">
                 </div>
-                <div>
+                {{-- <div>
                     <label for="anticipacion_minima" class="block text-gray-700 text-sm font-bold mb-2">Anticipación
                         minima:</label>
                     <input type="text" id="anticipacion_minima" wire:model="anticipacion_minima"
@@ -253,7 +253,7 @@
                         Cancelar:</label>
                     <input type="text" id="cancelacion_limite" wire:model="cancelacion_limite"
                         class="block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 sm:text-sm">
-                </div>
+                </div> --}}
                 <div>
                     <label for="es_reservable" class="block text-gray-700 text-sm font-bold mb-2">Disponible para
                         Reserva:</label>

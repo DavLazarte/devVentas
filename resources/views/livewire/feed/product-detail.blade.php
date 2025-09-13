@@ -201,21 +201,31 @@
                                 minutos</span>
                         </div>
                     </div>
-                    {{-- selccionar empleado --}}
-                    @if ($product->es_reservable && $product->tipo_reserva === 'turno_fijo' && $product->empleados->isNotEmpty())
-                        <div class="mt-8">
-                            <h3 class="text-xl font-semibold text-gray-800">1. Selecciona un profesional</h3>
-                            <div class="mt-4 grid grid-cols-2 gap-4">
-                                @foreach ($product->empleados as $empleado)
-                                    <div wire:click="selectEmployee({{ $empleado->idpersona }})"
-                                        class="p-4 rounded-lg text-center cursor-pointer transition-all duration-200 
-                    {{ $selectedEmployeeId == $empleado->idpersona ? 'bg-purple-600 text-white shadow-lg scale-105' : 'bg-gray-100 hover:bg-gray-200' }}">
-                                        <p class="font-medium">{{ $empleado->nombre }}</p>
-                                    </div>
-                                @endforeach
-                            </div>
-                        </div>
-                    @endif
+                    {{-- seleccionar empleado --}}
+@if ($product->es_reservable && $product->tipo_reserva === 'turno_fijo' && $product->empleados->isNotEmpty())
+    <div class="mt-8">
+        @if ($product->empleados->count() > 1)
+            <h3 class="text-xl font-semibold text-gray-800">1. Selecciona un profesional</h3>
+            <div class="mt-4 grid grid-cols-2 gap-4">
+                @foreach ($product->empleados as $empleado)
+                    <div wire:click="selectEmployee({{ $empleado->idpersona }})"
+                        class="p-4 rounded-lg text-center cursor-pointer transition-all duration-200
+                        {{ $selectedEmployeeId == $empleado->idpersona ? 'bg-purple-600 text-white shadow-lg scale-105' : 'bg-gray-100 hover:bg-gray-200' }}">
+                        <p class="font-medium">{{ $empleado->nombre }}</p>
+                    </div>
+                @endforeach
+            </div>
+        @else
+            <h3 class="text-xl font-semibold text-gray-800">1. Servicio a cargo de:</h3>
+            <div class="mt-4 grid grid-cols-2 gap-4">
+                <div class="p-4 rounded-lg text-center cursor-not-allowed
+                    bg-purple-600 text-white shadow-lg scale-105">
+                    <p class="font-medium">{{ $product->empleados->first()->nombre }}</p>
+                </div>
+            </div>
+        @endif
+    </div>
+@endif
 
                     <!-- Fecha seleccionada -->
                     @if ($selectedDate)
