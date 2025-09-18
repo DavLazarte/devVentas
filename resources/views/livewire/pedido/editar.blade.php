@@ -6,12 +6,20 @@
                 <div class="flex items-center space-x-2">
                     <label for="estado" class="text-sm font-medium text-gray-700 whitespace-nowrap hidden sm:block">Estado:</label>
                     <select id="estado" wire:model="estado" class="block w-full sm:w-auto min-w-[150px] px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500 transition-colors">
-                        <option value="pendiente">🟠 Pendiente</option>
-                        <option value="en_proceso">🟡 En Proceso</option>
-                        <option value="confirmado">🔵 Confirmado</option>
-                        <option value="entregado">🟢 Entregado</option>
-                        <option value="cancelado">🔴 Cancelado</option>
+                        @if($tipo_pedido === 'producto')
+                            <option value="pendiente">🟠 Pendiente</option>
+                            <option value="en_proceso">🟡 En Proceso</option>
+                            <option value="confirmado">🔵 Confirmado</option>
+                            <option value="entregado">🟢 Entregado</option>
+                            <option value="cancelado">🔴 Cancelado</option>
+                        @elseif($tipo_pedido === 'servicio')
+                            <option value="pendiente">🟠 Pendiente</option>
+                            <option value="confirmada">🔵 Confirmado</option>
+                            <option value="completada">🟢 Realizado</option>
+                            <option value="cancelada">🔴 Cancelado</option>
+                        @endif
                     </select>
+                    
                     <button type="submit" class="bg-purple-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-purple-700 transition-colors text-sm">
                         Guardar
                     </button>
@@ -20,15 +28,23 @@
             </form>
 
             <!-- Title -->
-            <h1 class="text-lg font-semibold text-gray-900">
+            <h1 class="text-lg font-semibold text-gray-900 flex items-center space-x-2">
                 @if($tipo_pedido === 'servicio')
                     Editar Estado de la Reserva
-                @elseif($tipo_pedido === 'mixto')
-                    Editar Estado del Pedido y Reserva
                 @else
                     Editar Estado del Pedido
                 @endif
+                <span class="px-2 py-1 rounded-full text-xs font-medium
+                    @if($estado === 'pendiente') bg-orange-100 text-orange-700
+                    @elseif($estado === 'en_proceso') bg-yellow-100 text-yellow-700
+                    @elseif($estado === 'confirmado') bg-blue-100 text-blue-700
+                    @elseif($estado === 'entregado' || $estado === 'realizado') bg-green-100 text-green-700
+                    @elseif($estado === 'cancelado') bg-red-100 text-red-700
+                    @endif">
+                    {{ ucfirst($estado) }}
+                </span>
             </h1>
+            
 
             <!-- Close Button -->
             <button wire:click="closeModal" class="p-2 rounded-full hover:bg-gray-100">

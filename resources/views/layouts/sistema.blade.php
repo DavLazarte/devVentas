@@ -29,6 +29,7 @@
 
 
 
+
     <!-- Livewire Styles (solo una vez) -->
     @livewireStyles
 
@@ -37,7 +38,7 @@
 
     <!-- Alpine.js -->
     <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
-
+    
 </head>
 
 <body>
@@ -84,7 +85,8 @@
                             </g>
                         </svg>
 
-                        <a href="https://ventas.tiendadux.ar/" class="mx-2 text-2xl font-semibold text-white">DUX VENTAS</a>
+                        <a href="https://ventas.tiendadux.ar/" class="mx-2 text-2xl font-semibold text-white">DUX
+                            VENTAS</a>
                     </div>
                 </div>
 
@@ -103,7 +105,7 @@
                             class="flex items-center px-6 py-2 mt-4  text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors rounded-md   hover:bg-purple-100 dark:hover:bg-purple-600"
                             :class="{ 'bg-purple-100 dark:bg-purple-600': isActive || open }" role="button"
                             aria-haspopup="true" :aria-expanded="(open || isActive) ? 'true' : 'false'">
-                            <span class="ml-2 text-m"> 
+                            <span class="ml-2 text-m">
                                 @if (auth()->user()->local->tipo == 'venta')
                                     📦 Depósito
                                 @else
@@ -122,8 +124,8 @@
 
                             {{-- </span> --}}
                         </a>
-                        <div role="menu" x-show="open" class="mt-2 space-y-2 px-7" 
-                             aria-label="{{ auth()->user()->local->tipo == 'venta' ? 'Depósito' : 'Gestión' }}">
+                        <div role="menu" x-show="open" class="mt-2 space-y-2 px-7"
+                            aria-label="{{ auth()->user()->local->tipo == 'venta' ? 'Depósito' : 'Gestión' }}">
                             <a class="flex items-center px-6 py-2 mt-4 text-gray-500 hover:bg-gray-700 hover:bg-opacity-25 hover:text-gray-100"
                                 href="{{ url('admin/categorias') }}">
                                 <span class="ml-2 text-m"> 📌 Categorías</span>
@@ -143,7 +145,7 @@
                     </div>
                     <a class="flex items-center px-6 py-2 mt-4  text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors rounded-md   hover:bg-purple-100 dark:hover:bg-purple-600"
                         href="{{ url('admin/pedidos') }}">
-                        <span class="ml-2 text-m"> 
+                        <span class="ml-2 text-m">
                             @if (auth()->user()->local->tipo == 'venta')
                                 📋 Pedidos
                             @else
@@ -156,7 +158,7 @@
                             class="flex items-center px-6 py-2 mt-4  text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors rounded-md   hover:bg-purple-100 dark:hover:bg-purple-600"
                             :class="{ 'bg-purple-100 dark:bg-purple-600': isActive || open }" role="button"
                             aria-haspopup="true" :aria-expanded="(open || isActive) ? 'true' : 'false'">
-                            <span class="ml-2 text-m"> 
+                            <span class="ml-2 text-m">
                                 @if (auth()->user()->local->tipo == 'venta')
                                     🛒 Ventas
                                 @else
@@ -173,8 +175,8 @@
                                 </svg>
                             </span>
                         </a>
-                        <div role="menu" x-show="open" class="mt-2 space-y-2 px-7" 
-                             aria-label="{{ auth()->user()->local->tipo == 'venta' ? 'Ventas' : 'Servicios' }}">
+                        <div role="menu" x-show="open" class="mt-2 space-y-2 px-7"
+                            aria-label="{{ auth()->user()->local->tipo == 'venta' ? 'Ventas' : 'Servicios' }}">
                             @if (auth()->user()->local->tipo == 'venta')
                                 <a class="flex items-center px-6 py-2 mt-4 text-gray-500 hover:bg-gray-700 hover:bg-opacity-25 hover:text-gray-100"
                                     href="{{ url('admin/ventas') }}">
@@ -376,9 +378,9 @@
                 </header>
                 <main class="flex-1 overflow-x-hidden overflow-y-auto bg-gray-200">
                     @if (auth()->user()->local->tipo == 'venta')
-                    <div class="max-w-xl mx-auto mt-2 px-1 sm:px-1 lg:px-1">
-                        @include('livewire.accesos-directos')
-                    </div>
+                        <div class="max-w-xl mx-auto mt-2 px-1 sm:px-1 lg:px-1">
+                            @include('livewire.accesos-directos')
+                        </div>
                     @endif
                     <div class="font-sans text-gray-900 antialiased">
                         {{ $slot }}
@@ -396,6 +398,8 @@
         integrity="sha384-kenU1KFdBIe4zVF0s0G1M5b4hcpxyD9F7jL+jjXkk+Q2h455rYXK/7HAuoJl+0I4" crossorigin="anonymous">
     </script>
     <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.19/index.global.min.js"></script>
+
     {{-- <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script> --}}
     <script>
         document.addEventListener('keydown', function(event) {

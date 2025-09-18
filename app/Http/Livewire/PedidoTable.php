@@ -11,18 +11,20 @@ use Illuminate\Database\Eloquent\Builder;
 class PedidoTable extends DataTableComponent
 {
     protected $model = Pedido::class;
+    public string $pedido_type;
+
 
     protected $listeners = ['refreshDatatablePedidos' => '$refresh'];
 
     public function builder(): Builder
     {
         $idLocal = auth()->user()->local->id;
+        $this->pedido_type = auth()->user()->local->tipo;
 
-        // Construir la consulta de artículos pertenecientes al local del usuario
-        $query = Pedido::where('pedidos.id_local', $idLocal);
-
-        // Obtener los artículos con sus categorías
-        return $query->with('detalles.producto')->select('pedidos.*');;
+        return Pedido::where('pedidos.id_local', $idLocal)
+            ->with('detalles.producto')
+            ->select('pedidos.*')
+            ->orderByDesc('pedidos.id');
     }
 
     public function verDetalle($id)
@@ -48,8 +50,8 @@ class PedidoTable extends DataTableComponent
 
     public function columns(): array
     {
-        return [
-
+        // Conjunto de columnas comunes para ambos tipos
+        $commonColumns = [
             // Column::make("Id user", "id_user")
             //     ->sortable(),
             Column::make("Nombre cliente", "nombre_cliente")
@@ -57,7 +59,8 @@ class PedidoTable extends DataTableComponent
                 ->searchable(),
             Column::make("Email", "email")
                 ->sortable()
-                ->collapseOnMobile(),
+                ->collapseOnMobile()
+                ->deselected(),
             Column::make("Telefono", "telefono")
                 ->sortable()
                 ->collapseOnMobile()
@@ -83,32 +86,49 @@ class PedidoTable extends DataTableComponent
                             </a>";
                 })
                 ->html(),
-            // Column::make("Telefono", "telefono")
+            Column::make("Total", "total")
+                ->sortable(),
+            Column::make("Metodo pago", "metodo_pago")
+                ->sortable()
+                ->collapseOnMobile()
+                ->deselected(),
+            // Column::make("Crear cuenta", "crear_cuenta")
             //     ->sortable()
-            //     ->collapseOnMobile(),
+            //     ->format(function ($row) {
+            //         return $row
+            //             ? '<span class="text-green-600">✅</span>'
+            //             : '<span class="text-red-600">❌</span>';
+            //     })
+            //     ->html(),
+        ];
+        $productSpecificColumns = [
             Column::make("Direccion", "direccion")
                 ->sortable()
-                ->collapseOnMobile(),
+                ->collapseOnMobile()
+                ->deselected(),
             Column::make("Ciudad", "ciudad")
                 ->sortable()
                 ->searchable()
-                ->collapseOnMobile(),
+                ->collapseOnMobile()
+                ->deselected(),
             Column::make("Codigo postal", "codigo_postal")
                 ->sortable()
-                ->collapseOnMobile(),
+                ->collapseOnMobile()
+                ->deselected(),
             Column::make("Notas entrega", "notas_entrega")
                 ->sortable()
-                ->collapseOnMobile(),
+                ->collapseOnMobile()
+                ->deselected(),
             Column::make("Subtotal", "subtotal")
                 ->sortable(),
             Column::make("Envio", "envio")
                 ->sortable()
-                ->collapseOnMobile(),
+                ->collapseOnMobile()
+                ->deselected(),
             Column::make("Descuento", "descuento")
                 ->sortable()
-                ->collapseOnMobile(),
-            Column::make("Total", "total")
-                ->sortable(),
+                ->collapseOnMobile()
+                ->deselected(),
             Column::make("Estado", "estado")
                 ->sortable()
                 ->format(function ($estado) {
@@ -134,22 +154,54 @@ class PedidoTable extends DataTableComponent
                     return "<span class='px-3 py-1 rounded-full text-xs font-semibold {$clase}'>$texto</span>";
                 })
                 ->html(),
-
-            Column::make("Metodo pago", "metodo_pago")
+        ];
+        $serviceSpecificColumns = [
+            Column::make("Fecha", "fecha_servicio")
                 ->sortable()
                 ->collapseOnMobile(),
-            // Column::make("Crear cuenta", "crear_cuenta")
-            //     ->sortable()
-            //     ->format(function ($row) {
-            //         return $row
-            //             ? '<span class="text-green-600">✅</span>'
-            //             : '<span class="text-red-600">❌</span>';
-            //     })
-            //     ->html(),
+            Column::make("Hora Inicio", "hora_inicio")
+                ->sortable()
+                ->collapseOnMobile(),
+            Column::make("Estado de Reserva", "estado_reserva")
+                ->sortable()
+                ->format(function ($value) {
+                    $clases = [
+                        'pendiente'    => 'bg-gray-400 text-white',
+                        'confirmado'   => 'bg-blue-500 text-white',
+                        'cancelada'    => 'bg-red-500 text-white',
+                        'completada'   => 'bg-green-500 text-white',
+                    ];
+                    $texto = ucfirst($value);
+                    $clase = $clases[$value] ?? 'bg-gray-500 text-white';
+                    return "<span class='px-3 py-1 rounded-full text-xs font-semibold {$clase}'>$texto</span>";
+                })
+                ->html(),
+
+        ];
+        $acciones = [
             Column::make("Acciones")
                 ->label(
                     fn($row, Column $column) => view('livewire.pedido.actions', ['row' => $row])
-                ),
+                )
+                ->html()
+                ->collapseOnMobile(),
         ];
+        // Lógica para determinar qué columnas mostrar
+        if ($this->pedido_type === 'venta') {
+            return array_merge($commonColumns, $productSpecificColumns, $acciones);
+        } elseif ($this->pedido_type === 'servicio') {
+            return array_merge($commonColumns, $serviceSpecificColumns, $acciones);
+        }
+
+        return array_merge(
+            [
+                Column::make("ID", "id")->sortable(),
+                Column::make("Tipo", "tipo_pedido")->sortable()->format(fn($value) => ucfirst($value)),
+                Column::make("Cliente", "nombre_cliente")->sortable()->searchable(),
+                Column::make("Estado", "estado_reserva")->sortable(), // Cambiado a estado_reserva para incluir ambos
+                Column::make("Total", "total")->sortable(),
+            ],
+            $acciones
+        );
     }
 }

@@ -169,6 +169,13 @@ class Checkout extends Component
                 if (isset($primerServicio['hora_inicio'])) {
                     $horaInicio = $primerServicio['hora_inicio'];
                 }
+                // Calcular hora_fin si existe duración
+                $horaFin = null;
+                if (isset($primerServicio['hora_inicio']) && isset($primerServicio['duracion'])) {
+                    $horaFin = \Carbon\Carbon::parse($primerServicio['hora_inicio'])
+                        ->addMinutes($primerServicio['duracion'])
+                        ->format('H:i:s');
+                }
             }
 
             $pedido = Pedido::create([
@@ -191,6 +198,7 @@ class Checkout extends Component
                 'tipo_pedido' => $tipoPedido,
                 'fecha_servicio' => $fechaServicio,
                 'hora_inicio' => $horaInicio,
+                'hora_fin' => $horaFin,
                 'estado_reserva' => $tieneServicios ? 'pendiente' : null,
             ]);
 
