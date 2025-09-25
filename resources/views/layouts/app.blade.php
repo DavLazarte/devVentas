@@ -1,15 +1,35 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tienda Dux</title>
-    <!-- tailwind -->
+    
+    <!-- PWA Meta Tags -->
+    <meta name="description" content="Marketplace de tiendas, productos y servicios">
+    <meta name="theme-color" content="#8b5cf6">
+    <meta name="msapplication-TileColor" content="#8b5cf6">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Tienda DuX">
+    <meta name="mobile-web-app-capable" content="yes">
+    
+    <!-- PWA Icons -->
+    <link rel="apple-touch-icon" sizes="180x180" href="{{ asset('icons/icon-192x192.png') }}">
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ asset('icons/icon-32x32.png') }}">
+    <link rel="icon" type="image/png" sizes="16x16" href="{{ asset('icons/icon-16x16.png') }}">
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="{{ asset('manifest.json') }}">
+    
+    <!-- Tailwind -->
     <link href="{{ asset('css/app.css') }}" rel="stylesheet">
+    
     <!-- SweetAlert2 -->
     <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
-
+     
     @livewireStyles
+    
     <style>
         .hide-scrollbar::-webkit-scrollbar {
             display: none;
@@ -23,20 +43,21 @@
 
 <body class="flex flex-col min-h-screen bg-gray-50">
     <main class="flex-grow">
-
-        @if(isset($slot))
+         @if(isset($slot))
             {{ $slot }}
         @endif
+     </main>
 
-    </main>
-
-    @stack('modals')
+     @stack('modals')
     @livewireScripts
     @stack('js')
+    
     <!-- Scripts -->
     <script src="{{ asset('js/app.js') }}"></script>
+    
     <!-- SweetAlert2 -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    
     <script>
         window.addEventListener('showAlert', event => {
             Swal.fire({
@@ -47,6 +68,22 @@
                 confirmButtonColor: '#6B46C1'
             });
         });
+    </script>
+    
+    <!-- PWA Installation Script -->
+    <script>
+        // Registrar Service Worker (lo crearemos después)
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function() {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(function(registration) {
+                        console.log('SW registrado: ', registration);
+                    })
+                    .catch(function(registrationError) {
+                        console.log('SW falló: ', registrationError);
+                    });
+            });
+        }
     </script>
 </body>
 </html>
