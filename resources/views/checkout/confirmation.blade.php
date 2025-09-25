@@ -58,8 +58,8 @@
                         @if ($detalle->empleado)
                             <p class="text-sm text-gray-700 mt-1">Profesional: <span class="font-medium">{{ $detalle->empleado->nombre }}</span></p>
                         @endif
-                        @if ($detalle->variante)
-                            <p class="text-sm text-gray-600">{{ $detalle->variante }}</p>
+                        @if ($detalle->variantesArticulos)
+                            <p class="text-sm text-gray-600">{{ $detalle->variantesArticulos->descripcion_variante }}</p>
                         @endif
                     </div>
                     <div class="text-right">

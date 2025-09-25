@@ -8,15 +8,19 @@ use Illuminate\Database\Eloquent\Model;
 class DetallePedido extends Model
 {
     use HasFactory;
+    protected $table = 'detalle_pedidos';
 
     protected $fillable = [
         'pedido_id',
         'idarticulo',
+        'id_variante',
         'idservicio',
         'cantidad',
         'precio_unitario',
         'subtotal',
         'variante',
+        'sku_vendido',
+        'descripcion_variante',
         'id_empleado'
     ];
 
@@ -53,6 +57,10 @@ class DetallePedido extends Model
     public function producto()
     {
         return $this->belongsTo(Articulo::class, 'idarticulo', 'idarticulo');
+    }
+    public function variantesArticulos()
+    {
+        return $this->belongsTo(ArticuloVariante::class, 'id_variante', 'id_variante');
     }
     public function servicio()
     {

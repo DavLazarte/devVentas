@@ -27,6 +27,9 @@ class ProductDetail extends Component
     public $showFullDescription = false;
     public $quantity = 1;
 
+    // Variantes (para articulos)
+    public $selectedVariantId = null;
+
     // Nuevas propiedades para servicios
     public $selectedDate = null;
     public $selectedTime = null;
@@ -45,7 +48,11 @@ class ProductDetail extends Component
 
         if ($type && $id) {
             if ($type === 'articulo') {
-                $this->product = Articulo::with(['categoria', 'local'])->findOrFail($id);
+                $this->product = Articulo::with([
+                    'categoria',
+                    'local',
+                    'variantesActivas.atributoValores.atributo'
+                ])->findOrFail($id);
             } else {
                 $this->product = Servicio::with(['categoria', 'local', 'empleados'])->findOrFail($id);
             }
@@ -87,6 +94,16 @@ class ProductDetail extends Component
     {
         if ($newQuantity > 0) {
             $this->quantity = $newQuantity;
+        }
+    }
+
+    // Selección de variante
+    public function selectVariant($variantId)
+    {
+        if ($this->type !== 'articulo') return;
+        $variant = optional($this->product->variantesActivas)->firstWhere('id_variante', $variantId);
+        if ($variant) {
+            $this->selectedVariantId = $variantId;
         }
     }
 
@@ -185,7 +202,6 @@ class ProductDetail extends Component
                     }
                     // $inicio->addMinutes(self::SLOT_INTERVAL_MINUTES);
                      $inicio->addMinutes($this->product->duracion + ($this->product->buffer_tiempo ?? 0));
-
                 }
             }
 
@@ -268,6 +284,18 @@ class ProductDetail extends Component
         // Validar servicio con turno
         if (!$this->validateServiceReservation()) {
             return;
+        }
+
+        // Validar selección de variante si corresponde
+        if ($this->type === 'articulo' && $this->product && $this->product->tiene_variantes) {
+            if (!$this->selectedVariantId) {
+                $this->dispatchBrowserEvent('showAlert', [
+                    'type' => 'warning',
+                    'title' => '¡Atención!',
+                    'message' => 'Selecciona una variante antes de agregar al carrito.'
+                ]);
+                return;
+            }
         }
 
         // Verificar disponibilidad final
@@ -384,12 +412,24 @@ class ProductDetail extends Component
             'id' => $id,
             'type' => $this->type,
             'name' => $this->product->nombre,
-            'price' => $this->product->precio_unitario,
+            'price' => $this->resolveItemPrice(),
             'quantity' => $quantity,
             'image' => $this->product->imagen_url,
             'shop' => $this->product->local->nombre,
             'shop_id' => $this->product->local->id
         ];
+
+        // Datos de variante para artículos con variantes
+        if ($this->type === 'articulo' && $this->product->tiene_variantes) {
+            $variant = optional($this->product->variantesActivas)->firstWhere('id_variante', $this->selectedVariantId);
+            if ($variant) {
+                $itemData['id_variante'] = $variant->id_variante;
+                $itemData['sku'] = $variant->sku;
+                $itemData['variant'] = $variant->descripcion_variante;
+                // asegurar precio preciso por variante
+                $itemData['price'] = (float) $variant->precio_unitario;
+            }
+        }
 
         // Agregar datos de reserva para servicios
         if ($this->type === 'servicio' && $this->product->tipo_reserva === 'turno_fijo') {
@@ -411,7 +451,14 @@ class ProductDetail extends Component
         if ($this->type === 'servicio' && $this->product->tipo_reserva === 'turno_fijo') {
             return 'service_' . $id . '_' . $this->selectedDate . '_' . $this->selectedTime;
         }
-        return $this->type === 'articulo' ? 'product_' . $id : 'service_' . $id;
+        if ($this->type === 'articulo') {
+            // Si hay variantes, diferenciar por variante
+            if ($this->product->tiene_variantes && $this->selectedVariantId) {
+                return 'product_' . $id . '_variant_' . $this->selectedVariantId;
+            }
+            return 'product_' . $id;
+        }
+        return 'service_' . $id;
     }
 
     private function validateCartShop($cart)
@@ -440,9 +487,23 @@ class ProductDetail extends Component
         }
     }
 
+    private function resolveItemPrice()
+    {
+        if ($this->type === 'articulo') {
+            if ($this->product->tiene_variantes && $this->selectedVariantId) {
+                $variant = optional($this->product->variantesActivas)->firstWhere('id_variante', $this->selectedVariantId);
+                if ($variant) {
+                    return (float) $variant->precio_unitario;
+                }
+            }
+            return (float) $this->product->precio_unitario;
+        }
+        // servicios
+        return (float) $this->product->precio_unitario;
+    }
+
     public function render()
     {
         return view('livewire.feed.product-detail')->layout('layouts.app');
     }
 }
-

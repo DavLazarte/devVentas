@@ -52,6 +52,8 @@ class ArticulosTable extends DataTableComponent
             Column::make("Nombre", "nombre")
                 ->sortable()
                 ->searchable(),
+            Column::make("Variantes", "tiene_variantes") // NUEVA COLUMNA
+                ->label(fn($row) => view('livewire.articulo.variantes-summary', ['row' => $row])),
             Column::make("Imagen", "imagen")
                 ->label(fn($row) => view('livewire.articulo.imagen', ['imagen' => $row->imagen])),
             Column::make("Stock", "stock")

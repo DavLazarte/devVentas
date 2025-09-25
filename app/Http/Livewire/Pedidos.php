@@ -88,12 +88,13 @@ class Pedidos extends Component
         // Convertir detalles a formato de items con información específica de servicios
         $this->items = $pedido->detalles->map(function ($detalle) {
             $producto = $detalle->producto; // sea Articulo o Servicio
+            $variante = $detalle->variantesArticulos; // sea Articulo o Servicio
             $item = [
                 'id' => $detalle->idarticulo ?? $detalle->idservicio,
                 'name' => $producto->nombre ?? 'Producto',
                 'price' => $detalle->precio_unitario,
                 'quantity' => $detalle->cantidad,
-                'variant' => $detalle->variante,
+                'variant' => $variante->descripcion_variante,
                 'image' => $producto->imagen_url ?? asset('images/default-product.jpg'),
                 'shop' => $pedido->local->nombre ?? 'Tienda',
                 'type' => $detalle->idarticulo ? 'articulo' : 'servicio'

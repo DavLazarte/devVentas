@@ -16,6 +16,9 @@ class DetalleVenta extends Model
         'cantidad',
         'precio_venta',
         'estado',
+        'id_variante',
+        'sku_vendido',
+        'descripcion_variante',
     ];
 
     // Relación con el modelo de venta
@@ -32,5 +35,17 @@ class DetalleVenta extends Model
     public function producto()
     {
         return $this->belongsTo(Articulo::class, 'idarticulo');
+    }
+    public function variante()
+    {
+        return $this->belongsTo(ArticuloVariante::class, 'id_variante', 'id_variante');
+    }
+
+    public function getNombreProductoAttribute()
+    {
+        if ($this->variante) {
+            return $this->articulo->nombre . ' - ' . $this->variante->descripcion_variante;
+        }
+        return $this->articulo->nombre ?? 'Producto eliminado';
     }
 }

@@ -36,7 +36,8 @@ class ListVentas extends Component
 
     public function ver($id)
     {
-        $this->ver_venta = Venta::with('detalles.producto', 'persona')->findOrFail($id);
+        $this->ver_venta = Venta::with('detalles.producto', 'detalles.variante', 'persona')->findOrFail($id);
+
         $this->openModal();
     }
 

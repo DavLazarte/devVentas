@@ -34,6 +34,28 @@
                                 </div>
                             @endif
                         </div>
+                        <!-- Selector de variantes -->
+                        @if ($mostrar_variantes && count($variantes_disponibles) > 0)
+                            <div class="bg-gray-100 border rounded-md shadow-md p-4 mb-4">
+                                <h4 class="font-semibold text-gray-800 mb-2">Selecciona una variante</h4>
+                                <ul class="space-y-2">
+                                    @foreach ($variantes_disponibles as $variante)
+                                        <li>
+                                            <button wire:click="seleccionarVariante({{ $variante->id_variante }})"
+                                                class="w-full flex justify-between items-center px-4 py-2 bg-white hover:bg-purple-100 border rounded-md shadow-sm transition">
+                                                <span>{{ $variante->descripcion_variante }} (Stock:
+                                                    {{ $variante->stock }})</span>
+                                                <span
+                                                    class="font-bold text-purple-600">${{ number_format($variante->precio_unitario, 2) }}</span>
+                                            </button>
+                                        </li>
+                                    @endforeach
+                                </ul>
+                                <button wire:click="cerrarSelectorVariantes"
+                                    class="mt-3 text-sm text-red-500 hover:underline">Cancelar</button>
+                            </div>
+                        @endif
+
 
                         <!-- Tabla de Artículos -->
 
@@ -79,10 +101,12 @@
                                                 </td>
 
                                                 <!-- Precio -->
-                                                <td class="py-2 px-2 md:px-4 flex justify-between items-center md:table-cell">
+                                                <td
+                                                    class="py-2 px-2 md:px-4 flex justify-between items-center md:table-cell">
                                                     <span class="font-medium md:hidden text-gray-700">Precio:</span>
                                                     <div class="relative ">
-                                                        <div class="absolute inset-y-0 left-0 pl-2 flex items-center pointer-events-none">
+                                                        <div
+                                                            class="absolute inset-y-0 left-0 pl-2 flex items-center pointer-events-none">
                                                             <span class="text-gray-500 sm:text-sm">$</span>
                                                         </div>
                                                         <input type="text" id="precio_unitario_{{ $index }}"
@@ -94,14 +118,17 @@
 
 
                                                 <!-- Cantidad -->
-                                                <td class="py-2 px-2 md:px-4 flex justify-between items-center md:table-cell">
+                                                <td
+                                                    class="py-2 px-2 md:px-4 flex justify-between items-center md:table-cell">
                                                     <span class="font-medium md:hidden text-gray-700">Cantidad:</span>
                                                     <div class="flex items-center w-24 sm:w-28 md:w-28 lg:w-32">
                                                         <button type="button"
                                                             wire:click="decrementarCantidad({{ $index }})"
                                                             class="bg-gray-200 px-2 py-1 rounded-l-md hover:bg-gray-300 transition">
-                                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                <path d="M20 12H4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                                            <svg class="w-4 h-4" fill="none" stroke="currentColor"
+                                                                viewBox="0 0 24 24">
+                                                                <path d="M20 12H4" stroke-width="2"
+                                                                    stroke-linecap="round" stroke-linejoin="round" />
                                                             </svg>
                                                         </button>
                                                         <input type="text" id="cantidad_{{ $index }}"
@@ -112,15 +139,18 @@
                                                         <button type="button"
                                                             wire:click="incrementarCantidad({{ $index }})"
                                                             class="bg-gray-200 px-2 py-1 rounded-r-md hover:bg-gray-300 transition">
-                                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                <path d="M12 4v16m8-8H4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                                            <svg class="w-4 h-4" fill="none" stroke="currentColor"
+                                                                viewBox="0 0 24 24">
+                                                                <path d="M12 4v16m8-8H4" stroke-width="2"
+                                                                    stroke-linecap="round" stroke-linejoin="round" />
                                                             </svg>
                                                         </button>
                                                     </div>
                                                 </td>
 
                                                 <!-- Subtotal -->
-                                                <td class="py-2 px-4 md:px-6 flex justify-between items-center md:table-cell">
+                                                <td
+                                                    class="py-2 px-4 md:px-6 flex justify-between items-center md:table-cell">
                                                     <span class="font-medium md:hidden text-gray-700">Subtotal:</span>
                                                     <span class="font-medium text-gray-900">
                                                         ${{ isset($art['subtotal']) ? number_format($art['subtotal'], 2) : '0.00' }}

@@ -230,8 +230,8 @@
                                         <h3 class="font-medium text-gray-900 text-sm">
                                             {{ $detalle->producto->nombre ?? 'Producto' }}
                                         </h3>
-                                        @if($detalle->variante)
-                                            <p class="text-xs text-gray-500">{{ $detalle->variante }}</p>
+                                        @if($detalle->variantesArticulos)
+                                            <p class="text-xs text-gray-500">{{ $detalle->variantesArticulos->descripcion_variante }}</p>
                                         @endif
 
                                         <!-- Service specific info -->

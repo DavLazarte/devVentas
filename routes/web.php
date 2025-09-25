@@ -46,7 +46,7 @@ Route::get('/politicas', function () {
 
 Route::get('/checkout', Checkout::class)->name('checkout');
 Route::get('/checkout/confirmation/{pedido}', function ($pedido) {
-    $pedido = \App\Models\Pedido::with(['detalles.producto.local'])->findOrFail($pedido);
+    $pedido = \App\Models\Pedido::with(['detalles.producto', 'detalles.variantesArticulos', 'local'])->findOrFail($pedido);
     return view('checkout/confirmation', ['pedido' => $pedido]);
 })->name('checkout.confirmation');
 Route::get('/booking/services', function () {

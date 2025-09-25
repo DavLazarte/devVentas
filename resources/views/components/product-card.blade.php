@@ -43,14 +43,21 @@
                 <!-- Price -->
                 <div class="flex items-center justify-between mb-2">
                     <div class="flex items-center space-x-1">
-                        <span class="text-purple-600 font-semibold text-sm">
-                            ${{ number_format($product->precio_unitario, 2) }}
-                        </span>
+                        @if(isset($product->tiene_variantes) && $product->tiene_variantes)
+                            <span class="text-gray-500 text-xs mr-1">Desde</span>
+                            <span class="text-purple-600 font-semibold text-sm">
+                                ${{ number_format($product->precio_minimo ?? $product->precio_unitario, 2) }}
+                            </span>
+                        @else
+                            <span class="text-purple-600 font-semibold text-sm">
+                                ${{ number_format($product->precio_unitario, 2) }}
+                            </span>
+                        @endif
                     </div>
                 </div>
 
                 <!-- Quick Add Button -->
-                @if ($showAddButton && $type === 'articulo')
+                @if ($showAddButton && $type === 'articulo' && (!isset($product->tiene_variantes) || !$product->tiene_variantes))
                     <div class="flex flex-col space-y-2" onclick="event.preventDefault();">
                         <!-- Cantidad -->
                         <div class="flex items-center justify-between">
@@ -74,7 +81,7 @@
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none"
                                         viewBox="0 0 24 24" stroke="currentColor">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                            d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                                            d="M12 6v6m0 0v6m-0-6h6m-6 0H6" />
                                     </svg>
                                 </button>
                             </div>
@@ -101,7 +108,7 @@
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                     d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                             </svg>
-                            <span>Reservar</span>
+                            <span>{{ $type === 'articulo' ? 'Ver opciones' : 'Reservar' }}</span>
                         </button>
                     </a>
                 @endif

@@ -67,8 +67,22 @@
                 <div class="flex-1">
                     <h1 class="text-xl font-bold text-gray-900 mb-1">{{ $product->nombre }}</h1>
                     <div class="flex items-center space-x-2">
-                        <span
-                            class="text-2xl font-bold text-purple-600">${{ number_format($product->precio_unitario, 2) }}</span>
+                        <span class="text-2xl font-bold text-purple-600">
+                            @if ($type === 'articulo' && $product->tiene_variantes)
+                                @php
+                                    $variant =
+                                        isset($selectedVariantId) && $selectedVariantId
+                                            ? $product->variantesActivas->firstWhere('id_variante', $selectedVariantId)
+                                            : null;
+                                    $displayPrice = $variant
+                                        ? $variant->precio_unitario
+                                        : $product->precio_minimo ?? $product->precio_unitario;
+                                @endphp
+                                ${{ number_format($displayPrice, 2) }}
+                            @else
+                                ${{ number_format($product->precio_unitario, 2) }}
+                            @endif
+                        </span>
                         @if ($product->precio_original)
                             <span
                                 class="text-lg text-gray-500 line-through">${{ number_format($product->precio_original, 2) }}</span>
@@ -157,8 +171,32 @@
 
         <div class="left-0 right-0 bg-white border-t border-gray-200 p-4 z-10">
             <div class="flex flex-col space-y-3">
-
                 @if ($type === 'articulo')
+                    @if ($product->tiene_variantes && $product->variantesActivas && $product->variantesActivas->count() > 0)
+                        <!-- Selector de variantes -->
+                        <div>
+                            <h3 class="text-sm font-medium text-gray-700 mb-2">Selecciona una variante</h3>
+                            <div class="space-y-2">
+                                @foreach ($product->variantesActivas as $var)
+                                    <button wire:click="selectVariant({{ $var->id_variante }})"
+                                        class="w-full text-left p-3 rounded-lg border transition-colors
+                                            {{ $selectedVariantId == $var->id_variante
+                                                ? 'bg-purple-600 text-white border-purple-600'
+                                                : 'bg-white text-gray-700 border-gray-300 hover:border-purple-300 hover:bg-purple-50' }}">
+                                        <div class="flex items-center justify-between">
+                                            <div class="text-sm">
+                                                <div class="font-medium">{{ $var->descripcion_variante }}</div>
+                                                <div class="text-xs opacity-75">SKU: {{ $var->sku }}</div>
+                                            </div>
+                                            <div class="text-sm font-semibold">
+                                                ${{ number_format($var->precio_unitario, 2) }}
+                                            </div>
+                                        </div>
+                                    </button>
+                                @endforeach
+                            </div>
+                        </div>
+                    @endif
                     <!-- Cantidad para productos -->
                     <div class="flex items-center justify-between">
                         <span class="text-sm text-gray-600">Cantidad:</span>
@@ -218,7 +256,8 @@
         @else
             <h3 class="text-xl font-semibold text-gray-800">1. Servicio a cargo de:</h3>
             <div class="mt-4 grid grid-cols-2 gap-4">
-                <div class="p-4 rounded-lg text-center cursor-not-allowed
+                                    <div
+                                        class="p-4 rounded-lg text-center cursor-not-allowed
                     bg-purple-600 text-white shadow-lg scale-105">
                     <p class="font-medium">{{ $product->empleados->first()->nombre }}</p>
                 </div>
@@ -232,17 +271,20 @@
                         <div
                             class="flex items-center justify-between p-3 {{ \Carbon\Carbon::parse($selectedDate)->isToday() ? 'bg-blue-50 border-blue-200' : 'bg-green-50 border-green-200' }} rounded-lg border">
                             <div class="flex items-center space-x-2">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 {{ \Carbon\Carbon::parse($selectedDate)->isToday() ? 'text-blue-600' : 'text-green-600' }}" fill="none"
-                                    viewBox="0 0 24 24" stroke="currentColor">
+                                <svg xmlns="http://www.w3.org/2000/svg"
+                                    class="h-5 w-5 {{ \Carbon\Carbon::parse($selectedDate)->isToday() ? 'text-blue-600' : 'text-green-600' }}"
+                                    fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                         d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                                 </svg>
                                 <div>
-                                    <span class="{{ \Carbon\Carbon::parse($selectedDate)->isToday() ? 'text-blue-800' : 'text-green-800' }} font-medium">
+                                    <span
+                                        class="{{ \Carbon\Carbon::parse($selectedDate)->isToday() ? 'text-blue-800' : 'text-green-800' }} font-medium">
                                     {{ \Carbon\Carbon::parse($selectedDate)->locale('es')->isoFormat('dddd, D [de] MMMM') }}
                                 </span>
                                     @if (\Carbon\Carbon::parse($selectedDate)->isToday())
-                                        <div class="text-xs {{ \Carbon\Carbon::parse($selectedDate)->isToday() ? 'text-blue-600' : 'text-green-600' }} mt-1">
+                                        <div
+                                            class="text-xs {{ \Carbon\Carbon::parse($selectedDate)->isToday() ? 'text-blue-600' : 'text-green-600' }} mt-1">
                                             ¡Turnos disponibles para hoy!
                                         </div>
                                     @endif
@@ -367,7 +409,11 @@
                     @endif
 
                     <!-- Time Slots -->
-                    @if ($selectedDate && $selectedEmployeeId && isset($availableSlots[$selectedEmployeeId]) && count($availableSlots[$selectedEmployeeId]) > 0)
+                    @if (
+                        $selectedDate &&
+                            $selectedEmployeeId &&
+                            isset($availableSlots[$selectedEmployeeId]) &&
+                            count($availableSlots[$selectedEmployeeId]) > 0)
                         <div class="space-y-3">
                             <h4 class="font-medium text-gray-900">Horarios disponibles:</h4>
                             <div class="grid grid-cols-3 gap-2">
@@ -382,7 +428,11 @@
                                 @endforeach
                             </div>
                         </div>
-                    @elseif($selectedDate && (!$selectedEmployeeId || !isset($availableSlots[$selectedEmployeeId]) || count($availableSlots[$selectedEmployeeId]) === 0))
+                    @elseif(
+                        $selectedDate &&
+                            (!$selectedEmployeeId ||
+                                !isset($availableSlots[$selectedEmployeeId]) ||
+                                count($availableSlots[$selectedEmployeeId]) === 0))
                         <div class="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
                             <div class="flex items-center space-x-2">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-yellow-600"

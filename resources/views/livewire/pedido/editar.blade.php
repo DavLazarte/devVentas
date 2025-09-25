@@ -235,6 +235,7 @@
 
             <div class="divide-y divide-gray-200">
                 @foreach($items as $item)
+              
                     <div class="px-4 py-4">
                         <div class="flex space-x-3">
                             <!-- Item Image -->

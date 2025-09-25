@@ -4,6 +4,7 @@ namespace App\Http\Livewire\Venta;
 
 use App\Http\Livewire\Persona\PersonaLivewire;
 use App\Models\Articulo;
+use App\Models\ArticuloVariante;
 use App\Models\DetalleVenta;
 use App\Models\Persona;
 use App\Models\Venta;
@@ -27,6 +28,9 @@ class Ventas extends Component
     // public $venta_total;
     public $venta_total_original;
     public $idLocal;
+    public $variantes_disponibles = [];
+    public $variante_seleccionada = null;
+    public $mostrar_variantes = false;
 
     public function mount()
     {
@@ -111,34 +115,109 @@ class Ventas extends Component
 
     public function filtrarArticulo()
     {
-        // Asumiendo que $this->idLocal ya está definido y es el ID del local correcto.
-        $query = Articulo::where('id_local', $this->idLocal);
+        $query = Articulo::where('id_local', $this->idLocal)->where('estado', 'activo');
 
         if ($this->searchArticulo) {
-            // Agrupa las condiciones de búsqueda para que actúen juntas
             $query->where(function ($q) {
                 $q->where('nombre', 'like', '%' . $this->searchArticulo . '%')
-                    ->orWhere('codigo', 'like', '%' . $this->searchArticulo . '%');
+                    ->orWhere('codigo', 'like', '%' . $this->searchArticulo . '%')
+                    ->orWhereHas('variantes', function ($subQ) {
+                        $subQ->where('sku', 'like', '%' . $this->searchArticulo . '%')
+                            ->where('estado', 'activo');
+                    });
             });
         }
 
-        $this->articulo = $query->get();
+        // Carga solo las columnas necesarias para el dropdown
+        $this->articulo = $query->select('idarticulo', 'nombre', 'descripcion', 'tiene_variantes')->with('variantesActivas:id_variante,idarticulo,descripcion_variante')->get();
     }
     public function agregarArticulo($id)
     {
-        $articuloSe = Articulo::find($id);
+        $articuloSe = Articulo::with('variantesActivas')->find($id);
 
-        $this->articuloSeleccionado[] = [
-            'idarticulo' => $articuloSe->idarticulo,
-            'nombre' => $articuloSe->nombre,
-            'precio_unitario' => $articuloSe->precio_unitario,
-            'stock' => $articuloSe->stock,
-            'cantidad' => 1,
-            'descripcion' => $articuloSe->descripcion,
-            // Agregar otros campos según tu estructura
-        ];
-        $this->calcularSubTotalProducto();
+        if (!$articuloSe) {
+            session()->flash('error', 'Producto no encontrado');
+            return;
+        }
+
+        // Si tiene variantes, mostrar selector
+        if ($articuloSe->tiene_variantes && $articuloSe->variantesActivas->count() > 0) {
+            $this->variantes_disponibles = $articuloSe->variantesActivas;
+            $this->mostrar_variantes = true;
+            $this->searchArticulo = '';
+            return;
+        }
+
+        // Producto simple - agregar directamente
+        $this->agregarProductoAlCarrito($articuloSe);
         $this->searchArticulo = '';
+    }
+    public function seleccionarVariante($idVariante)
+    {
+        $variante = ArticuloVariante::with('articulo')->find($idVariante);
+
+        if (!$variante) {
+            session()->flash('error', 'Variante no encontrada');
+            return;
+        }
+
+        $this->agregarVarianteAlCarrito($variante);
+        $this->cerrarSelectorVariantes();
+    }
+
+    public function cerrarSelectorVariantes()
+    {
+        $this->mostrar_variantes = false;
+        $this->variantes_disponibles = [];
+        $this->variante_seleccionada = null;
+    }
+
+    private function agregarProductoAlCarrito($articulo, $variante = null)
+    {
+        // Verificar si ya está en el carrito
+        $index = $this->buscarEnCarrito($articulo->idarticulo, $variante?->id_variante);
+
+        if ($index !== false) {
+            // Ya existe, incrementar cantidad
+            $this->articuloSeleccionado[$index]['cantidad']++;
+            $this->calcularSubTotalProducto($index);
+            return;
+        }
+
+        // Agregar nuevo item al carrito
+        $this->articuloSeleccionado[] = [
+            'idarticulo' => $articulo->idarticulo,
+            'id_variante' => $variante?->id_variante,
+            'nombre' => $variante ?
+                $articulo->nombre . ' - ' . $variante->descripcion_variante :
+                $articulo->nombre,
+            'sku' => $variante?->sku ?? $articulo->codigo,
+            'precio_unitario' => $variante?->precio_unitario ?? $articulo->precio_unitario,
+            'stock' => $variante?->stock ?? $articulo->stock,
+            'cantidad' => 1,
+            'descripcion' => $articulo->descripcion,
+            'descripcion_variante' => $variante?->descripcion_variante
+        ];
+
+        $this->calcularSubTotalProducto();
+    }
+
+    private function agregarVarianteAlCarrito($variante)
+    {
+        $this->agregarProductoAlCarrito($variante->articulo, $variante);
+    }
+
+    private function buscarEnCarrito($idArticulo, $idVariante = null)
+    {
+        foreach ($this->articuloSeleccionado as $index => $item) {
+            if (
+                $item['idarticulo'] == $idArticulo &&
+                ($item['id_variante'] ?? null) == $idVariante
+            ) {
+                return $index;
+            }
+        }
+        return false;
     }
     public function eliminarArticulo($index)
     {
@@ -261,21 +340,33 @@ class Ventas extends Component
             );
 
             foreach ($this->articuloSeleccionado as $articulo) {
-                // Crear o actualizar el DetalleVenta para cada artículo
-                $detalle_venta = DetalleVenta::updateOrCreate(
-                    ['idventa' => $venta->id, 'idarticulo' => $articulo['idarticulo']],
-                    [
-                        'cantidad' => $articulo['cantidad'],
-                        'precio_venta' => $articulo['precio_unitario'],
-                        // Otros campos según tu estructura de la tabla detalles
-                    ]
-                );
+                // Crear DetalleVenta con soporte para variantes
+                $detalle_venta = DetalleVenta::create([
+                    'idventa' => $venta->id,
+                    'idarticulo' => $articulo['idarticulo'],
+                    'id_variante' => $articulo['id_variante'] ?? null,
+                    'sku_vendido' => $articulo['sku'],
+                    'descripcion_variante' => $articulo['descripcion_variante'] ?? null,
+                    'cantidad' => $articulo['cantidad'],
+                    'precio_venta' => $articulo['precio_unitario'],
+                    'estado' => 'activo'
+                ]);
 
-                // Actualizar el stock del artículo
-                $articuloModel = Articulo::find($articulo['idarticulo']);
-                if ($articuloModel) {
-                    $articuloModel->stock = $articulo['stock'];
-                    $articuloModel->save();
+                // Actualizar stock según si es variante o producto simple
+                if (isset($articulo['id_variante']) && $articulo['id_variante']) {
+                    // Descontar stock de la variante
+                    $variante = ArticuloVariante::find($articulo['id_variante']);
+                    if ($variante) {
+                        $variante->stock = $articulo['stock'];
+                        $variante->save();
+                    }
+                } else {
+                    // Descontar stock del producto principal
+                    $articuloModel = Articulo::find($articulo['idarticulo']);
+                    if ($articuloModel) {
+                        $articuloModel->stock = $articulo['stock'];
+                        $articuloModel->save();
+                    }
                 }
             }
             // dd(session()->all());
