@@ -1,11 +1,9 @@
-const CACHE_NAME = 'tienda-dux-v1';
+const CACHE_NAME = 'tienda-dux-v2';
 const urlsToCache = [
   '/',
   '/css/app.css',
   '/js/app.js',
-  '/icons/icon-192x192.png',
-  '/icons/icon-512x512.png',
-  // Agrega aquí más recursos que quieras cachear
+  // Temporalmente sin íconos hasta resolver el 403
 ];
 
 // Instalación del Service Worker
