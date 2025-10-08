@@ -16,7 +16,7 @@
             <!-- Actions -->
             <div class="flex items-center space-x-2">
                 <!-- Share Button -->
-                <button class="p-2 rounded-full hover:bg-gray-100">
+                <button onclick="shareContent()" class="p-2 rounded-full hover:bg-gray-100">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-600" fill="none"
                         viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -25,14 +25,14 @@
                 </button>
 
                 <!-- Favorite Button -->
-                <button wire:click="toggleFavorite" class="p-2 rounded-full hover:bg-gray-100">
+                {{-- <button wire:click="toggleFavorite" class="p-2 rounded-full hover:bg-gray-100">
                     <svg xmlns="http://www.w3.org/2000/svg"
                         class="h-6 w-6 {{ $isFavorite ? 'text-red-500 fill-current' : 'text-gray-600' }}" fill="none"
                         viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                             d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
                     </svg>
-                </button>
+                </button> --}}
             </div>
         </div>
     </header>
@@ -215,39 +215,25 @@
                 @if ($activeTab === 'productos' || $activeTab === 'todo')
                     @foreach ($products as $product)
                         {{-- <x-product-card :product="$product" :showShop="false" /> --}}
-                        <livewire:product-card
-                    :product="$product"
-                    :type="'articulo'"
-                    :showShop="true"
-                    :showFavorite="true"
-                    :showAddButton="true"
-                    :wire:key="'product-'.$product->idarticulo"
-                />
+                        <livewire:product-card :product="$product" :type="'articulo'" :showShop="true" :showFavorite="true"
+                            :showAddButton="true" :wire:key="'product-'.$product->idarticulo" />
                     @endforeach
                 @endif
 
                 @if ($activeTab === 'servicios' || $activeTab === 'todo')
                     @foreach ($services as $service)
-                        <livewire:product-card
-                            :product="$service"
-                            :type="'servicio'"
-                            :showShop="true"
-                            :showFavorite="true"
-                            :showAddButton="true"
-                            :wire:key="'service-'.$service->idservicio"
-                        />
+                        <livewire:product-card :product="$service" :type="'servicio'" :showShop="true" :showFavorite="true"
+                            :showAddButton="true" :wire:key="'service-'.$service->idservicio" />
                     @endforeach
                 @endif
             </div>
         </div>
-        @if($hasMorePages)
+        @if ($hasMorePages)
             <div class="mt-6 text-center">
-                <button
-                    wire:click="loadMore"
-                    wire:loading.attr="disabled"
-                    class="inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                    <span wire:loading.remove>Cargar más {{ $activeTab === 'productos' ? 'productos' : ($activeTab === 'servicios' ? 'servicios' : 'elementos') }}</span>
+                <button wire:click="loadMore" wire:loading.attr="disabled"
+                    class="inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed">
+                    <span wire:loading.remove>Cargar más
+                        {{ $activeTab === 'productos' ? 'productos' : ($activeTab === 'servicios' ? 'servicios' : 'elementos') }}</span>
                     <span wire:loading>Cargando...</span>
                 </button>
             </div>
@@ -256,3 +242,89 @@
     <livewire:footer-menu />
 
 </div>
+<script>
+    function shareContent() {
+        console.log('Share clicked');
+        if (navigator.share) {
+            navigator.share({
+                title: '{{ $local->nombre }}',
+                text: '{{ $local->descripcion }}',
+                url: window.location.href
+            }).catch(() => copyLink());
+        } else {
+            copyLink();
+        }
+    }
+
+    function copyLink() {
+        const url = window.location.href;
+        
+        // Método 1: Clipboard API (recomendado)
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(url).then(() => {
+                console.log('✓ Enlace copiado al portapapeles');
+                showNotification('¡Enlace copiado!');
+            }).catch(err => {
+                console.error('Error al copiar:', err);
+                fallbackCopy(url);
+            });
+        } else {
+            // Método 2: Fallback para navegadores antiguos
+            fallbackCopy(url);
+        }
+    }
+
+    function fallbackCopy(text) {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        
+        try {
+            document.execCommand('copy');
+            console.log('✓ Enlace copiado (método fallback)');
+            showNotification('¡Enlace copiado!');
+        } catch (err) {
+            console.error('Error al copiar:', err);
+        }
+        
+        document.body.removeChild(textarea);
+    }
+
+    function showNotification(message) {
+        // Simple toast notification
+        const toast = document.createElement('div');
+        toast.textContent = message;
+        toast.style.cssText = `
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #10b981;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            z-index: 9999;
+            animation: slideUp 0.3s ease;
+        `;
+        document.body.appendChild(toast);
+        
+        setTimeout(() => toast.remove(), 2000);
+    }
+</script>
+
+<style>
+    @keyframes slideUp {
+        from {
+            opacity: 0;
+            transform: translateX(-50%) translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+    }
+</style>

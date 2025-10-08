@@ -38,7 +38,143 @@
 
     <!-- Alpine.js -->
     <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    {{-- estilo de las notificaciones es solo para mvp mover a resources cuando lo validemos en produ --}}
+    <style>
+        .order-notification-toast {
+            position: fixed;
+            bottom: -100px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 16px 20px;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            z-index: 9999;
+            max-width: 90vw;
+            width: 400px;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
     
+        .order-notification-toast.show {
+            bottom: 20px;
+        }
+    
+        .order-notification-content {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+        }
+    
+        .order-notification-icon {
+            font-size: 24px;
+            flex-shrink: 0;
+            animation: bellRing 0.6s ease;
+        }
+    
+        .order-notification-text {
+            flex: 1;
+            min-width: 0;
+        }
+    
+        .order-notification-text strong {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+    
+        .order-notification-text p {
+            margin: 0;
+            font-size: 14px;
+            opacity: 0.95;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+    
+        .order-notification-text small {
+            display: block;
+            font-size: 12px;
+            opacity: 0.8;
+            margin-top: 4px;
+        }
+    
+        @keyframes bellRing {
+            0%, 100% {
+                transform: rotate(0deg);
+            }
+            10%, 30% {
+                transform: rotate(15deg);
+            }
+            20%, 40% {
+                transform: rotate(-15deg);
+            }
+            50% {
+                transform: rotate(0deg);
+            }
+        }
+    
+        .notification-badge {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            background: #ef4444;
+            color: white;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: bold;
+            box-shadow: 0 2px 8px rgba(239, 68, 68, 0.4);
+            animation: badgePop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+    
+        @keyframes badgePop {
+            from {
+                transform: scale(0.5);
+                opacity: 0;
+            }
+            to {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+    
+        [data-notification-bell].ring {
+            animation: ringBell 0.6s ease;
+        }
+    
+        @keyframes ringBell {
+            0%, 100% {
+                transform: rotate(0deg);
+            }
+            15%, 45% {
+                transform: rotate(15deg);
+            }
+            30%, 60% {
+                transform: rotate(-15deg);
+            }
+        }
+    
+        @media (max-width: 640px) {
+            .order-notification-toast {
+                width: calc(100vw - 40px);
+                max-width: none;
+            }
+            
+            .order-notification-toast.show {
+                bottom: 20px;
+                left: 20px;
+                right: 20px;
+                transform: none;
+            }
+        }
+    </style>
+
 </head>
 
 <body>
@@ -305,8 +441,8 @@
 
                     <div class="flex items-center">
                         <div x-data="{ notificationOpen: false }" class="relative">
-                            <button @click="notificationOpen = ! notificationOpen"
-                                class="flex mx-4 text-gray-600 focus:outline-none">
+                            <button data-notification-bell @click="notificationOpen = ! notificationOpen"
+                                class="flex mx-4 text-gray-600 focus:outline-none relative">
                                 <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none"
                                     xmlns="http://www.w3.org/2000/svg">
                                     <path
@@ -316,27 +452,16 @@
                                     </path>
                                 </svg>
                             </button>
-
+                        
                             <div x-show="notificationOpen" @click="notificationOpen = false"
                                 class="fixed inset-0 z-10 w-full h-full" style="display: none;"></div>
-
+                        
                             <div x-show="notificationOpen"
                                 class="absolute right-0 z-10 mt-2 overflow-hidden bg-white rounded-lg shadow-xl w-80"
                                 style="width: 20rem; display: none;">
-                                {{-- <a href="#"
-                                        class="flex items-center px-4 py-3 -mx-2 text-gray-600 hover: text-gray-400hover:bg-purple-600">
-                                        <img class="object-cover w-8 h-8 mx-1 rounded-full"
-                                            src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?ixlib=rb-1.2.1&amp;ixid=eyJhcHBfaWQiOjEyMDd9&amp;auto=format&amp;fit=crop&amp;w=334&amp;q=80"
-                                            alt="avatar">
-                                        <p class="mx-2 text-m">
-                                            <span class="font-bold" href="#">Sara Salah</span> replied on the <span
-                                                class="font-bold text-purple-400" href="#">Upload Image</span>
-                                            artical . 2m
-                                        </p>
-                                    </a> --}}
-                                <h6
-                                    class="flex items-center px-4 py-3 -mx-2 text-gray-600 hover: text-gray-400hover:bg-purple-600">
-                                    sin notificacion aun</h6>
+                                <h6 class="flex items-center px-4 py-3 -mx-2 text-gray-600">
+                                    Sin notificaciones aún
+                                </h6>
                             </div>
                         </div>
 
@@ -409,6 +534,173 @@
             }
         });
     </script>
+    <script>
+        class OrderNotificationPoller {
+            constructor(options = {}) {
+                this.pollingInterval = options.pollingInterval || 60000; // 1 minuto
+                this.apiEndpoint = options.apiEndpoint || '/api/check-new-orders';
+                this.bellElement = options.bellElement || document.querySelector('[data-notification-bell]');
+                this.soundEnabled = options.soundEnabled !== false;
+                this.pollingTimerId = null;
+                this.pendingNotifications = new Set();
+                
+                this.init();
+            }
+        
+            init() {
+                if (this.isUserAuthenticated()) {
+                    this.startPolling();
+                    console.log('Polling de pedidos iniciado - Revisar cada ' + (this.pollingInterval / 1000) + 's');
+                }
+            }
+        
+            isUserAuthenticated() {
+                return !!document.querySelector('meta[name="csrf-token"]');
+            }
+        
+            startPolling() {
+                this.checkOrders();
+                this.pollingTimerId = setInterval(() => this.checkOrders(), this.pollingInterval);
+            }
+        
+            stopPolling() {
+                if (this.pollingTimerId) {
+                    clearInterval(this.pollingTimerId);
+                    this.pollingTimerId = null;
+                    console.log('Polling detenido');
+                }
+            }
+        
+            async checkOrders() {
+                try {
+                    const response = await fetch(this.apiEndpoint, {
+                        method: 'GET',
+                        credentials: 'include', // <-- AGREGAR ESTO
+                        headers: {
+                            'Accept': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
+                        }
+                    });
+        
+                    if (!response.ok) {
+                        if (response.status === 401) {
+                            this.stopPolling();
+                            console.log('Sesión expirada, polling detenido');
+                            return;
+                        }
+                        throw new Error('Error en la respuesta del servidor');
+                    }
+        
+                    const data = await response.json();
+                    
+                    if (data.hasNewOrders && data.orders) {
+                        this.handleNewOrders(data.orders);
+                    }
+                } catch (error) {
+                    console.error('Error al verificar pedidos:', error);
+                }
+            }
+        
+            handleNewOrders(orders) {
+                orders.forEach(order => {
+                    if (!this.pendingNotifications.has(order.id)) {
+                        this.pendingNotifications.add(order.id);
+                        this.showNotification(order);
+                        
+                        if (this.soundEnabled) {
+                            this.playSound();
+                        }
+                        
+                        this.updateBell(orders.length);
+                    }
+                });
+            }
+        
+            showNotification(order) {
+                const toast = document.createElement('div');
+                toast.className = 'order-notification-toast';
+                toast.innerHTML = `
+                    <div class="order-notification-content">
+                        <div class="order-notification-icon">🔔</div>
+                        <div class="order-notification-text">
+                            <strong>Nuevo Pedido #${order.id}</strong>
+                            <p>${order.cliente} - $${parseFloat(order.total).toFixed(2)}</p>
+                            <small>${order.created_at}</small>
+                        </div>
+                    </div>
+                `;
+                
+                document.body.appendChild(toast);
+                setTimeout(() => toast.classList.add('show'), 10);
+                
+                setTimeout(() => {
+                    toast.classList.remove('show');
+                    setTimeout(() => toast.remove(), 300);
+                }, 5000);
+                
+                toast.addEventListener('click', () => {
+                    window.location.href = '/dashboard/pedidos';
+                });
+            }
+        
+            updateBell(count) {
+                if (this.bellElement) {
+                    let badge = this.bellElement.querySelector('.notification-badge');
+                    if (!badge) {
+                        badge = document.createElement('span');
+                        badge.className = 'notification-badge';
+                        this.bellElement.appendChild(badge);
+                    }
+                    badge.textContent = count;
+                    badge.style.display = 'flex';
+                    this.bellElement.classList.add('ring');
+                    setTimeout(() => this.bellElement.classList.remove('ring'), 600);
+                }
+            }
+        
+            playSound() {
+                try {
+                    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    const oscillator = audioContext.createOscillator();
+                    const gainNode = audioContext.createGain();
+                    
+                    oscillator.connect(gainNode);
+                    gainNode.connect(audioContext.destination);
+                    
+                    oscillator.frequency.value = 800;
+                    oscillator.type = 'sine';
+                    gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+                    
+                    oscillator.start(audioContext.currentTime);
+                    oscillator.stop(audioContext.currentTime + 0.5);
+                } catch (error) {
+                    console.log('No se pudo reproducir sonido:', error);
+                }
+            }
+        }
+        
+        // Inicializar cuando el DOM esté listo
+        document.addEventListener('DOMContentLoaded', () => {
+            window.orderPoller = new OrderNotificationPoller({
+    pollingInterval: 60000,
+    apiEndpoint: '/api/check-new-orders',  // Sin cambios, Laravel lo resuelve
+    bellElement: document.querySelector('[data-notification-bell]'),
+    soundEnabled: true
+});
+        });
+        
+        // Pausar polling si el usuario se va de la página
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                window.orderPoller?.stopPolling();
+            } else {
+                window.orderPoller?.startPolling();
+            }
+        });
+        </script>
+
 
 
 </body>

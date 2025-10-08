@@ -14,6 +14,7 @@ use App\Http\Livewire\Venta\Ventas;
 use App\Http\Livewire\DashVentas;
 use App\Http\Livewire\Feed\Stores;
 use App\Http\Livewire\Feed\Products;
+use App\Http\Controllers\OrderNotificationController;
 use App\Http\Livewire\Feed\ProductDetail;
 use App\Http\Livewire\Ingreso\IngresoComponent;
 use App\Http\Livewire\Ingreso\DeudoresComponent;
@@ -102,6 +103,7 @@ Route::group(['prefix' => 'admin'], function () {
 
         Route::view('/dashboard', 'dashboard')->name('dashboard');
         Route::view('/productos', 'ventas.productos.index')->name('productos');
+        Route::get('/api/check-new-orders', [OrderNotificationController::class, 'checkNewOrders'])->name('check.new.orders');
     });
 });
 

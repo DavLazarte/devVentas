@@ -1,6 +1,6 @@
 @props(['store'])
 
-<div class="bg-white rounded-lg p-4 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+<a href="{{ route('store.show', $store->slug) }}" class="block bg-white rounded-lg p-4 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
     <div class="flex space-x-3">
         <!-- Shop Logo -->
         <div class="flex-shrink-0">
@@ -50,14 +50,8 @@
 
             <!-- Footer -->
             <div class="flex items-center justify-between">
-                <div class="flex items-center space-x-4">
-                    <span class="text-sm text-gray-500">{{ $store->direccion }}</span>
-                </div>
-                <a href="{{ route('store.show', $store->slug) }}"
-                   class="text-purple-600 hover:text-purple-700 text-sm font-medium">
-                    Ver más
-                </a>
+                <span class="text-sm text-gray-500">{{ $store->direccion }}</span>
             </div>
         </div>
     </div>
-</div>
+</a>
