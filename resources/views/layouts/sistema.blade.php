@@ -538,7 +538,7 @@
         class OrderNotificationPoller {
             constructor(options = {}) {
                 this.pollingInterval = options.pollingInterval || 60000; // 1 minuto
-                this.apiEndpoint = options.apiEndpoint || '/api/check-new-orders';
+                this.apiEndpoint = options.apiEndpoint || '/admin/api/check-new-orders';
                 this.bellElement = options.bellElement || document.querySelector('[data-notification-bell]');
                 this.soundEnabled = options.soundEnabled !== false;
                 this.pollingTimerId = null;
@@ -685,7 +685,7 @@
         document.addEventListener('DOMContentLoaded', () => {
             window.orderPoller = new OrderNotificationPoller({
     pollingInterval: 60000,
-    apiEndpoint: '/api/check-new-orders',  // Sin cambios, Laravel lo resuelve
+    apiEndpoint: '/admin/api/check-new-orders',  // Sin cambios, Laravel lo resuelve
     bellElement: document.querySelector('[data-notification-bell]'),
     soundEnabled: true
 });
