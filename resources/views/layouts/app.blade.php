@@ -70,20 +70,41 @@
         });
     </script>
     
-    <!-- PWA Installation Script -->
-    <script>
-        // Registrar Service Worker (lo crearemos después)
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', function() {
-                navigator.serviceWorker.register('/sw.js')
-                    .then(function(registration) {
-                        console.log('SW registrado: ', registration);
-                    })
-                    .catch(function(registrationError) {
-                        console.log('SW falló: ', registrationError);
-                    });
+   <!-- PWA Installation Script -->
+<script>
+    // Registrar Service Worker con actualización automática
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function() {
+        navigator.serviceWorker.register('/sw.js', { scope: '/' })
+          .then(function(registration) {
+            console.log('SW registrado: ', registration);
+            
+            // Buscar actualizaciones cada vez que carga la página
+            registration.update();
+            
+            // Buscar actualizaciones cada 5 minutos
+            setInterval(() => {
+              registration.update();
+            }, 5 * 60 * 1000);
+            
+            // Escuchar si hay una nueva versión disponible
+            registration.addEventListener('updatefound', function() {
+              const newWorker = registration.installing;
+              
+              newWorker.addEventListener('statechange', function() {
+                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                  // Hay una nueva versión disponible
+                  console.log('Nueva versión disponible. Recargando...');
+                  window.location.reload();
+                }
+              });
             });
-        }
-    </script>
+          })
+          .catch(function(registrationError) {
+            console.log('SW falló: ', registrationError);
+          });
+      });
+    }
+  </script>
 </body>
 </html>
