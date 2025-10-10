@@ -8,6 +8,7 @@ use App\Models\Pedido;
 use Illuminate\Database\Eloquent\Builder;
 
 
+
 class PedidoTable extends DataTableComponent
 {
     protected $model = Pedido::class;
@@ -133,7 +134,7 @@ class PedidoTable extends DataTableComponent
                 ->sortable()
                 ->format(function ($estado) {
                     $clases = [
-                        'pendiente'    => 'bg-black text-white',   // negro
+                        'pendiente'    => 'bg-black text-red',   // negro
                         'confirmado'   => 'bg-blue-500 text-white',  // azul
                         'en_proceso'   => 'bg-purple-500 text-white',  // Morado
                         'entregado'    => 'bg-green-500 text-white',   // Verde
@@ -166,7 +167,7 @@ class PedidoTable extends DataTableComponent
                 ->sortable()
                 ->format(function ($value) {
                     $clases = [
-                        'pendiente'    => 'bg-gray-400 text-white',
+                        'pendiente'    => 'bg-gray-400 text-red',
                         'confirmado'   => 'bg-blue-500 text-white',
                         'cancelada'    => 'bg-red-500 text-white',
                         'completada'   => 'bg-green-500 text-white',

@@ -12,17 +12,7 @@ class OrderNotificationController extends Controller
     {
        
         try {
-            \Log::info('Check new orders calledtototo', [
-                'user' => Auth::id(),
-                'headers' => $request->headers->all()
-            ]);
-        
-            $user = Auth::user();
             
-            if (!$user) {
-                \Log::error('No user authenticated');
-                return response()->json(['error' => 'No autenticado'], 401);
-            }
             $user = Auth::user();
             
             if (!$user) {

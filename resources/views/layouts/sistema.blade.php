@@ -56,34 +56,34 @@
             cursor: pointer;
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
-    
+
         .order-notification-toast.show {
             bottom: 20px;
         }
-    
+
         .order-notification-content {
             display: flex;
             align-items: flex-start;
             gap: 12px;
         }
-    
+
         .order-notification-icon {
             font-size: 24px;
             flex-shrink: 0;
             animation: bellRing 0.6s ease;
         }
-    
+
         .order-notification-text {
             flex: 1;
             min-width: 0;
         }
-    
+
         .order-notification-text strong {
             display: block;
             font-weight: 600;
             margin-bottom: 4px;
         }
-    
+
         .order-notification-text p {
             margin: 0;
             font-size: 14px;
@@ -92,29 +92,36 @@
             overflow: hidden;
             text-overflow: ellipsis;
         }
-    
+
         .order-notification-text small {
             display: block;
             font-size: 12px;
             opacity: 0.8;
             margin-top: 4px;
         }
-    
+
         @keyframes bellRing {
-            0%, 100% {
+
+            0%,
+            100% {
                 transform: rotate(0deg);
             }
-            10%, 30% {
+
+            10%,
+            30% {
                 transform: rotate(15deg);
             }
-            20%, 40% {
+
+            20%,
+            40% {
                 transform: rotate(-15deg);
             }
+
             50% {
                 transform: rotate(0deg);
             }
         }
-    
+
         .notification-badge {
             position: absolute;
             top: -8px;
@@ -132,40 +139,47 @@
             box-shadow: 0 2px 8px rgba(239, 68, 68, 0.4);
             animation: badgePop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
         }
-    
+
         @keyframes badgePop {
             from {
                 transform: scale(0.5);
                 opacity: 0;
             }
+
             to {
                 transform: scale(1);
                 opacity: 1;
             }
         }
-    
+
         [data-notification-bell].ring {
             animation: ringBell 0.6s ease;
         }
-    
+
         @keyframes ringBell {
-            0%, 100% {
+
+            0%,
+            100% {
                 transform: rotate(0deg);
             }
-            15%, 45% {
+
+            15%,
+            45% {
                 transform: rotate(15deg);
             }
-            30%, 60% {
+
+            30%,
+            60% {
                 transform: rotate(-15deg);
             }
         }
-    
+
         @media (max-width: 640px) {
             .order-notification-toast {
                 width: calc(100vw - 40px);
                 max-width: none;
             }
-            
+
             .order-notification-toast.show {
                 bottom: 20px;
                 left: 20px;
@@ -440,9 +454,8 @@
                     </div>
 
                     <div class="flex items-center">
-                        <div x-data="{ notificationOpen: false }" class="relative">
-                            <button data-notification-bell @click="notificationOpen = ! notificationOpen"
-                                class="flex mx-4 text-gray-600 focus:outline-none relative">
+                        <div class="relative">
+                            <button data-notification-bell class="flex mx-4 text-gray-600 focus:outline-none relative">
                                 <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none"
                                     xmlns="http://www.w3.org/2000/svg">
                                     <path
@@ -452,17 +465,6 @@
                                     </path>
                                 </svg>
                             </button>
-                        
-                            <div x-show="notificationOpen" @click="notificationOpen = false"
-                                class="fixed inset-0 z-10 w-full h-full" style="display: none;"></div>
-                        
-                            <div x-show="notificationOpen"
-                                class="absolute right-0 z-10 mt-2 overflow-hidden bg-white rounded-lg shadow-xl w-80"
-                                style="width: 20rem; display: none;">
-                                <h6 class="flex items-center px-4 py-3 -mx-2 text-gray-600">
-                                    Sin notificaciones aún
-                                </h6>
-                            </div>
                         </div>
 
                         <div class="hidden sm:flex sm:items-center sm:ml-6">
@@ -537,32 +539,37 @@
     <script>
         class OrderNotificationPoller {
             constructor(options = {}) {
-                this.pollingInterval = options.pollingInterval || 60000; // 1 minuto
+                this.pollingInterval = options.pollingInterval || 60000;
                 this.apiEndpoint = options.apiEndpoint || '/admin/api/check-new-orders';
                 this.bellElement = options.bellElement || document.querySelector('[data-notification-bell]');
                 this.soundEnabled = options.soundEnabled !== false;
                 this.pollingTimerId = null;
                 this.pendingNotifications = new Set();
-                
+                this.notificationStore = null;
+
                 this.init();
             }
-        
+
             init() {
                 if (this.isUserAuthenticated()) {
                     this.startPolling();
                     console.log('Polling de pedidos iniciado - Revisar cada ' + (this.pollingInterval / 1000) + 's');
                 }
             }
-        
+
             isUserAuthenticated() {
                 return !!document.querySelector('meta[name="csrf-token"]');
             }
-        
+
+            setNotificationStore(store) {
+                this.notificationStore = store;
+            }
+
             startPolling() {
                 this.checkOrders();
                 this.pollingTimerId = setInterval(() => this.checkOrders(), this.pollingInterval);
             }
-        
+
             stopPolling() {
                 if (this.pollingTimerId) {
                     clearInterval(this.pollingTimerId);
@@ -570,19 +577,19 @@
                     console.log('Polling detenido');
                 }
             }
-        
+
             async checkOrders() {
                 try {
                     const response = await fetch(this.apiEndpoint, {
                         method: 'GET',
-                        credentials: 'include', // <-- AGREGAR ESTO
+                        credentials: 'include',
                         headers: {
                             'Accept': 'application/json',
                             'X-Requested-With': 'XMLHttpRequest',
                             'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
                         }
                     });
-        
+
                     if (!response.ok) {
                         if (response.status === 401) {
                             this.stopPolling();
@@ -591,9 +598,9 @@
                         }
                         throw new Error('Error en la respuesta del servidor');
                     }
-        
+
                     const data = await response.json();
-                    
+
                     if (data.hasNewOrders && data.orders) {
                         this.handleNewOrders(data.orders);
                     }
@@ -601,96 +608,146 @@
                     console.error('Error al verificar pedidos:', error);
                 }
             }
-        
+
             handleNewOrders(orders) {
                 orders.forEach(order => {
                     if (!this.pendingNotifications.has(order.id)) {
                         this.pendingNotifications.add(order.id);
+
+                        // Mostrar el toast
                         this.showNotification(order);
-                        
+
+                        // Agregar al store de Alpine
+                        if (this.notificationStore) {
+                            this.notificationStore.push(order);
+                            console.log('Notificación agregada al store:', order);
+                        }
+
                         if (this.soundEnabled) {
                             this.playSound();
                         }
-                        
-                        this.updateBell(orders.length);
+
+                        this.updateBell(this.pendingNotifications.size);
                     }
                 });
             }
-        
+
             showNotification(order) {
                 const toast = document.createElement('div');
                 toast.className = 'order-notification-toast';
                 toast.innerHTML = `
-                    <div class="order-notification-content">
-                        <div class="order-notification-icon">🔔</div>
-                        <div class="order-notification-text">
-                            <strong>Nuevo Pedido #${order.id}</strong>
-                            <p>${order.cliente} - $${parseFloat(order.total).toFixed(2)}</p>
-                            <small>${order.created_at}</small>
-                        </div>
-                    </div>
-                `;
-                
+            <div class="order-notification-content">
+                <div class="order-notification-icon">🔔</div>
+                <div class="order-notification-text">
+                    <strong>Nuevo Pedido #${order.id}</strong>
+                    <p>${order.cliente} - $${parseFloat(order.total).toFixed(2)}</p>
+                    <small>${order.created_at}</small>
+                </div>
+            </div>
+        `;
+
                 document.body.appendChild(toast);
                 setTimeout(() => toast.classList.add('show'), 10);
-                
+
                 setTimeout(() => {
                     toast.classList.remove('show');
                     setTimeout(() => toast.remove(), 300);
                 }, 5000);
-                
+
                 toast.addEventListener('click', () => {
-                    window.location.href = '/dashboard/pedidos';
+                    window.location.href = '/admin/pedidos';
                 });
             }
-        
+
             updateBell(count) {
+                // No mostrar badge si estamos en la página de pedidos
+                if (window.location.pathname === '/admin/pedidos') {
+                    return;
+                }
+
                 if (this.bellElement) {
                     let badge = this.bellElement.querySelector('.notification-badge');
                     if (!badge) {
-                        badge = document.createElement('span');
+                        badge = document.createElement('div');
                         badge.className = 'notification-badge';
                         this.bellElement.appendChild(badge);
                     }
-                    badge.textContent = count;
-                    badge.style.display = 'flex';
+
+                    if (count > 0) {
+                        badge.innerHTML = `
+                            <div class="absolute -top-2 -right-2 flex items-center gap-2 bg-red-500 text-white px-3 py-1 rounded-full text-xs font-semibold cursor-pointer hover:bg-red-600 transition shadow-lg whitespace-nowrap">
+                                ${count} nuevo${count > 1 ? 's' : ''} pedido${count > 1 ? 's' : ''}
+                                <span>→</span>
+                            </div>
+                        `;
+                        badge.style.display = 'block';
+                        badge.onclick = (e) => {
+                            e.stopPropagation();
+                            window.location.href = '/admin/pedidos';
+                        };
+                    } else {
+                        badge.style.display = 'none';
+                    }
+
                     this.bellElement.classList.add('ring');
                     setTimeout(() => this.bellElement.classList.remove('ring'), 600);
                 }
             }
-        
+
             playSound() {
                 try {
-                    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    const audioContext = new(window.AudioContext || window.webkitAudioContext)();
                     const oscillator = audioContext.createOscillator();
                     const gainNode = audioContext.createGain();
-                    
+
                     oscillator.connect(gainNode);
                     gainNode.connect(audioContext.destination);
-                    
+
                     oscillator.frequency.value = 800;
                     oscillator.type = 'sine';
                     gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
                     gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
-                    
+
                     oscillator.start(audioContext.currentTime);
                     oscillator.stop(audioContext.currentTime + 0.5);
                 } catch (error) {
                     console.log('No se pudo reproducir sonido:', error);
                 }
             }
+
+            clearNotifications() {
+                this.pendingNotifications.clear();
+                if (this.notificationStore) {
+                    this.notificationStore.length = 0;
+                }
+                this.updateBell(0);
+            }
         }
-        
+
         // Inicializar cuando el DOM esté listo
         document.addEventListener('DOMContentLoaded', () => {
+            const bellButton = document.querySelector('[data-notification-bell]');
+
             window.orderPoller = new OrderNotificationPoller({
-    pollingInterval: 60000,
-    apiEndpoint: '/admin/api/check-new-orders',  // Sin cambios, Laravel lo resuelve
-    bellElement: document.querySelector('[data-notification-bell]'),
-    soundEnabled: true
-});
+                pollingInterval: 60000,
+                apiEndpoint: '/admin/api/check-new-orders',
+                bellElement: bellButton,
+                soundEnabled: true
+            });
+
+            // Esperar a que Alpine esté disponible y conectar el store
+            const checkAlpine = setInterval(() => {
+                const notificationDiv = document.querySelector('[x-data*="notifications"]');
+                if (notificationDiv && notificationDiv.__x) {
+                    clearInterval(checkAlpine);
+                    window.orderPoller.setNotificationStore(notificationDiv.__x.$data.notifications);
+                    console.log('Store de notificaciones conectado');
+                }
+            }, 100);
+
+            setTimeout(() => clearInterval(checkAlpine), 5000);
         });
-        
+
         // Pausar polling si el usuario se va de la página
         document.addEventListener('visibilitychange', () => {
             if (document.hidden) {
@@ -699,8 +756,7 @@
                 window.orderPoller?.startPolling();
             }
         });
-        </script>
-
+    </script>
 
 
 </body>

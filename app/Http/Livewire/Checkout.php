@@ -132,9 +132,9 @@ class Checkout extends Component
             
             $primerServicio = collect($this->items)->firstWhere('type', 'servicio');
             if ($primerServicio) {
-                $fechaServicio = $primerServicio['fecha_servicio'];
-                $horaInicio = $primerServicio['hora_inicio'];
-                $estadoReserva = 'pendiente';
+                $fechaServicio = $primerServicio['fecha_servicio'] ?? null;
+                $horaInicio = $primerServicio['hora_inicio'] ?? null;
+                $estadoReserva = ($fechaServicio || $horaInicio) ? 'pendiente' : null;
             }
             
             $pedido = Pedido::create([

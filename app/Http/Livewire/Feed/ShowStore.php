@@ -30,6 +30,13 @@ class ShowStore extends Component
                 ->with(['categories', 'subcategories'])
                 ->firstOrFail();
         });
+        $tipoLocal = strtolower($this->local->tipo);
+    
+        // Si el tipo de local es 'servicio' o contiene la palabra 'servicio', 
+        // establece el tab a 'servicios'.
+        if (str_contains($tipoLocal, 'servicio')) {
+            $this->activeTab = 'servicios';
+        } 
         $this->products = collect();
         $this->services = collect();
         $this->loadItems();

@@ -26,7 +26,8 @@
             </div>
 
             @if ($vista === 'lista')
-                @livewire('pedido-table')
+                {{-- @livewire('pedido-table' ) --}}
+                <livewire:pedido-table />
             @else
                 {{-- Calendar View --}}
                 <div class="mt-4">

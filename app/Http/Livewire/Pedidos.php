@@ -94,7 +94,7 @@ class Pedidos extends Component
                 'name' => $producto->nombre ?? 'Producto',
                 'price' => $detalle->precio_unitario,
                 'quantity' => $detalle->cantidad,
-                'variant' => $variante->descripcion_variante,
+                'variant' => $variante?->descripcion_variante,
                 'image' => $producto->imagen_url ?? asset('images/default-product.jpg'),
                 'shop' => $pedido->local->nombre ?? 'Tienda',
                 'type' => $detalle->idarticulo ? 'articulo' : 'servicio'
