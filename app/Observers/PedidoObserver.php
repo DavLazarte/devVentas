@@ -4,6 +4,7 @@ namespace App\Observers;
 
 use App\Models\Pedido;
 use App\Mail\PedidoCreado;
+use App\Mail\PedidoConfirmacion;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
 
@@ -25,6 +26,14 @@ class PedidoObserver
                 Mail::to($emailDueno)->send(new PedidoCreado($pedido));
 
                 Log::info("Email de pedido #{$pedido->id} enviado a {$emailDueno}");
+            }
+            // Email al cliente
+            $emailCliente = $pedido->email ?? null;
+
+            if ($emailCliente) {
+                Mail::to($emailCliente)->send(new PedidoConfirmacion($pedido));
+
+                Log::info("Email de confirmación de pedido #{$pedido->id} enviado a {$emailCliente}");
             }
         } catch (\Exception $e) {
             Log::error("Error al enviar email de pedido: " . $e->getMessage());
