@@ -206,10 +206,11 @@ class Checkout extends Component
             }
 
 
-            // Limpiar tanto el carrito como la reserva directa
+            // Limpiar tanto el carrito como la reserva directa ANTES de redirigir
             session()->forget(['cart', 'direct_service_booking']);
-            $this->items = [];
+            session()->save(); // Asegurate que se guarde inmediatamente
 
+            $this->items = [];
 
             return redirect()->route('checkout.confirmation', $pedido);
         } catch (\Exception $e) {
