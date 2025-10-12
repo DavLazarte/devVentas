@@ -54,7 +54,7 @@ class Checkout extends Component
     public function mount()
     {
         // Forzar lectura fresca de la sesión
-        session()->reflash();
+        // session()->reflash();
         // Verificar si hay una reserva directa de servicio
         $directService = session()->get('direct_service_booking');
 

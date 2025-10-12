@@ -52,11 +52,17 @@ class Cart extends Component
         $this->emit('cartItemAdded', count($this->items));
     }
 
+    // Cart.php (proceedToCheckout method)
     public function proceedToCheckout()
     {
         if (count($this->items) === 0) {
             return;
         }
+
+        // Asegurate que la sesión está actualizada antes de redirigir
+        session()->put('cart', $this->items);
+        session()->forget('direct_service_booking');
+        session()->save(); // <--- GOOD: Explicitly saves the session
 
         $this->emit('closeCart');
         return redirect()->route('checkout');

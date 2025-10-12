@@ -481,29 +481,53 @@
                     <!-- Add to Cart / Reserve Button -->
                     <button
                         @if ($type === 'articulo') wire:click="addToCart({{ $product->idarticulo }}, {{ $quantity }})"
+        {{-- 🔑 CLAVE: Añade estas dos líneas para el loader del artículo --}}
+        wire:loading.attr="disabled"
+        wire:target="addToCart"
     @else
         wire:click="reserveServiceDirectly({{ $product->idservicio }}, {{ $quantity }})" @endif
                         class="flex-1 bg-purple-600 text-white py-3 px-4 rounded-lg font-medium flex items-center justify-center space-x-2 hover:bg-purple-700 transition-colors
     {{ $type === 'servicio' && $product->tipo_reserva === 'turno_fijo' && (!$selectedDate || !$selectedTime) ? 'opacity-50 cursor-not-allowed' : '' }}"
                         @if ($type === 'servicio' && $product->tipo_reserva === 'turno_fijo' && (!$selectedDate || !$selectedTime)) disabled @endif>
 
+
+                        {{-- 1. 💡 LOADER/SPINNER (Solo visible si es ARTÍCULO y está cargando) --}}
                         @if ($type === 'articulo')
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none"
-                                viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
-                            </svg>
-                            <span>Agregar al carrito</span>
-                        @else
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none"
-                                viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                            </svg>
-                            <span>
-                                {{ $product->tipo_reserva === 'turno_fijo' ? 'Reservar turno' : 'Solicitar servicio' }}
+                            <span wire:loading wire:target="addToCart" class="flex items-center space-x-2">
+                                <svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg"
+                                    fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10"
+                                        stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor"
+                                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                                    </path>
+                                </svg>
+                                <span>Agregando...</span>
                             </span>
                         @endif
+
+
+                        {{-- 2. CONTENIDO NORMAL (Todo tu contenido original, envuelto en un span con wire:loading.remove) --}}
+                        {{-- La directiva wire:loading.remove asegura que se oculte SÓLO si addToCart está ejecutándose --}}
+                        <span wire:loading.remove wire:target="addToCart">
+                            @if ($type === 'articulo')
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none"
+                                    viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+                                </svg>
+                                <span>Agregar al carrito</span>
+                            @else
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none"
+                                    viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                </svg>
+                                <span>
+                                    {{ $product->tipo_reserva === 'turno_fijo' ? 'Reservar turno' : 'Solicitar servicio' }}
+                                </span>
+                            @endif
+                        </span>
                     </button>
                 </div>
             </div>
