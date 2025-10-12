@@ -53,6 +53,8 @@ class Checkout extends Component
 
     public function mount()
     {
+        // Forzar lectura fresca de la sesión
+        session()->reflash();
         // Verificar si hay una reserva directa de servicio
         $directService = session()->get('direct_service_booking');
 
@@ -91,7 +93,7 @@ class Checkout extends Component
 
     public function procesarPedido()
     {
-    
+
         // Ejecutando validación
         try {
             $this->validate();
@@ -100,7 +102,7 @@ class Checkout extends Component
             throw $e;
         }
 
-       
+
 
         try {
             // Verificar que hay items
@@ -118,8 +120,8 @@ class Checkout extends Component
                 return;
             }
 
-           
-            
+
+
             // Determinar tipo de pedido
             $tieneServicios = collect($this->items)->contains('type', 'servicio');
             $tieneProductos = collect($this->items)->contains('type', 'articulo');
@@ -129,14 +131,14 @@ class Checkout extends Component
             $fechaServicio = null;
             $horaInicio = null;
             $estadoReserva = null;
-            
+
             $primerServicio = collect($this->items)->firstWhere('type', 'servicio');
             if ($primerServicio) {
                 $fechaServicio = $primerServicio['fecha_servicio'] ?? null;
                 $horaInicio = $primerServicio['hora_inicio'] ?? null;
                 $estadoReserva = ($fechaServicio || $horaInicio) ? 'pendiente' : null;
             }
-            
+
             $pedido = Pedido::create([
                 'id_local' => $id_local,
                 'id_user' => Auth::id() ?? null,
@@ -160,11 +162,11 @@ class Checkout extends Component
                 'estado_reserva' => $estadoReserva,
             ]);
 
-           
+
 
             foreach ($this->items as $item) {
-              
-                
+
+
                 $detalleData = [
                     'pedido_id' => $pedido->id,
                     'cantidad' => $item['quantity'],
@@ -175,13 +177,12 @@ class Checkout extends Component
 
                 if ($item['type'] === 'articulo') {
                     $detalleData['idarticulo'] = $item['id'];
-                    
+
                     // Manejar variantes igual que en Ventas
                     if (isset($item['id_variante'])) {
                         $detalleData['id_variante'] = $item['id_variante'];
                         $detalleData['descripcion_variante'] = $item['variant'] ?? null;
                     }
-                    
                 } elseif ($item['type'] === 'servicio') {
                     $detalleData['idservicio'] = $item['id'];
 
@@ -200,16 +201,16 @@ class Checkout extends Component
                     }
                 }
 
-          
+
                 $pedido->detalles()->create($detalleData);
             }
 
-        
+
             // Limpiar tanto el carrito como la reserva directa
             session()->forget(['cart', 'direct_service_booking']);
             $this->items = [];
-            
-          
+
+
             return redirect()->route('checkout.confirmation', $pedido);
         } catch (\Exception $e) {
             // DEBUG: Se ha capturado una excepción.
