@@ -1,4 +1,4 @@
-const CACHE_NAME = 'tienda-dux-v4'; // IMPORTANTE: Cambia esto cada vez que deploys
+const CACHE_NAME = 'tienda-dux-v5';
 const urlsToCache = [
   '/',
   '/css/app.css',
@@ -7,7 +7,6 @@ const urlsToCache = [
   '/images/icons/icon-512x512.png',
 ];
 
-// Instalación del Service Worker
 self.addEventListener('install', function(event) {
   console.log('Service Worker instalando...');
   
@@ -18,62 +17,62 @@ self.addEventListener('install', function(event) {
         return cache.addAll(urlsToCache)
           .catch(err => {
             console.log('Error al cachear algunos archivos:', err);
-            // No fallar si alguno no está disponible
             return Promise.resolve();
           });
       })
   );
   
-  // IMPORTANTE: Fuerza la activación inmediata
   self.skipWaiting();
 });
 
-// Interceptar las requests
+// Interceptar las requests - ESTRATEGIA MEJORADA
 self.addEventListener('fetch', function(event) {
-  // No cachear solicitudes POST y ciertas rutas
-  if (event.request.method !== 'GET' || 
-      event.request.url.includes('/api/') || 
-      event.request.url.includes('/livewire/')) {
+  const url = new URL(event.request.url);
+  
+  // No cachear POST
+  if (event.request.method !== 'GET') {
     event.respondWith(fetch(event.request));
     return;
   }
-
-  event.respondWith(
-    caches.match(event.request)
-      .then(function(response) {
-        // Cache hit - devolver respuesta del cache
-        if (response) {
-          return response;
-        }
-        
-        return fetch(event.request)
-          .then(function(response) {
-            // Si es un GET exitoso, guardar en caché
-            if (response && response.status === 200 && event.request.method === 'GET') {
-              const responseToCache = response.clone();
-              caches.open(CACHE_NAME)
-                .then(function(cache) {
-                  cache.put(event.request, responseToCache);
-                });
-            }
+  
+  // No cachear rutas dinámicas (HTML)
+  if (url.pathname.includes('/api/') || 
+      url.pathname.includes('/livewire/') ||
+      url.pathname === '/checkout' ||
+      url.pathname === '/' ||
+      url.pathname.endsWith('.html')) {
+    event.respondWith(fetch(event.request));
+    return;
+  }
+  
+  // Solo cachear assets estáticos (CSS, JS, imágenes, fonts)
+  if (url.pathname.match(/\.(js|css|png|jpg|jpeg|gif|svg|woff|woff2|ttf|eot)$/i)) {
+    event.respondWith(
+      caches.match(event.request)
+        .then(function(response) {
+          if (response) {
             return response;
-          })
-          .catch(function() {
-            // Fallback offline
-            return new Response('Offline - recurso no disponible', {
-              status: 503,
-              statusText: 'Service Unavailable',
-              headers: new Headers({
-                'Content-Type': 'text/plain'
-              })
+          }
+          
+          return fetch(event.request)
+            .then(function(response) {
+              if (response && response.status === 200) {
+                const responseToCache = response.clone();
+                caches.open(CACHE_NAME)
+                  .then(function(cache) {
+                    cache.put(event.request, responseToCache);
+                  });
+              }
+              return response;
             });
-          });
-      }
-    )
-  );
+        })
+    );
+  } else {
+    // Todo lo demás, fetch del servidor sin cachear
+    event.respondWith(fetch(event.request));
+  }
 });
 
-// Actualización del Service Worker
 self.addEventListener('activate', function(event) {
   console.log('Service Worker activando...');
   
@@ -90,11 +89,10 @@ self.addEventListener('activate', function(event) {
     })
   );
   
-  // Tomar control de todas las páginas inmediatamente
   self.clients.claim();
 });
 
-// Push notifications
+// Push notifications (igual que antes)
 self.addEventListener('push', function(event) {
   const options = {
     body: event.data ? event.data.text() : 'Nueva notificación de Tienda DuX',
@@ -121,7 +119,6 @@ self.addEventListener('push', function(event) {
   );
 });
 
-// Manejar clicks en notificaciones
 self.addEventListener('notificationclick', function(event) {
   event.notification.close();
   
