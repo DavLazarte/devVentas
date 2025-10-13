@@ -189,21 +189,65 @@
                             @if (count($atributos_disponibles) > 0)
                                 <div class="grid grid-cols-2 gap-3">
                                     @foreach ($atributos_disponibles as $atributo)
-                                        <label
-                                            class="flex items-center p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
-                                            <input type="checkbox" wire:model.live="atributos_seleccionados"
-                                                value="{{ $atributo->id_atributo }}"
-                                                class="rounded border-gray-300 text-purple-600 focus:ring-purple-500">
-                                            <div class="ml-3">
-                                                <span class="font-medium text-gray-700">{{ $atributo->nombre }}</span>
-                                                @if ($atributo->obligatorio)
-                                                    <span class="text-red-500 text-sm">*</span>
-                                                @endif
-                                                <div class="text-xs text-gray-500">{{ $atributo->valores->count() }}
-                                                    opciones disponibles</div>
+                                        <div class="border rounded-lg p-3 bg-white shadow-sm">
+                                            <!-- Encabezado del atributo -->
+                                            <div class="flex items-center justify-between">
+                                                <div class="flex items-center">
+                                                    <input type="checkbox" wire:model.live="atributos_seleccionados"
+                                                        value="{{ $atributo->id_atributo }}"
+                                                        class="rounded border-gray-300 text-purple-600 focus:ring-purple-500">
+                                                    <div class="ml-3">
+                                                        <span
+                                                            class="font-medium text-gray-700">{{ $atributo->nombre }}</span>
+                                                        @if ($atributo->obligatorio)
+                                                            <span class="text-red-500 text-sm">*</span>
+                                                        @endif
+                                                        <div class="text-xs text-gray-500">
+                                                            {{ $atributo->valores->count() }} opciones disponibles
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div class="flex gap-2">
+                                                    <button type="button"
+                                                        wire:click="toggleValores({{ $atributo->id_atributo }})"
+                                                        class="text-sm text-indigo-600 hover:text-indigo-800">
+                                                        {{ $atributo_activo === $atributo->id_atributo ? 'Ocultar valores' : 'Elegir valores' }}
+                                                    </button>
+
+                                                    <button type="button"
+                                                        wire:click="editarAtributo({{ $atributo->id_atributo }})"
+                                                        class="text-indigo-600 hover:text-indigo-800 text-sm">
+                                                        ✏️ Editar
+                                                    </button>
+                                                </div>
                                             </div>
-                                        </label>
+
+                                            <!-- Lista de valores si el atributo está activo -->
+                                            @if ($atributo_activo === $atributo->id_atributo)
+                                                <div class="mt-3 border-t pt-3 space-y-2">
+                                                    @foreach ($atributo->valores as $valor)
+                                                        <label class="flex items-center gap-2 text-sm">
+                                                            <input type="checkbox"
+                                                                wire:model="valores_seleccionados.{{ $atributo->id_atributo }}"
+                                                                value="{{ $valor->id_valor }}"
+                                                                wire:key="atributo-{{ $atributo->id_atributo }}-valor-{{ $valor->id_valor }}"
+                                                                class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
+
+                                                            @if ($atributo->tipo === 'color')
+                                                                <span class="inline-block w-4 h-4 rounded-full border"
+                                                                    style="background-color: {{ $valor->color_hex ?? '#000' }}"></span>
+                                                            @endif
+
+                                                            <span>{{ $valor->valor }}</span>
+                                                        </label>
+                                                    @endforeach
+                                                </div>
+                                            @endif
+                                        </div>
                                     @endforeach
+
+
                                 </div>
                             @else
                                 <div class="text-center py-8 text-gray-500">
@@ -431,7 +475,10 @@
                     <div class="bg-gradient-to-r from-indigo-500 to-purple-600 text-white p-6">
                         <div class="flex justify-between items-center">
                             <div>
-                                <h3 class="text-lg font-semibold">Crear Nuevo Atributo</h3>
+                                <h3 class="text-lg font-semibold">
+                                    {{ $modo_edicion_atributo ? 'Editar Atributo' : 'Crear Nuevo Atributo' }}
+                                </h3>
+
                                 <p class="text-indigo-100 text-sm">Define un atributo como Color, Talla, Material, etc.
                                 </p>
                             </div>
@@ -528,10 +575,12 @@
                             class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50">
                             Cancelar
                         </button>
-                        <button wire:click="guardarAtributo" type="button"
-                            class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">
-                            Crear Atributo
+                        <button
+                            wire:click="{{ $modo_edicion_atributo ? 'guardarCambiosAtributo' : 'guardarAtributo' }}"
+                            type="button" class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">
+                            {{ $modo_edicion_atributo ? 'Guardar Cambios' : 'Crear Atributo' }}
                         </button>
+
                     </div>
                 </div>
             </div>

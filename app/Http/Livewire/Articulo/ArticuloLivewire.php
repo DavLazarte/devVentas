@@ -41,6 +41,14 @@ class ArticuloLivewire extends Component
     public $atributo_valores = [];
     public $nuevo_valor = '';
     public $editando_atributo = null;
+    // --- NUEVAS VARIABLES PARA EDICIÓN DE ATRIBUTOS ---
+    public $modo_edicion_atributo = false;
+    public $atributo_id_editando = null;
+    // --- NUEVO BLOQUE ---
+    public $valores_seleccionados = []; // ['id_atributo' => [id_valor1, id_valor2, ...]]
+    public $atributo_activo = null; // Atributo que se está desplegando
+
+
 
     public $layout = 'sistema';
 
@@ -156,16 +164,24 @@ class ArticuloLivewire extends Component
             return;
         }
 
-        // Generar todas las combinaciones posibles
         $combinaciones = [[]];
 
         foreach ($this->atributos_seleccionados as $idAtributo) {
             $atributo = collect($this->atributos_disponibles)->firstWhere('id_atributo', $idAtributo);
             if (!$atributo) continue;
 
+            // ⚡ NUEVO: usar solo los valores seleccionados
+            $valoresIdsSeleccionados = $this->valores_seleccionados[$idAtributo] ?? [];
+
+            // Si no hay valores seleccionados, salteamos este atributo
+            if (empty($valoresIdsSeleccionados)) continue;
+
+            // Buscar los valores en el modelo
+            $valores = $atributo->valores->whereIn('id_valor', $valoresIdsSeleccionados);
+
             $nuevasCombinaciones = [];
             foreach ($combinaciones as $combinacion) {
-                foreach ($atributo->valores as $valor) {
+                foreach ($valores as $valor) {
                     $nuevaCombinacion = $combinacion;
                     $nuevaCombinacion[] = [
                         'id_atributo' => $idAtributo,
@@ -179,31 +195,27 @@ class ArticuloLivewire extends Component
             $combinaciones = $nuevasCombinaciones;
         }
 
-        // Crear hash único para cada combinación para identificarlas
+        // Crear hash único para cada combinación
         $nuevasVariantes = [];
         foreach ($combinaciones as $combinacion) {
             $descripcion = collect($combinacion)->map(function ($item) {
                 return $item['nombre_atributo'] . ': ' . $item['valor'];
             })->join(', ');
 
-            // Crear hash único basado en los valores de atributos
             $hash = md5(collect($combinacion)->pluck('id_valor')->sort()->join('-'));
 
-            // Buscar si ya existe esta combinación
             $varianteExistente = collect($this->variantes_generadas)->firstWhere('hash', $hash);
 
             if ($varianteExistente) {
-                // Ya existe, mantener precio y stock actual
                 $nuevasVariantes[] = $varianteExistente;
             } else {
-                // Nueva variante, usar valores por defecto
                 $nuevasVariantes[] = [
                     'hash' => $hash,
                     'combinacion' => $combinacion,
                     'descripcion' => $descripcion,
                     'precio' => $this->precio_unitario ?? 25.00,
                     'stock' => 10,
-                    'sku_custom' => '', // SKU personalizado vacío
+                    'sku_custom' => '',
                     'activa' => true
                 ];
             }
@@ -211,6 +223,7 @@ class ArticuloLivewire extends Component
 
         $this->variantes_generadas = $nuevasVariantes;
     }
+
 
     private function guardarVariantes($articulo)
     {
@@ -377,7 +390,7 @@ class ArticuloLivewire extends Component
     {
         $atributosUtilizados = [];
         $this->variantes_generadas = [];
-    
+
         foreach ($articulo->variantes as $variante) {
             $combinacion = [];
             foreach ($variante->atributoValores as $atributoValor) {
@@ -389,9 +402,9 @@ class ArticuloLivewire extends Component
                     'valor' => $atributoValor->valor
                 ];
             }
-            
+
             $hash = md5(collect($combinacion)->pluck('id_valor')->sort()->join('-'));
-    
+
             $this->variantes_generadas[] = [
                 'hash' => $hash,
                 'combinacion' => $combinacion,
@@ -402,7 +415,7 @@ class ArticuloLivewire extends Component
                 'activa' => $variante->estado === 'activo'
             ];
         }
-    
+
         $this->atributos_seleccionados = array_unique($atributosUtilizados);
     }
     public function abrirModalAtributos()
@@ -411,11 +424,11 @@ class ArticuloLivewire extends Component
         $this->resetCamposAtributo();
     }
 
-    public function cerrarModalAtributos()
-    {
-        $this->mostrar_modal_atributos = false;
-        $this->resetCamposAtributo();
-    }
+    // public function cerrarModalAtributos()
+    // {
+    //     $this->mostrar_modal_atributos = false;
+    //     $this->resetCamposAtributo();
+    // }
 
     private function resetCamposAtributo()
     {
@@ -426,6 +439,17 @@ class ArticuloLivewire extends Component
         $this->nuevo_valor = '';
         $this->editando_atributo = null;
     }
+
+    public function toggleValores($atributo_id)
+    {
+        if (!isset($this->valores_seleccionados[$atributo_id])) {
+            $this->valores_seleccionados[$atributo_id] = [];
+        }
+
+        $this->atributo_activo = $this->atributo_activo === $atributo_id ? null : $atributo_id;
+    }
+
+
 
     public function agregarValor()
     {
@@ -483,6 +507,63 @@ class ArticuloLivewire extends Component
             session()->flash('error', 'Error al crear el atributo: ' . $e->getMessage());
         }
     }
+    public function editarAtributo($id)
+    {
+        $atributo = Atributo::with('valores')->findOrFail($id);
+
+        $this->atributo_id_editando = $atributo->id_atributo;
+        $this->atributo_nombre = $atributo->nombre;
+        $this->atributo_tipo = $atributo->tipo;
+        $this->atributo_obligatorio = $atributo->obligatorio;
+        $this->atributo_valores = $atributo->valores->map(function ($valor) {
+            return [
+                'valor' => $valor->valor,
+                'color_hex' => $valor->color_hex,
+                'id_valor' => $valor->id_valor,
+            ];
+        })->toArray();
+
+        $this->modo_edicion_atributo = true;
+        $this->mostrar_modal_atributos = true;
+    }
+
+    public function guardarCambiosAtributo()
+    {
+        $atributo = Atributo::findOrFail($this->atributo_id_editando);
+        $atributo->update([
+            'nombre' => $this->atributo_nombre,
+            'tipo' => $this->atributo_tipo,
+            'obligatorio' => $this->atributo_obligatorio,
+        ]);
+
+        // Eliminar valores viejos y volver a crear
+        AtributoValor::where('id_atributo', $atributo->id_atributo)->delete();
+
+        foreach ($this->atributo_valores as $valor) {
+            AtributoValor::create([
+                'id_atributo' => $atributo->id_atributo,
+                'valor' => $valor['valor'],
+                'color_hex' => $valor['color_hex'] ?? null,
+            ]);
+        }
+
+        $this->cerrarModalAtributos();
+        $this->atributos_disponibles = $this->getAtributos(); // 🔁 refresca la lista
+        $this->dispatchBrowserEvent('notificacion', ['message' => 'Atributo actualizado correctamente']);
+    }
+
+    public function cerrarModalAtributos()
+    {
+        $this->mostrar_modal_atributos = false;
+        $this->modo_edicion_atributo = false;
+        $this->atributo_id_editando = null;
+        $this->atributo_nombre = '';
+        $this->atributo_tipo = 'select';
+        $this->atributo_obligatorio = false;
+        $this->atributo_valores = [];
+        $this->nuevo_valor = '';
+    }
+
 
     public function borrar($id)
     {
