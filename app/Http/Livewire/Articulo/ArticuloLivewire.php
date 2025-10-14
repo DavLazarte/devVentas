@@ -232,6 +232,14 @@ class ArticuloLivewire extends Component
         }
 
         $primerVariante = true;
+        // Normalizar variantes para que siempre tengan 'combinacion'
+        foreach ($this->variantes_generadas as &$variante) {
+            if (!isset($variante['combinacion']) && isset($variante['atributos'])) {
+                $variante['combinacion'] = $variante['atributos'];
+            }
+        }
+        unset($variante); // buena práctica con referencias
+
 
         foreach ($this->variantes_generadas as $variante) {
             if (!$variante['activa']) continue;
@@ -563,6 +571,64 @@ class ArticuloLivewire extends Component
         $this->atributo_valores = [];
         $this->nuevo_valor = '';
     }
+    public function agregarVarianteManual()
+    {
+        // Si no se eligió nada, no hace nada
+        if (empty($this->valores_seleccionados)) {
+            session()->flash('error', 'Seleccioná al menos un valor para crear la variante.');
+            return;
+        }
+
+        $descripcion = [];
+        $atributos_variante = [];
+
+        // Recorremos los atributos que tengan valores seleccionados
+        foreach ($this->valores_seleccionados as $idAtributo => $valoresIds) {
+            if (empty($valoresIds)) continue;
+
+            // Buscamos el atributo desde los disponibles
+            $atributo = collect($this->atributos_disponibles)
+                ->firstWhere('id_atributo', $idAtributo);
+            if (!$atributo) continue;
+
+            // Por simplicidad, tomamos el primer valor marcado (podés ajustar para permitir varios)
+            $valor = $atributo->valores
+                ->firstWhere('id_valor', $valoresIds[0]);
+
+            if ($valor) {
+                $descripcion[] = "{$atributo->nombre}: {$valor->valor}";
+                $atributos_variante[] = [
+                    'id_atributo' => $atributo->id_atributo,
+                    'id_valor' => $valor->id_valor,
+                    'nombre_atributo' => $atributo->nombre,
+                    'valor' => $valor->valor,
+                ];
+            }
+        }
+
+        if (empty($atributos_variante)) {
+            session()->flash('error', 'No se pudo crear la variante, faltan valores válidos.');
+            return;
+        }
+
+        // Creamos una variante simple
+        $this->variantes_generadas[] = [
+            'descripcion' => implode(', ', $descripcion),
+            'atributos' => $atributos_variante,
+            'precio' => null,
+            'stock' => null,
+            'sku_custom' => '',
+            'activa' => true,
+        ];
+
+        // Limpiamos selección
+        $this->valores_seleccionados = [];
+        $this->atributo_activo = null;
+
+        session()->flash('mensaje', 'Variante agregada correctamente.');
+    }
+
+
 
 
     public function borrar($id)
@@ -595,7 +661,11 @@ class ArticuloLivewire extends Component
             'idarticulo' => $this->articulo_id ?? 999
         ];
 
-        $valores = collect($variante['combinacion'])->pluck('valor')->toArray();
+        // 🔧 Compatibilidad: puede venir como 'atributos' o como 'combinacion'
+        $valores = collect($variante['atributos'] ?? $variante['combinacion'] ?? [])
+            ->pluck('valor')
+            ->toArray();
+
         return ArticuloVariante::generarSku($articuloTemp, $valores);
     }
 }
