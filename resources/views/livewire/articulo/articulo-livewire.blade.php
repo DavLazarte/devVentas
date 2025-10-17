@@ -20,7 +20,7 @@
                         <p>{{ session('message') }}</p>
                     </div>
                 @endif
-              
+
 
                 @if ($isOpen)
                     @include('livewire.articulo.crear')
@@ -32,3 +32,4 @@
         </div>
     </div>
 </div>
+

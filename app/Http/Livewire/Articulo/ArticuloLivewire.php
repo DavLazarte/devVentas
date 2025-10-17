@@ -131,34 +131,51 @@ class ArticuloLivewire extends Component
         if (!$this->tiene_variantes) {
             $this->atributos_seleccionados = [];
             $this->variantes_generadas = [];
+            $this->valores_seleccionados = [];
+            $this->atributo_activo = null;
+        } else {
+            // Al activar variantes, no preseleccionar nada (siempre limpio)
+            $this->atributos_seleccionados = [];
+            $this->valores_seleccionados = [];
+            $this->atributo_activo = null;
         }
     }
 
     public function updatedAtributosSeleccionados()
     {
-        // Si estamos editando y ya hay variantes cargadas, preguntar antes de regenerar
-        if ($this->modoEdit && !empty($this->variantes_generadas)) {
-            // NO regenerar automáticamente, mostrar advertencia
+        // Si el atributo que está abierto ya no está seleccionado, cerrarlo
+        if ($this->atributo_activo && !in_array($this->atributo_activo, $this->atributos_seleccionados ?? [])) {
+            $this->atributo_activo = null;
+        }
+        // No abrir nada automáticamente, solo cerrar si corresponde
+    }
+
+
+    public function generarVariantesSeleccionadas()
+    {
+        // Validaciones
+        if (empty($this->atributos_seleccionados)) {
+            session()->flash('error', 'Selecciona al menos un atributo.');
             return;
         }
 
-        if ($this->tiene_variantes && !empty($this->atributos_seleccionados)) {
-            $this->generarVariantes();
-        } else {
-            $this->variantes_generadas = [];
+        $tieneValores = false;
+        foreach ($this->atributos_seleccionados as $idAtributo) {
+            if (!empty($this->valores_seleccionados[$idAtributo] ?? [])) {
+                $tieneValores = true;
+                break;
+            }
         }
-    }
 
-    // NUEVO MÉTODO para regenerar manualmente
-    public function regenerarVariantes()
-    {
-        if ($this->tiene_variantes && !empty($this->atributos_seleccionados)) {
-            $this->generarVariantes();
+        if (!$tieneValores) {
+            session()->flash('error', 'Marca al menos un valor por atributo.');
+            return;
         }
-    }
 
-    private function generarVariantes()
-    {
+        // 🔄 PRESERVAR variantes existentes (no reemplazar)
+        $variantesExistentes = $this->variantes_generadas;
+
+        // Generar todas las combinaciones nuevas
         if (count($this->atributos_seleccionados) === 0) {
             $this->variantes_generadas = [];
             return;
@@ -170,13 +187,9 @@ class ArticuloLivewire extends Component
             $atributo = collect($this->atributos_disponibles)->firstWhere('id_atributo', $idAtributo);
             if (!$atributo) continue;
 
-            // ⚡ NUEVO: usar solo los valores seleccionados
             $valoresIdsSeleccionados = $this->valores_seleccionados[$idAtributo] ?? [];
-
-            // Si no hay valores seleccionados, salteamos este atributo
             if (empty($valoresIdsSeleccionados)) continue;
 
-            // Buscar los valores en el modelo
             $valores = $atributo->valores->whereIn('id_valor', $valoresIdsSeleccionados);
 
             $nuevasCombinaciones = [];
@@ -196,7 +209,9 @@ class ArticuloLivewire extends Component
         }
 
         // Crear hash único para cada combinación
-        $nuevasVariantes = [];
+        // Empezar con todas las existentes y solo agregar las nuevas distintas
+        $nuevasVariantes = $variantesExistentes;
+        $hashesExistentes = collect($variantesExistentes)->pluck('hash')->filter()->values()->all();
         foreach ($combinaciones as $combinacion) {
             $descripcion = collect($combinacion)->map(function ($item) {
                 return $item['nombre_atributo'] . ': ' . $item['valor'];
@@ -204,26 +219,32 @@ class ArticuloLivewire extends Component
 
             $hash = md5(collect($combinacion)->pluck('id_valor')->sort()->join('-'));
 
-            $varianteExistente = collect($this->variantes_generadas)->firstWhere('hash', $hash);
-
-            if ($varianteExistente) {
-                $nuevasVariantes[] = $varianteExistente;
+            // Si ya existe por hash, saltar; sino agregar como nueva
+            if (in_array($hash, $hashesExistentes, true)) {
+                continue;
             } else {
+                // Nueva variante
                 $nuevasVariantes[] = [
                     'hash' => $hash,
                     'combinacion' => $combinacion,
                     'descripcion' => $descripcion,
-                    'precio' => $this->precio_unitario ?? 25.00,
-                    'stock' => 10,
+                    'precio' => $this->precio_unitario ?? '',
+                    'stock' => '',
                     'sku_custom' => '',
                     'activa' => true
                 ];
+                $hashesExistentes[] = $hash; // mantener cache local
             }
         }
 
         $this->variantes_generadas = $nuevasVariantes;
-    }
 
+        // Limpiar selección
+        $this->valores_seleccionados = [];
+        $this->atributo_activo = null;
+
+        session()->flash('message', 'Variantes generadas correctamente');
+    }
 
     private function guardarVariantes($articulo)
     {
@@ -259,8 +280,20 @@ class ArticuloLivewire extends Component
                 'es_variante_principal' => $primerVariante
             ]);
 
-            $valoresIds = collect($variante['combinacion'])->pluck('id_valor')->toArray();
-            $nuevaVariante->atributoValores()->attach($valoresIds);
+            // Validar que los id_valor existan y pertenezcan al local
+            $valoresIds = collect($variante['combinacion'])
+                ->pluck('id_valor')
+                ->filter()
+                ->unique()
+                ->values()
+                ->all();
+
+            if (!empty($valoresIds)) {
+                $validos = AtributoValor::whereIn('id_valor', $valoresIds)->pluck('id_valor')->all();
+                if (!empty($validos)) {
+                    $nuevaVariante->atributoValores()->attach($validos);
+                }
+            }
 
             $primerVariante = false;
         }
@@ -431,6 +464,7 @@ class ArticuloLivewire extends Component
         $this->mostrar_modal_atributos = true;
         $this->resetCamposAtributo();
     }
+
 
     // public function cerrarModalAtributos()
     // {
@@ -611,21 +645,84 @@ class ArticuloLivewire extends Component
             return;
         }
 
-        // Creamos una variante simple
-        $this->variantes_generadas[] = [
-            'descripcion' => implode(', ', $descripcion),
-            'atributos' => $atributos_variante,
-            'precio' => null,
-            'stock' => null,
-            'sku_custom' => '',
-            'activa' => true,
-        ];
+        // Generamos hash único para deduplicar
+        $hash = md5(collect($atributos_variante)->pluck('id_valor')->sort()->join('-'));
+
+        // Evitar duplicados si ya existe
+        $yaExiste = collect($this->variantes_generadas)->contains(function ($v) use ($hash) {
+            return ($v['hash'] ?? null) === $hash;
+        });
+
+        if ($yaExiste) {
+            session()->flash('error', 'Esa combinación ya existe.');
+        } else {
+            // Agregar usando formato unificado compatible con guardado
+            $this->variantes_generadas[] = [
+                'hash' => $hash,
+                'combinacion' => $atributos_variante,
+                'descripcion' => implode(', ', $descripcion),
+                'precio' => '',
+                'stock' => '',
+                'sku_custom' => '',
+                'activa' => true,
+            ];
+            session()->flash('message', 'Variante agregada correctamente');
+        }
 
         // Limpiamos selección
         $this->valores_seleccionados = [];
         $this->atributo_activo = null;
+    }
 
-        session()->flash('mensaje', 'Variante agregada correctamente.');
+    public function eliminarVariante($hash)
+    {
+        if (empty($hash)) {
+            return;
+        }
+        $this->variantes_generadas = collect($this->variantes_generadas)
+            ->reject(function ($v) use ($hash) {
+                return ($v['hash'] ?? null) === $hash;
+            })
+            ->values()
+            ->all();
+        session()->flash('message', 'Variante eliminada');
+    }
+
+    public function eliminarAtributoDef($idAtributo)
+    {
+        try {
+            if (!$idAtributo) return;
+
+            // Validar que no esté siendo usado por variantes actuales en edición/creación
+            $estaEnUso = collect($this->variantes_generadas)->contains(function ($var) use ($idAtributo) {
+                $comb = $var['combinacion'] ?? ($var['atributos'] ?? []);
+                return collect($comb)->pluck('id_atributo')->contains($idAtributo);
+            });
+
+            if ($estaEnUso) {
+                session()->flash('error', 'No se puede eliminar: el atributo está en uso por alguna variante.');
+                return;
+            }
+
+            // Desactivar en BD (soft delete lógica por estado)
+            $atributo = Atributo::findOrFail($idAtributo);
+            $atributo->update(['estado' => 'inactivo']);
+
+            // Sacarlo de seleccionados y refrescar catálogo de atributos
+            $this->atributos_seleccionados = array_values(array_filter($this->atributos_seleccionados, function ($id) use ($idAtributo) {
+                return (int) $id !== (int) $idAtributo;
+            }));
+            unset($this->valores_seleccionados[$idAtributo]);
+            if ($this->atributo_activo === $idAtributo) {
+                $this->atributo_activo = null;
+            }
+
+            $this->atributos_disponibles = $this->getAtributos();
+            session()->flash('message', 'Atributo eliminado correctamente');
+        } catch (\Exception $e) {
+            Log::error('Error al eliminar atributo: ' . $e->getMessage());
+            session()->flash('error', 'No se pudo eliminar el atributo');
+        }
     }
 
 
