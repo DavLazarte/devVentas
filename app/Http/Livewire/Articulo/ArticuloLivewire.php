@@ -54,7 +54,8 @@ class ArticuloLivewire extends Component
 
     protected $listeners = [
         'editarArticulo' => 'editar',
-        'openModal' => 'openModal'
+        'openModal' => 'openModal',
+        'abrirModalCrearArticulo' => 'crear',
     ];
 
     public function mount()
@@ -387,6 +388,7 @@ class ArticuloLivewire extends Component
             );
 
             $this->emit('refreshDatatableArticulos');
+            $this->emit('articuloGuardado');
             $this->closeModal();
             $this->resetInputFields();
         } catch (\Illuminate\Validation\ValidationException $e) {

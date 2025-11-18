@@ -16,6 +16,9 @@ use Illuminate\Support\Facades\Log;
 
 class Ventas extends Component
 {
+    protected $listeners = [
+        'articuloGuardado' => 'refrescarCatalogoArticulos',
+    ];
     public $persona, $articulo, $id_articulo, $descuento, $recargo, $precio_unitario, $cantidad, $subtotal, $saldo, $pago, $id_venta,  $venta_total = 0, $mensajeVenta;
     public $clienteSeleccionado;
     public $articuloSeleccionado = [];
@@ -49,6 +52,11 @@ class Ventas extends Component
             'persona' => $this->persona,
             'articulo' => $this->articulo,
         ]);
+    }
+
+    public function refrescarCatalogoArticulos()
+    {
+        $this->filtrarArticulo();
     }
 
     public function updatedSearchArticulo()

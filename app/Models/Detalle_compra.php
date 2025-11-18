@@ -14,6 +14,9 @@ class Detalle_compra extends Model
         'cantidad',
         'precio_compra',
         'estado',
+        'id_variante',
+        'sku_comprado',
+        'descripcion_variante',
     ];
 
     public function compra()
@@ -24,5 +27,18 @@ class Detalle_compra extends Model
     public function articulo()
     {
         return $this->belongsTo(Articulo::class, 'idarticulo');
+    }
+
+    public function variante()
+    {
+        return $this->belongsTo(ArticuloVariante::class, 'id_variante', 'id_variante');
+    }
+
+    public function getNombreProductoAttribute()
+    {
+        if ($this->variante) {
+            return $this->articulo->nombre . ' - ' . $this->variante->descripcion_variante;
+        }
+        return $this->articulo->nombre ?? 'Producto eliminado';
     }
 }

@@ -16,6 +16,9 @@ class Compra extends Model
         'tipo_compra',
         'num_recibo',
         'total',
+        'descuento',
+        'recargo',
+        'total_original',
         'saldo',
         'id_local'
     ];
