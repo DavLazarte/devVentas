@@ -27,7 +27,6 @@ class ArticulosTable extends DataTableComponent
     {
         $this->setPrimaryKey('idarticulo');
         $this->setSearchEnabled(); // Habilitar la búsqueda
-
     }
 
 
@@ -58,7 +57,14 @@ class ArticulosTable extends DataTableComponent
                 ->label(fn($row) => view('livewire.articulo.imagen', ['imagen' => $row->imagen])),
             Column::make("Stock", "stock")
                 ->sortable()
-                ->collapseOnMobile(),
+                ->collapseOnMobile()
+                ->format(function ($value, $row) {
+                    if ($row->tipo_venta === 'peso' || $row->tipo_venta === 'volumen') {
+                        return number_format($row->stock_total, 3) . ' ' . ($row->unidad_medida ?? 'kg');
+                    }
+                    return $value;
+                })
+                ->html(),
             Column::make("Descripcion", "descripcion")
                 ->sortable()
                 ->collapseOnMobile()

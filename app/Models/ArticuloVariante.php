@@ -20,13 +20,18 @@ class ArticuloVariante extends Model
         'imagen',
         'descripcion_variante',
         'estado',
-        'es_variante_principal'
+        'es_variante_principal',
+        // Campos para venta por peso/volumen
+        'stock_decimal',
+        'tipo_venta',
+        'unidad_medida'
     ];
 
     protected $casts = [
         'precio_unitario' => 'decimal:2',
         'stock' => 'integer',
-        'es_variante_principal' => 'boolean'
+        'es_variante_principal' => 'boolean',
+        'stock_decimal' => 'decimal:3'
     ];
 
     protected $appends = ['imagen_url', 'tiene_stock'];
@@ -54,19 +59,23 @@ class ArticuloVariante extends Model
         if ($this->imagen) {
             return asset('storage/' . $this->imagen);
         }
-    
+
         // Verifica si la relación 'articulo' ha sido cargada
         if ($this->relationLoaded('articulo') && $this->articulo) {
             // Accede directamente a la propiedad 'imagen' del modelo padre, no al accesorio 'imagen_url'
             return $this->articulo->imagen ? asset('storage/' . $this->articulo->imagen) : asset('images/default-product.jpg');
         }
-    
+
         return asset('images/default-product.jpg');
     }
 
     // Accessor para verificar stock
     public function getTieneStockAttribute()
     {
+        // Si es venta por peso/volumen, verificar stock_decimal
+        if ($this->tipo_venta === 'peso' || $this->tipo_venta === 'volumen') {
+            return ($this->stock_decimal ?? 0) > 0;
+        }
         return $this->stock > 0;
     }
 

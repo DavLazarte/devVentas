@@ -6,7 +6,8 @@
         <div class="absolute inset-y-0 right-0 w-full sm:w-[800px] sm:max-w-4xl bg-white shadow-xl flex flex-col"
             wire:key="panel-articulo-{{ $articulo_id ?: 'nuevo' }}">
             <!-- Header -->
-            <div class="sticky top-0 bg-white border-b border-gray-200 p-3 sm:p-6 flex justify-between items-center z-10">
+            <div
+                class="sticky top-0 bg-white border-b border-gray-200 p-3 sm:p-6 flex justify-between items-center z-10">
                 <div>
                     <h2 class="text-lg sm:text-xl font-semibold text-gray-900">
                         {{ $modoEdit ? 'Editar Artículo' : 'Crear Artículo' }}
@@ -29,7 +30,8 @@
                     wire:key="scroll-area-{{ $articulo_id ?: 'nuevo' }}">
 
                     @if (session()->has('error'))
-                        <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-3 sm:p-4 rounded" role="alert">
+                        <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-3 sm:p-4 rounded"
+                            role="alert">
                             <p class="font-bold text-sm sm:text-base">ERROR</p>
                             <p class="text-xs sm:text-sm">{{ session('error') }}</p>
                         </div>
@@ -42,7 +44,8 @@
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
                             <!-- Categoría -->
                             <div>
-                                <label for="categoria_id" class="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Categoría
+                                <label for="categoria_id"
+                                    class="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Categoría
                                     *</label>
                                 <select wire:model.defer="categoria_id" id="categoria_id"
                                     class="block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500">
@@ -71,7 +74,8 @@
 
                         <!-- Nombre -->
                         <div class="mt-3 sm:mt-4">
-                            <label for="nombre" class="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Nombre del
+                            <label for="nombre"
+                                class="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Nombre del
                                 Producto
                                 *</label>
                             <input type="text" id="nombre" wire:model.debounce.400ms="nombre"
@@ -84,7 +88,8 @@
 
                         <!-- Descripción -->
                         <div class="mt-3 sm:mt-4">
-                            <label for="descripcion" class="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Descripción
+                            <label for="descripcion"
+                                class="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Descripción
                                 *</label>
                             <textarea id="descripcion" wire:model.defer="descripcion" rows="3"
                                 class="block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500"
@@ -97,13 +102,15 @@
 
                     <!-- SECCIÓN 2: CONFIGURACIÓN DE PRODUCTO -->
                     <div class="bg-gray-50 p-3 sm:p-4 rounded-lg">
-                        <h3 class="text-base sm:text-lg font-medium text-gray-900 mb-3 sm:mb-4">Configuración de Producto</h3>
+                        <h3 class="text-base sm:text-lg font-medium text-gray-900 mb-3 sm:mb-4">Configuración de
+                            Producto</h3>
 
                         <!-- Toggle Variantes -->
                         <div class="mb-4 sm:mb-6 p-3 sm:p-4 bg-white rounded-lg border-2 border-dashed border-gray-300">
                             <div class="flex items-center justify-between gap-2">
                                 <div class="flex-1 min-w-0">
-                                    <h4 class="text-sm sm:text-md font-medium text-gray-800">¿Este producto tiene variantes?</h4>
+                                    <h4 class="text-sm sm:text-md font-medium text-gray-800">¿Este producto tiene
+                                        variantes?</h4>
                                     <p class="text-xs sm:text-sm text-gray-500 mt-1">
                                         Las variantes permiten diferentes opciones como color, talla, capacidad, etc.
                                     </p>
@@ -132,9 +139,108 @@
                             @endif
                         </div>
 
+                        <!-- Tipo de Venta (SIEMPRE visible) -->
+                        <div class="mb-4 sm:mb-6 p-3 sm:p-4 bg-white rounded-lg border-2 border-dashed border-gray-300">
+                            <h4 class="text-sm sm:text-md font-medium text-gray-800 mb-3">¿Cómo se vende este producto?
+                            </h4>
+
+                            <div class="space-y-3">
+                                <div>
+                                    <select wire:model="tipo_venta"
+                                        class="block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 text-sm">
+                                        <option value="unidad">Por Unidad (ej: 1 botella, 2 cajas)</option>
+                                        <option value="peso">Por Peso (ej: kg, gramos)</option>
+                                        <option value="volumen">Por Volumen (ej: litros)</option>
+                                    </select>
+                                </div>
+
+                                @if ($tipo_venta === 'peso' || $tipo_venta === 'volumen')
+                                    <div class="p-3 bg-blue-50 rounded border-l-4 border-blue-400">
+                                        <p class="text-xs text-blue-700">
+                                            💡 Venta por {{ $tipo_venta === 'peso' ? 'peso' : 'volumen' }}:
+                                            @if ($tiene_variantes)
+                                                Las variantes se configurarán con stock y precio por
+                                                {{ $tipo_venta === 'peso' ? 'kg/g/lb' : 'l/ml' }}
+                                            @else
+                                                Los clientes podrán comprar cantidades decimales (ej: 1.5 kg, 0.750 L)
+                                            @endif
+                                        </p>
+                                    </div>
+
+                                    <div class="grid grid-cols-2 gap-3">
+                                        <div>
+                                            <label class="block text-xs font-medium text-gray-700 mb-1.5">Unidad de
+                                                Medida *</label>
+                                            <select wire:model="unidad_medida"
+                                                class="block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 text-sm">
+                                                <option value="">Seleccionar...</option>
+                                                @if ($tipo_venta === 'peso')
+                                                    <option value="kg">Kilogramos (kg)</option>
+                                                    <option value="g">Gramos (g)</option>
+                                                    <option value="lb">Libras (lb)</option>
+                                                @else
+                                                    <option value="l">Litros (l)</option>
+                                                    <option value="ml">Mililitros (ml)</option>
+                                                @endif
+                                            </select>
+                                            @error('unidad_medida')
+                                                <span class="text-red-500 text-xs">{{ $message }}</span>
+                                            @enderror
+                                        </div>
+
+                                        @if (!$tiene_variantes)
+                                            <div>
+                                                <label class="block text-xs font-medium text-gray-700 mb-1.5">
+                                                    Precio por {{ $unidad_medida ?? 'unidad' }} *
+                                                </label>
+                                                <div class="relative">
+                                                    <span
+                                                        class="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-500 text-sm">$</span>
+                                                    <input type="number" wire:model.defer="precio_por_unidad_medida"
+                                                        step="0.01"
+                                                        class="block w-full pl-6 text-sm rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500"
+                                                        placeholder="2500.00">
+                                                </div>
+                                                @error('precio_por_unidad_medida')
+                                                    <span class="text-red-500 text-xs">{{ $message }}</span>
+                                                @enderror
+                                            </div>
+                                        @else
+                                            <div>
+                                                <p class="text-xs text-gray-600 italic mt-2">
+                                                    El precio se configurará en cada variante
+                                                </p>
+                                            </div>
+                                        @endif
+                                    </div>
+
+                                    @if (!$tiene_variantes)
+                                        <div>
+                                            <label class="block text-xs font-medium text-gray-700 mb-1.5">
+                                                Stock Inicial ({{ $unidad_medida ?? 'unidad' }}) *
+                                            </label>
+                                            <input type="number" wire:model.defer="stock_decimal" step="0.001"
+                                                min="0"
+                                                class="block w-full text-sm rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500"
+                                                placeholder="50.000">
+                                            @error('stock_decimal')
+                                                <span class="text-red-500 text-xs">{{ $message }}</span>
+                                            @enderror
+                                            <p class="text-xs text-gray-500 mt-1">Puede usar decimales (ej: 50.500 kg)
+                                            </p>
+                                        </div>
+                                    @else
+                                        <div class="p-2 bg-purple-50 rounded text-xs text-purple-700">
+                                            ℹ️ El stock se configurará individualmente para cada variante
+                                        </div>
+                                    @endif
+                                @endif
+                            </div>
+                        </div>
+
                         <!-- Campos condicionales -->
-                        @if (!$tiene_variantes)
-                            <!-- Precio y Stock para productos simples -->
+                        @if (!$tiene_variantes && $tipo_venta === 'unidad')
+                            <!-- Precio y Stock para productos simples por unidad -->
                             <div class="grid grid-cols-2 gap-3 sm:gap-4">
                                 <div>
                                     <label for="precio_unitario"
@@ -153,7 +259,8 @@
                                     @enderror
                                 </div>
                                 <div>
-                                    <label for="stock" class="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Stock
+                                    <label for="stock"
+                                        class="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Stock
                                         Inicial
                                         *</label>
                                     <input type="number" id="stock" wire:model.defer="stock" min="0"
@@ -167,10 +274,12 @@
                         @endif
                     </div>
                     @if (session()->has('message'))
-                        <div class="fixed top-20 right-6 z-[60] bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg max-w-sm animate-fade-in" wire:ignore>
+                        <div class="fixed top-20 right-6 z-[60] bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg max-w-sm animate-fade-in"
+                            wire:ignore>
                             <div class="flex items-center gap-2">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M5 13l4 4L19 7"></path>
                                 </svg>
                                 <span class="text-sm font-medium">{{ session('message') }}</span>
                             </div>
@@ -178,10 +287,12 @@
                     @endif
 
                     @if (session()->has('error'))
-                        <div class="fixed top-20 right-6 z-[60] bg-red-500 text-white px-4 py-2 rounded-lg shadow-lg max-w-sm animate-fade-in" wire:ignore>
+                        <div class="fixed top-20 right-6 z-[60] bg-red-500 text-white px-4 py-2 rounded-lg shadow-lg max-w-sm animate-fade-in"
+                            wire:ignore>
                             <div class="flex items-center gap-2">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M6 18L18 6M6 6l12 12"></path>
                                 </svg>
                                 <span class="text-sm font-medium">{{ session('error') }}</span>
                             </div>
@@ -190,196 +301,224 @@
 
                     <!-- SECCIÓN 3: VARIANTES (solo si está activado) - REDISEÑADA -->
                     @if ($tiene_variantes)
-                    <div class="bg-gradient-to-r from-purple-50 to-indigo-50 p-3 sm:p-4 rounded-lg border border-purple-200">
-                        <h3 class="text-base sm:text-lg font-medium text-gray-900 mb-3 sm:mb-4">⚙️ Configuración de Variantes</h3>
-                
-                        <!-- Selección de Atributos -->
-                        <div class="bg-white p-3 sm:p-4 rounded-lg mb-3 sm:mb-4">
-                            <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-3 sm:mb-4">
-                                <h4 class="text-sm sm:text-base font-medium text-gray-800">1. Selecciona y marca los valores</h4>
-                                <button type="button" wire:click="abrirModalAtributos"
-                                    class="text-xs sm:text-sm px-2 sm:px-3 py-1.5 sm:py-1 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors font-medium whitespace-nowrap">
-                                    ➕ Crear Atributo
-                                </button>
-                            </div>
-                
-                            @if (count($atributos_disponibles) > 0)
-                                <!-- Grid responsivo - más compacto -->
-                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
-                                    @foreach ($atributos_disponibles as $atributo)
-                                        <div
-                                            class="border border-gray-200 rounded-lg bg-white shadow-xs hover:shadow-sm hover:border-purple-300 transition-all overflow-hidden"
-                                            wire:key="atributo-{{ $atributo->id_atributo }}">
-                
-                                            <!-- Checkbox + Info Atributo -->
-                                            <div class="p-3 border-b border-gray-100 bg-gray-50">
-                                                <label class="flex items-center gap-3 cursor-pointer">
-                                                    <input type="checkbox"
-                                                        wire:model.live="atributos_seleccionados"
-                                                        value="{{ $atributo->id_atributo }}"
-                                                        class="w-4 h-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500 transition-all">
-                                                    <div class="flex-1 min-w-0">
-                                                        <div class="font-medium text-gray-800 text-sm">
-                                                            {{ $atributo->nombre }}
-                                                            @if ($atributo->obligatorio)
-                                                                <span class="text-red-500 text-xs ml-1">*</span>
-                                                            @endif
-                                                        </div>
-                                                        <div class="text-xs text-gray-500">
-                                                            {{ $atributo->valores->count() }} opciones
-                                                        </div>
-                                                    </div>
-                                                </label>
-                                            </div>
-                
-                                            <!-- Valores - Mostrados automáticamente si está expandido -->
-                                            @if ($atributo_activo === $atributo->id_atributo)
-                                                <div class="px-3 py-2 space-y-2 max-h-48 overflow-y-auto bg-white border-b border-gray-100">
-                                                    @foreach ($atributo->valores as $valor)
-                                                        <label
-                                                            class="flex items-center gap-2 text-sm cursor-pointer hover:bg-purple-50 -mx-2 px-2 py-1 rounded transition-colors"
-                                                            wire:key="valor-{{ $valor->id_valor }}">
-                                                            <input type="checkbox"
-                                                                wire:model.lazy="valores_seleccionados.{{ $atributo->id_atributo }}"
-                                                                value="{{ $valor->id_valor }}"
-                                                                class="w-3 h-3 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
-                
-                                                            @if ($atributo->tipo === 'color')
-                                                                <span
-                                                                    class="inline-block w-3 h-3 rounded-full border border-gray-300"
-                                                                    style="background-color: {{ $valor->color_hex ?? '#000' }}"></span>
-                                                            @endif
-                
-                                                            <span class="text-gray-700 text-xs">{{ $valor->valor }}</span>
-                                                        </label>
-                                                    @endforeach
-                                                </div>
-                                            @endif
-                
-                                            <!-- Footer con botones -->
-                                            <div class="px-3 py-2 bg-gray-50 flex gap-1 justify-between border-t border-gray-100">
-                                                <button type="button"
-                                                    wire:click="toggleValores({{ $atributo->id_atributo }})"
-                                                    class="text-xs text-gray-600 hover:text-gray-900 px-2 py-1 hover:bg-gray-200 rounded transition-colors font-medium">
-                                                    {{ $atributo_activo === $atributo->id_atributo ? '▼ Ocultar' : '▶ Ver Valores' }}
-                                                </button>
-                                                <button type="button"
-                                                    wire:click="editarAtributo({{ $atributo->id_atributo }})"
-                                                    class="text-xs text-indigo-600 hover:text-indigo-800 px-2 py-1 hover:bg-indigo-50 rounded transition-colors font-medium">
-                                                    ✏️ Editar
-                                                </button>
-                                            </div>
-                                        </div>
-                                    @endforeach
-                                </div>
-                
-                                <!-- Botón Generar Variantes -->
-                                <div class="mt-3 sm:mt-4 flex justify-center">
-                                    <button type="button" wire:click="generarVariantesSeleccionadas"
-                                        class="w-full sm:w-auto px-4 sm:px-6 py-2 sm:py-2.5 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-all text-sm sm:text-base font-medium shadow-sm">
-                                        ✨ Generar Variantes
+                        <div
+                            class="bg-gradient-to-r from-purple-50 to-indigo-50 p-3 sm:p-4 rounded-lg border border-purple-200">
+                            <h3 class="text-base sm:text-lg font-medium text-gray-900 mb-3 sm:mb-4">⚙️ Configuración de
+                                Variantes</h3>
+
+                            <!-- Selección de Atributos -->
+                            <div class="bg-white p-3 sm:p-4 rounded-lg mb-3 sm:mb-4">
+                                <div
+                                    class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-3 sm:mb-4">
+                                    <h4 class="text-sm sm:text-base font-medium text-gray-800">1. Selecciona y marca
+                                        los valores</h4>
+                                    <button type="button" wire:click="abrirModalAtributos"
+                                        class="text-xs sm:text-sm px-2 sm:px-3 py-1.5 sm:py-1 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors font-medium whitespace-nowrap">
+                                        ➕ Crear Atributo
                                     </button>
                                 </div>
-                            @else
-                                <div class="text-center py-6 sm:py-8 text-gray-500">
-                                    <p class="text-sm sm:text-base font-medium">No hay atributos disponibles.</p>
-                                    <p class="text-xs sm:text-sm">Crea atributos primero (Color, Talla, etc.)</p>
-                                </div>
-                            @endif
-                        </div>
-                
-                        <!-- Variantes Generadas -->
-                        @if (!empty($variantes_generadas))
-                            <div class="bg-white p-3 sm:p-4 rounded-lg">
-                                <h4 class="text-sm sm:text-base font-medium text-gray-800 mb-3 sm:mb-4">
-                                    2. Configurar Variantes Generadas
-                                    <span
-                                        class="inline-flex items-center justify-center w-6 h-6 bg-purple-100 text-purple-700 rounded-full text-xs font-bold">
-                                        {{ count($variantes_generadas) }}
-                                    </span>
-                                </h4>
-                
-                                <div class="max-h-96 overflow-y-auto rounded-lg border border-gray-200">
-                                    <div class="space-y-0">
-                                        @foreach ($variantes_generadas as $index => $variante)
-                                            <div class="border-b border-gray-200 last:border-b-0 hover:bg-purple-50 transition-colors"
-                                                wire:key="variante-{{ $variante['hash'] ?? $index }}">
-                                                <!-- Header -->
-                                                <div class="p-2 sm:p-3 flex items-start gap-2 sm:gap-3 bg-gray-50">
-                                                    <input type="checkbox"
-                                                        wire:model.lazy="variantes_generadas.{{ $index }}.activa"
-                                                        class="mt-1 w-4 h-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500">
-                                                    <div class="flex-1 min-w-0">
-                                                        <p class="text-xs sm:text-sm font-medium text-gray-900 break-words">
-                                                            {{ $variante['descripcion'] }}
-                                                        </p>
-                                                    </div>
-                                                    <div class="flex items-center gap-1 sm:gap-2 flex-shrink-0">
-                                                        <button type="button"
-                                                            wire:click="eliminarVariante('{{ $variante['hash'] ?? '' }}')"
-                                                            class="text-xs text-red-600 hover:text-red-800 px-1.5 sm:px-2 py-1 hover:bg-red-50 rounded transition-colors font-medium">
-                                                            🗑️ Eliminar
-                                                        </button>
-                                                    </div>
-                                                </div>
-                
-                                                <!-- Campos editables -->
-                                                <div class="px-2 sm:px-3 py-2 sm:py-3 bg-white border-t border-gray-100 grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3 ml-0 sm:ml-8">
-                                                    <!-- SKU -->
-                                                    <div>
-                                                        <label class="block text-xs font-medium text-gray-700 mb-1">SKU</label>
-                                                        <input type="text"
-                                                            wire:model.lazy="variantes_generadas.{{ $index }}.sku_custom"
-                                                            placeholder="{{ $this->previsualizarSku($variante) }}"
-                                                            class="w-full text-xs font-mono rounded border border-gray-300 px-2 py-1.5 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-colors">
-                                                        <p class="text-xs text-gray-500 mt-0.5">Auto:
-                                                            {{ $this->previsualizarSku($variante) }}
-                                                        </p>
-                                                    </div>
-                
-                                                    <!-- Precio -->
-                                                    <div>
-                                                        <label class="block text-xs font-medium text-gray-700 mb-1">Precio</label>
-                                                        <div class="relative">
-                                                            <input type="number"
-                                                                wire:model.lazy="variantes_generadas.{{ $index }}.precio"
-                                                                step="0.01" placeholder="0.00"
-                                                                class="w-full pl-5 px-2 py-1.5 text-xs rounded border border-gray-300 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-colors">
+
+                                @if (count($atributos_disponibles) > 0)
+                                    <!-- Grid responsivo - más compacto -->
+                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
+                                        @foreach ($atributos_disponibles as $atributo)
+                                            <div class="border border-gray-200 rounded-lg bg-white shadow-xs hover:shadow-sm hover:border-purple-300 transition-all overflow-hidden"
+                                                wire:key="atributo-{{ $atributo->id_atributo }}">
+
+                                                <!-- Checkbox + Info Atributo -->
+                                                <div class="p-3 border-b border-gray-100 bg-gray-50">
+                                                    <label class="flex items-center gap-3 cursor-pointer">
+                                                        <input type="checkbox"
+                                                            wire:model.live="atributos_seleccionados"
+                                                            value="{{ $atributo->id_atributo }}"
+                                                            class="w-4 h-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500 transition-all">
+                                                        <div class="flex-1 min-w-0">
+                                                            <div class="font-medium text-gray-800 text-sm">
+                                                                {{ $atributo->nombre }}
+                                                                @if ($atributo->obligatorio)
+                                                                    <span class="text-red-500 text-xs ml-1">*</span>
+                                                                @endif
+                                                            </div>
+                                                            <div class="text-xs text-gray-500">
+                                                                {{ $atributo->valores->count() }} opciones
+                                                            </div>
                                                         </div>
+                                                    </label>
+                                                </div>
+
+                                                <!-- Valores - Mostrados automáticamente si está expandido -->
+                                                @if ($atributo_activo === $atributo->id_atributo)
+                                                    <div
+                                                        class="px-3 py-2 space-y-2 max-h-48 overflow-y-auto bg-white border-b border-gray-100">
+                                                        @foreach ($atributo->valores as $valor)
+                                                            <label
+                                                                class="flex items-center gap-2 text-sm cursor-pointer hover:bg-purple-50 -mx-2 px-2 py-1 rounded transition-colors"
+                                                                wire:key="valor-{{ $valor->id_valor }}">
+                                                                <input type="checkbox"
+                                                                    wire:model.lazy="valores_seleccionados.{{ $atributo->id_atributo }}"
+                                                                    value="{{ $valor->id_valor }}"
+                                                                    class="w-3 h-3 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
+
+                                                                @if ($atributo->tipo === 'color')
+                                                                    <span
+                                                                        class="inline-block w-3 h-3 rounded-full border border-gray-300"
+                                                                        style="background-color: {{ $valor->color_hex ?? '#000' }}"></span>
+                                                                @endif
+
+                                                                <span
+                                                                    class="text-gray-700 text-xs">{{ $valor->valor }}</span>
+                                                            </label>
+                                                        @endforeach
                                                     </div>
-                
-                                                    <!-- Stock -->
-                                                    <div>
-                                                        <label class="block text-xs font-medium text-gray-700 mb-1">Stock</label>
-                                                        <input type="number"
-                                                            wire:model.lazy="variantes_generadas.{{ $index }}.stock"
-                                                            min="0" placeholder="0"
-                                                            class="w-full px-2 py-1.5 text-xs rounded border border-gray-300 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-colors">
-                                                    </div>
+                                                @endif
+
+                                                <!-- Footer con botones -->
+                                                <div
+                                                    class="px-3 py-2 bg-gray-50 flex gap-1 justify-between border-t border-gray-100">
+                                                    <button type="button"
+                                                        wire:click="toggleValores({{ $atributo->id_atributo }})"
+                                                        class="text-xs text-gray-600 hover:text-gray-900 px-2 py-1 hover:bg-gray-200 rounded transition-colors font-medium">
+                                                        {{ $atributo_activo === $atributo->id_atributo ? '▼ Ocultar' : '▶ Ver Valores' }}
+                                                    </button>
+                                                    <button type="button"
+                                                        wire:click="editarAtributo({{ $atributo->id_atributo }})"
+                                                        class="text-xs text-indigo-600 hover:text-indigo-800 px-2 py-1 hover:bg-indigo-50 rounded transition-colors font-medium">
+                                                        ✏️ Editar
+                                                    </button>
                                                 </div>
                                             </div>
                                         @endforeach
                                     </div>
-                                </div>
-                
-                                                <div class="mt-3 sm:mt-4 p-2 sm:p-3 bg-blue-50 rounded text-xs sm:text-sm text-blue-700 border border-blue-200">
-                                    <strong>💡 Funcionamiento inteligente:</strong> Al generar nuevas variantes, se
-                                    mantienen los precios y stocks ya configurados. Solo se agregan las nuevas
-                                    combinaciones.
-                                </div>
+
+                                    <!-- Botón Generar Variantes -->
+                                    <div class="mt-3 sm:mt-4 flex justify-center">
+                                        <button type="button" wire:click="generarVariantesSeleccionadas"
+                                            class="w-full sm:w-auto px-4 sm:px-6 py-2 sm:py-2.5 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-all text-sm sm:text-base font-medium shadow-sm">
+                                            ✨ Generar Variantes
+                                        </button>
+                                    </div>
+                                @else
+                                    <div class="text-center py-6 sm:py-8 text-gray-500">
+                                        <p class="text-sm sm:text-base font-medium">No hay atributos disponibles.</p>
+                                        <p class="text-xs sm:text-sm">Crea atributos primero (Color, Talla, etc.)</p>
+                                    </div>
+                                @endif
                             </div>
-                        @endif
-                    </div>
-                @endif
+
+                            <!-- Variantes Generadas -->
+                            @if (!empty($variantes_generadas))
+                                <div class="bg-white p-3 sm:p-4 rounded-lg">
+                                    <h4 class="text-sm sm:text-base font-medium text-gray-800 mb-3 sm:mb-4">
+                                        2. Configurar Variantes Generadas
+                                        <span
+                                            class="inline-flex items-center justify-center w-6 h-6 bg-purple-100 text-purple-700 rounded-full text-xs font-bold">
+                                            {{ count($variantes_generadas) }}
+                                        </span>
+                                    </h4>
+
+                                    <div class="max-h-96 overflow-y-auto rounded-lg border border-gray-200">
+                                        <div class="space-y-0">
+                                            @foreach ($variantes_generadas as $index => $variante)
+                                                <div class="border-b border-gray-200 last:border-b-0 hover:bg-purple-50 transition-colors"
+                                                    wire:key="variante-{{ $variante['hash'] ?? $index }}">
+                                                    <!-- Header -->
+                                                    <div class="p-2 sm:p-3 flex items-start gap-2 sm:gap-3 bg-gray-50">
+                                                        <input type="checkbox"
+                                                            wire:model.lazy="variantes_generadas.{{ $index }}.activa"
+                                                            class="mt-1 w-4 h-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500">
+                                                        <div class="flex-1 min-w-0">
+                                                            <p
+                                                                class="text-xs sm:text-sm font-medium text-gray-900 break-words">
+                                                                {{ $variante['descripcion'] }}
+                                                            </p>
+                                                        </div>
+                                                        <div class="flex items-center gap-1 sm:gap-2 flex-shrink-0">
+                                                            <button type="button"
+                                                                wire:click="eliminarVariante('{{ $variante['hash'] ?? '' }}')"
+                                                                class="text-xs text-red-600 hover:text-red-800 px-1.5 sm:px-2 py-1 hover:bg-red-50 rounded transition-colors font-medium">
+                                                                🗑️ Eliminar
+                                                            </button>
+                                                        </div>
+                                                    </div>
+
+                                                    <!-- Campos editables -->
+                                                    <div
+                                                        class="px-2 sm:px-3 py-2 sm:py-3 bg-white border-t border-gray-100 grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3 ml-0 sm:ml-8">
+                                                        <!-- SKU -->
+                                                        <div>
+                                                            <label
+                                                                class="block text-xs font-medium text-gray-700 mb-1">SKU</label>
+                                                            <input type="text"
+                                                                wire:model.lazy="variantes_generadas.{{ $index }}.sku_custom"
+                                                                placeholder="{{ $this->previsualizarSku($variante) }}"
+                                                                class="w-full text-xs font-mono rounded border border-gray-300 px-2 py-1.5 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-colors">
+                                                            <p class="text-xs text-gray-500 mt-0.5">Auto:
+                                                                {{ $this->previsualizarSku($variante) }}
+                                                            </p>
+                                                        </div>
+
+                                                        <!-- Precio -->
+                                                        <div>
+                                                            <label
+                                                                class="block text-xs font-medium text-gray-700 mb-1">
+                                                                @if ($tipo_venta === 'peso' || $tipo_venta === 'volumen')
+                                                                    Precio/{{ $unidad_medida ?? 'unidad' }}
+                                                                @else
+                                                                    Precio
+                                                                @endif
+                                                            </label>
+                                                            <div class="relative">
+                                                                <input type="number"
+                                                                    wire:model.lazy="variantes_generadas.{{ $index }}.precio"
+                                                                    step="0.01" placeholder="0.00"
+                                                                    class="w-full pl-5 px-2 py-1.5 text-xs rounded border border-gray-300 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-colors">
+                                                            </div>
+                                                        </div>
+
+                                                        <!-- Stock -->
+                                                        <div>
+                                                            <label
+                                                                class="block text-xs font-medium text-gray-700 mb-1">
+                                                                Stock
+                                                                @if ($tipo_venta === 'peso' || $tipo_venta === 'volumen')
+                                                                    ({{ $unidad_medida ?? 'unidad' }})
+                                                                @endif
+                                                            </label>
+                                                            <input type="number"
+                                                                wire:model.lazy="variantes_generadas.{{ $index }}.stock"
+                                                                @if ($tipo_venta === 'peso' || $tipo_venta === 'volumen') step="0.001"
+                                                                @else
+                                                                    min="0" @endif
+                                                                placeholder="@if ($tipo_venta === 'peso' || $tipo_venta === 'volumen') 0.000@else0 @endif"
+                                                                class="w-full px-2 py-1.5 text-xs rounded border border-gray-300 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-colors">
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            @endforeach
+                                        </div>
+                                    </div>
+
+                                    <div
+                                        class="mt-3 sm:mt-4 p-2 sm:p-3 bg-blue-50 rounded text-xs sm:text-sm text-blue-700 border border-blue-200">
+                                        <strong>💡 Funcionamiento inteligente:</strong> Al generar nuevas variantes, se
+                                        mantienen los precios y stocks ya configurados. Solo se agregan las nuevas
+                                        combinaciones.
+                                    </div>
+                                </div>
+                            @endif
+                        </div>
+                    @endif
 
                     <!-- SECCIÓN 4: IMAGEN Y CONFIGURACIONES -->
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-6">
                         <!-- Imagen -->
                         <div class="bg-gray-50 p-3 sm:p-4 rounded-lg">
-                            <h3 class="text-base sm:text-lg font-medium text-gray-900 mb-3 sm:mb-4">Imagen del Producto</h3>
+                            <h3 class="text-base sm:text-lg font-medium text-gray-900 mb-3 sm:mb-4">Imagen del Producto
+                            </h3>
 
                             <div>
-                                <label for="imagen" class="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Imagen
+                                <label for="imagen"
+                                    class="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Imagen
                                     Principal</label>
                                 <input type="file" id="imagen" wire:model.defer="imagen" accept="image/*"
                                     class="block w-full text-xs sm:text-sm text-gray-500 file:mr-2 sm:file:mr-4 file:py-1.5 sm:file:py-2 file:px-2 sm:file:px-4 file:rounded-full file:border-0 file:text-xs sm:file:text-sm file:font-semibold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100">
@@ -404,7 +543,8 @@
 
                                 @if ($imagen_actual)
                                     <div class="mt-3 sm:mt-4">
-                                        <label class="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Imagen
+                                        <label
+                                            class="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Imagen
                                             Actual:</label>
                                         <img src="{{ asset('storage/' . $imagen_actual) }}"
                                             class="w-24 h-24 sm:w-32 sm:h-32 object-cover rounded-lg border shadow-sm">
@@ -415,13 +555,15 @@
 
                         <!-- Configuraciones -->
                         <div class="bg-gray-50 p-3 sm:p-4 rounded-lg">
-                            <h3 class="text-base sm:text-lg font-medium text-gray-900 mb-3 sm:mb-4">Configuraciones</h3>
+                            <h3 class="text-base sm:text-lg font-medium text-gray-900 mb-3 sm:mb-4">Configuraciones
+                            </h3>
 
                             <div class="space-y-3 sm:space-y-4">
                                 <!-- Estado -->
                                 <div class="flex items-center justify-between gap-2">
                                     <div class="flex-1 min-w-0">
-                                        <label class="text-xs sm:text-sm font-medium text-gray-700">Estado del Producto</label>
+                                        <label class="text-xs sm:text-sm font-medium text-gray-700">Estado del
+                                            Producto</label>
                                         <p class="text-xs text-gray-500">Desactiva si no tiene stock disponible</p>
                                     </div>
                                     <label class="relative inline-flex items-center cursor-pointer">
@@ -456,7 +598,8 @@
                                 <!-- Catálogo -->
                                 <div class="flex items-center justify-between gap-2">
                                     <div class="flex-1 min-w-0">
-                                        <label class="text-xs sm:text-sm font-medium text-gray-700">Mostrar en Catálogo</label>
+                                        <label class="text-xs sm:text-sm font-medium text-gray-700">Mostrar en
+                                            Catálogo</label>
                                         <p class="text-xs text-gray-500">Visible para clientes</p>
                                     </div>
                                     <label class="relative inline-flex items-center cursor-pointer">

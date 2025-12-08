@@ -48,7 +48,11 @@ class ArticuloLivewire extends Component
     public $valores_seleccionados = []; // ['id_atributo' => [id_valor1, id_valor2, ...]]
     public $atributo_activo = null; // Atributo que se está desplegando
 
-
+    // Propiedades para venta por peso/volumen
+    public $tipo_venta = 'unidad';
+    public $unidad_medida = null;
+    public $precio_por_unidad_medida = null;
+    public $stock_decimal = null;
 
     public $layout = 'sistema';
 
@@ -121,6 +125,12 @@ class ArticuloLivewire extends Component
         $this->atributos_seleccionados = [];
         $this->variantes_generadas = [];
         $this->mostrar_seccion_variantes = false;
+
+        // Reset campos de venta por peso
+        $this->tipo_venta = 'unidad';
+        $this->unidad_medida = null;
+        $this->precio_por_unidad_medida = null;
+        $this->stock_decimal = null;
     }
 
     // NUEVA: Método para manejar cambios en tiene_variantes
@@ -275,10 +285,14 @@ class ArticuloLivewire extends Component
                 'idarticulo' => $articulo->idarticulo,
                 'sku' => $sku,
                 'precio_unitario' => $variante['precio'],
-                'stock' => $variante['stock'],
+                'stock' => ($this->tipo_venta === 'unidad') ? $variante['stock'] : 0,
                 'descripcion_variante' => $variante['descripcion'],
                 'estado' => 'activo',
-                'es_variante_principal' => $primerVariante
+                'es_variante_principal' => $primerVariante,
+                // Campos para venta por peso/volumen
+                'stock_decimal' => ($this->tipo_venta === 'peso' || $this->tipo_venta === 'volumen') ? $variante['stock'] : null,
+                'tipo_venta' => $this->tipo_venta,
+                'unidad_medida' => $this->unidad_medida,
             ]);
 
             // Validar que los id_valor existan y pertenezcan al local
@@ -322,8 +336,15 @@ class ArticuloLivewire extends Component
 
         // Validaciones condicionales
         if (!$this->tiene_variantes) {
-            $reglas['precio_unitario'] = 'required|numeric|min:0';
-            $reglas['stock'] = 'required|integer|min:0';
+            // Validar según tipo de venta
+            if ($this->tipo_venta === 'peso' || $this->tipo_venta === 'volumen') {
+                $reglas['precio_por_unidad_medida'] = 'required|numeric|min:0';
+                $reglas['stock_decimal'] = 'required|numeric|min:0';
+                $reglas['unidad_medida'] = 'required|string|in:kg,g,lb,l,ml';
+            } else {
+                $reglas['precio_unitario'] = 'required|numeric|min:0';
+                $reglas['stock'] = 'required|integer|min:0';
+            }
         } else {
             // Validar que tenga al menos una variante activa
             $variantesActivas = collect($this->variantes_generadas)->where('activa', true);
@@ -367,14 +388,19 @@ class ArticuloLivewire extends Component
                 'nombre' => $this->nombre,
                 'descripcion' => $this->descripcion,
                 'codigo' => $this->codigo,
-                'precio_unitario' => $this->tiene_variantes ? 0 : $this->precio_unitario,
-                'stock' => $this->tiene_variantes ? 0 : $this->stock,
+                'precio_unitario' => $this->tiene_variantes ? 0 : ($this->tipo_venta === 'unidad' ? $this->precio_unitario : 0),
+                'stock' => $this->tiene_variantes ? 0 : ($this->tipo_venta === 'unidad' ? $this->stock : 0),
                 'estado' => $this->estado,
                 'mostrar_feed' => $this->mostrar_feed,
                 'destacado' => $this->destacado,
                 'tiene_variantes' => $this->tiene_variantes,
                 'imagen' => $nombreArchivo ? "locales/{$idLocal}/articulos/{$nombreArchivo}" : ($this->imagen_actual ?? null),
-                'id_local' => $idLocal
+                'id_local' => $idLocal,
+                // Campos para venta por peso/volumen
+                'tipo_venta' => $this->tipo_venta,
+                'unidad_medida' => $this->unidad_medida,
+                'precio_por_unidad_medida' => ($this->tipo_venta === 'peso' || $this->tipo_venta === 'volumen') ? $this->precio_por_unidad_medida : null,
+                'stock_decimal' => ($this->tipo_venta === 'peso' || $this->tipo_venta === 'volumen') ? $this->stock_decimal : null,
             ]);
 
             // Guardar variantes si existen
@@ -418,6 +444,12 @@ class ArticuloLivewire extends Component
         $this->destacado = $articulo->destacado;
         $this->imagen_actual = $articulo->imagen;
 
+        // Cargar campos de venta por peso
+        $this->tipo_venta = $articulo->tipo_venta ?? 'unidad';
+        $this->unidad_medida = $articulo->unidad_medida;
+        $this->precio_por_unidad_medida = $articulo->precio_por_unidad_medida ? floatval($articulo->precio_por_unidad_medida) : null;
+        $this->stock_decimal = $articulo->stock_decimal ? floatval($articulo->stock_decimal) : null;
+
         // Cargar datos de variantes si existen
         $this->tiene_variantes = $articulo->tiene_variantes;
 
@@ -453,7 +485,10 @@ class ArticuloLivewire extends Component
                 'combinacion' => $combinacion,
                 'descripcion' => $variante->descripcion_variante,
                 'precio' => $variante->precio_unitario,
-                'stock' => $variante->stock,
+                // Cargar stock correcto según tipo de venta
+                'stock' => ($variante->tipo_venta === 'peso' || $variante->tipo_venta === 'volumen')
+                    ? ($variante->stock_decimal ?? 0)
+                    : $variante->stock,
                 'sku_custom' => $variante->sku, // Cargar SKU actual como personalizado
                 'activa' => $variante->estado === 'activo'
             ];

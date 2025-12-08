@@ -47,17 +47,28 @@ class PedidoTable extends DataTableComponent
     {
         $this->setPrimaryKey('id');
         $this->setSearchEnabled();
+        $this->setTheme('tailwind');
     }
 
     public function columns(): array
     {
         // Conjunto de columnas comunes para ambos tipos
         $commonColumns = [
-            // Column::make("Id user", "id_user")
-            //     ->sortable(),
-            Column::make("Nombre cliente", "nombre_cliente")
+            Column::make("ID", "id")
                 ->sortable()
-                ->searchable(),
+                ->collapseOnMobile(),
+            Column::make("Cliente", "nombre_cliente")
+                ->sortable()
+                ->searchable()
+                ->format(function ($value, $row) {
+                    return "
+                        <div class='flex flex-col'>
+                            <span class='font-bold text-gray-900'>{$value}</span>
+                            <span class='text-xs text-gray-500'>{$row->email}</span>
+                        </div>
+                    ";
+                })
+                ->html(),
             Column::make("Email", "email")
                 ->sortable()
                 ->collapseOnMobile()
@@ -69,17 +80,9 @@ class PedidoTable extends DataTableComponent
                     if (empty($telefono)) {
                         return '-';
                     }
-
-                    // Mensaje predefinido
                     $mensaje = "Hola, me comunico de Tienda Dux para confirmar el pedido realizado en nuestra plataforma";
-
-                    // Codificar el mensaje para URL
                     $mensajeCodificado = urlencode($mensaje);
-
-                    // Limpiar el número de teléfono (remover espacios, guiones, etc.)
                     $telefonoLimpio = preg_replace('/[^0-9+]/', '', $telefono);
-
-                    // Crear el enlace de WhatsApp
                     $urlWhatsApp = "https://wa.me/{$telefonoLimpio}?text={$mensajeCodificado}";
 
                     return "<a href='{$urlWhatsApp}' target='_blank' class='text-green-600 hover:text-green-800 hover:underline font-medium'>
@@ -88,20 +91,17 @@ class PedidoTable extends DataTableComponent
                 })
                 ->html(),
             Column::make("Total", "total")
-                ->sortable(),
-            Column::make("Metodo pago", "metodo_pago")
+                ->sortable()
+                ->format(function ($value) {
+                    return "<span class='font-bold text-gray-900'>$ " . number_format($value, 2) . "</span>";
+                })
+                ->html(),
+            Column::make("Pago", "metodo_pago")
                 ->sortable()
                 ->collapseOnMobile()
-                ->deselected(),
-            // Column::make("Crear cuenta", "crear_cuenta")
-            //     ->sortable()
-            //     ->format(function ($row) {
-            //         return $row
-            //             ? '<span class="text-green-600">✅</span>'
-            //             : '<span class="text-red-600">❌</span>';
-            //     })
-            //     ->html(),
+                ->format(fn($value) => ucfirst($value)),
         ];
+
         $productSpecificColumns = [
             Column::make("Direccion", "direccion")
                 ->sortable()
@@ -112,33 +112,15 @@ class PedidoTable extends DataTableComponent
                 ->searchable()
                 ->collapseOnMobile()
                 ->deselected(),
-            Column::make("Codigo postal", "codigo_postal")
-                ->sortable()
-                ->collapseOnMobile()
-                ->deselected(),
-            Column::make("Notas entrega", "notas_entrega")
-                ->sortable()
-                ->collapseOnMobile()
-                ->deselected(),
-            Column::make("Subtotal", "subtotal")
-                ->sortable(),
-            Column::make("Envio", "envio")
-                ->sortable()
-                ->collapseOnMobile()
-                ->deselected(),
-            Column::make("Descuento", "descuento")
-                ->sortable()
-                ->collapseOnMobile()
-                ->deselected(),
             Column::make("Estado", "estado")
                 ->sortable()
                 ->format(function ($estado) {
                     $clases = [
-                        'pendiente'    => 'bg-black text-red',   // negro
-                        'confirmado'   => 'bg-blue-500 text-white',  // azul
-                        'en_proceso'   => 'bg-purple-500 text-white',  // Morado
-                        'entregado'    => 'bg-green-500 text-white',   // Verde
-                        'cancelado'    => 'bg-red-500 text-white',     // Rojo
+                        'pendiente'    => 'bg-yellow-100 text-yellow-800',
+                        'confirmado'   => 'bg-blue-100 text-blue-800',
+                        'en_proceso'   => 'bg-purple-100 text-purple-800',
+                        'entregado'    => 'bg-green-100 text-green-800',
+                        'cancelado'    => 'bg-red-100 text-red-800',
                     ];
 
                     $textos = [
@@ -149,60 +131,51 @@ class PedidoTable extends DataTableComponent
                         'cancelado'    => 'Cancelado',
                     ];
 
-                    $clase = $clases[$estado] ?? 'bg-gray-500 text-white';
+                    $clase = $clases[$estado] ?? 'bg-gray-100 text-gray-800';
                     $texto = $textos[$estado] ?? ucfirst($estado);
 
-                    return "<span class='px-3 py-1 rounded-full text-xs font-semibold {$clase}'>$texto</span>";
+                    return "<span class='px-2 py-1 rounded-full text-xs font-semibold {$clase}'>$texto</span>";
                 })
                 ->html(),
         ];
+
         $serviceSpecificColumns = [
             Column::make("Fecha", "fecha_servicio")
                 ->sortable()
                 ->collapseOnMobile(),
-            Column::make("Hora Inicio", "hora_inicio")
+            Column::make("Hora", "hora_inicio")
                 ->sortable()
                 ->collapseOnMobile(),
-            Column::make("Estado de Reserva", "estado_reserva")
+            Column::make("Estado", "estado_reserva")
                 ->sortable()
                 ->format(function ($value) {
                     $clases = [
-                        'pendiente'    => 'bg-gray-400 text-red',
-                        'confirmado'   => 'bg-blue-500 text-white',
-                        'cancelada'    => 'bg-red-500 text-white',
-                        'completada'   => 'bg-green-500 text-white',
+                        'pendiente'    => 'bg-yellow-100 text-yellow-800',
+                        'confirmado'   => 'bg-blue-100 text-blue-800',
+                        'cancelada'    => 'bg-red-100 text-red-800',
+                        'completada'   => 'bg-green-100 text-green-800',
                     ];
                     $texto = ucfirst($value);
-                    $clase = $clases[$value] ?? 'bg-gray-500 text-white';
-                    return "<span class='px-3 py-1 rounded-full text-xs font-semibold {$clase}'>$texto</span>";
+                    $clase = $clases[$value] ?? 'bg-gray-100 text-gray-800';
+                    return "<span class='px-2 py-1 rounded-full text-xs font-semibold {$clase}'>$texto</span>";
                 })
                 ->html(),
-
         ];
+
         $acciones = [
             Column::make("Acciones")
                 ->label(
                     fn($row, Column $column) => view('livewire.pedido.actions', ['row' => $row])
                 )
-                ->html()
-                ->collapseOnMobile(),
+                ->html(),
         ];
-        // Lógica para determinar qué columnas mostrar
+
         if ($this->pedido_type === 'venta') {
             return array_merge($commonColumns, $productSpecificColumns, $acciones);
         } elseif ($this->pedido_type === 'servicio') {
             return array_merge($commonColumns, $serviceSpecificColumns, $acciones);
         }
 
-        return array_merge(
-            [
-                Column::make("ID", "id")->sortable(),
-                Column::make("Tipo", "tipo_pedido")->sortable()->format(fn($value) => ucfirst($value)),
-                Column::make("Cliente", "nombre_cliente")->sortable()->searchable(),
-                Column::make("Estado", "estado_reserva")->sortable(), // Cambiado a estado_reserva para incluir ambos
-                Column::make("Total", "total")->sortable(),
-            ],
-            $acciones
-        );
+        return array_merge($commonColumns, $acciones);
     }
 }

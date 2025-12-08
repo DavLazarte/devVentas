@@ -19,6 +19,13 @@ class DetalleVenta extends Model
         'id_variante',
         'sku_vendido',
         'descripcion_variante',
+        // Campos para venta por peso/volumen
+        'cantidad_decimal',
+        'unidad_medida_venta',
+    ];
+
+    protected $casts = [
+        'cantidad_decimal' => 'decimal:3'
     ];
 
     // Relación con el modelo de venta
@@ -32,10 +39,12 @@ class DetalleVenta extends Model
         return $this->belongsToMany(Articulo::class, 'detalle_ventas', 'idventa', 'idarticulo')
             ->withPivot(['cantidad', 'precio_venta']); // Asegúrate de incluir los campos pivot necesarios
     }
+
     public function producto()
     {
         return $this->belongsTo(Articulo::class, 'idarticulo');
     }
+
     public function variante()
     {
         return $this->belongsTo(ArticuloVariante::class, 'id_variante', 'id_variante');

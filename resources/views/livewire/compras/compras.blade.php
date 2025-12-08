@@ -123,7 +123,13 @@
                                                 class="w-full flex justify-between items-center px-3 sm:px-4 py-2 bg-white hover:bg-purple-100 border rounded-md shadow-sm transition text-xs sm:text-sm">
                                                 <span
                                                     class="flex-1 text-left pr-2">{{ $variante->descripcion_variante }}
-                                                    (Stock: {{ $variante->stock }})
+                                                    (Stock:
+                                                    @if ($variante->tipo_venta === 'peso' || $variante->tipo_venta === 'volumen')
+                                                        {{ $variante->stock_decimal ?? 0 }}
+                                                        {{ $variante->unidad_medida ?? 'kg' }}
+                                                    @else
+                                                        {{ $variante->stock }}
+                                                    @endif)
                                                 </span>
                                                 <span class="font-bold text-purple-600 whitespace-nowrap">SKU:
                                                     {{ $variante->sku }}</span>
@@ -240,31 +246,46 @@
                                                         <div class="flex items-center gap-2">
                                                             <!-- Cantidad -->
                                                             <div class="flex items-center">
-                                                                <button type="button"
-                                                                    wire:click="decrementarCantidad({{ $index }})"
-                                                                    class="bg-gray-200 w-7 h-7 rounded-l flex items-center justify-center hover:bg-gray-300">
-                                                                    <svg class="w-3.5 h-3.5" fill="none"
-                                                                        stroke="currentColor" viewBox="0 0 24 24">
-                                                                        <path d="M20 12H4" stroke-width="2.5"
-                                                                            stroke-linecap="round"
-                                                                            stroke-linejoin="round" />
-                                                                    </svg>
-                                                                </button>
-                                                                <input type="number"
-                                                                    wire:model="articuloSeleccionado.{{ $index }}.cantidad"
-                                                                    wire:change="calcularSubTotalProducto({{ $index }})"
-                                                                    class="w-10 text-center text-sm font-medium border-y border-gray-300 focus:ring-0 focus:outline-none"
-                                                                    min="1">
-                                                                <button type="button"
-                                                                    wire:click="incrementarCantidad({{ $index }})"
-                                                                    class="bg-gray-200 w-7 h-7 rounded-r flex items-center justify-center hover:bg-gray-300">
-                                                                    <svg class="w-3.5 h-3.5" fill="none"
-                                                                        stroke="currentColor" viewBox="0 0 24 24">
-                                                                        <path d="M12 4v16m8-8H4" stroke-width="2.5"
-                                                                            stroke-linecap="round"
-                                                                            stroke-linejoin="round" />
-                                                                    </svg>
-                                                                </button>
+                                                                @if ($art['permite_decimales'] ?? false)
+                                                                    <!-- Input decimal para peso/volumen -->
+                                                                    <div class="flex flex-col items-center">
+                                                                        <input type="number"
+                                                                            wire:model="articuloSeleccionado.{{ $index }}.cantidad"
+                                                                            wire:change="calcularSubTotalProducto({{ $index }})"
+                                                                            step="0.001" min="0.001"
+                                                                            class="w-16 text-center text-sm font-medium border border-gray-300 rounded px-1 py-1.5 focus:ring-purple-500 focus:border-purple-500"
+                                                                            placeholder="1.500">
+                                                                        <span
+                                                                            class="text-xs text-gray-500 mt-0.5">{{ $art['unidad_medida'] ?? '' }}</span>
+                                                                    </div>
+                                                                @else
+                                                                    <!-- Botones +/- para unidades -->
+                                                                    <button type="button"
+                                                                        wire:click="decrementarCantidad({{ $index }})"
+                                                                        class="bg-gray-200 w-7 h-7 rounded-l flex items-center justify-center hover:bg-gray-300">
+                                                                        <svg class="w-3.5 h-3.5" fill="none"
+                                                                            stroke="currentColor" viewBox="0 0 24 24">
+                                                                            <path d="M20 12H4" stroke-width="2.5"
+                                                                                stroke-linecap="round"
+                                                                                stroke-linejoin="round" />
+                                                                        </svg>
+                                                                    </button>
+                                                                    <input type="number"
+                                                                        wire:model="articuloSeleccionado.{{ $index }}.cantidad"
+                                                                        wire:change="calcularSubTotalProducto({{ $index }})"
+                                                                        class="w-10 text-center text-sm font-medium border-y border-gray-300 focus:ring-0 focus:outline-none"
+                                                                        min="1">
+                                                                    <button type="button"
+                                                                        wire:click="incrementarCantidad({{ $index }})"
+                                                                        class="bg-gray-200 w-7 h-7 rounded-r flex items-center justify-center hover:bg-gray-300">
+                                                                        <svg class="w-3.5 h-3.5" fill="none"
+                                                                            stroke="currentColor" viewBox="0 0 24 24">
+                                                                            <path d="M12 4v16m8-8H4" stroke-width="2.5"
+                                                                                stroke-linecap="round"
+                                                                                stroke-linejoin="round" />
+                                                                        </svg>
+                                                                    </button>
+                                                                @endif
                                                             </div>
 
                                                             <!-- Nuevo Stock -->
@@ -354,31 +375,48 @@
 
                                                 <!-- Cantidad -->
                                                 <td class="hidden md:table-cell py-2 px-2">
-                                                    <div class="flex items-center justify-center">
-                                                        <button type="button"
-                                                            wire:click="decrementarCantidad({{ $index }})"
-                                                            class="bg-gray-200 px-1.5 py-1 rounded-l-md hover:bg-gray-300 transition">
-                                                            <svg class="w-3.5 h-3.5" fill="none"
-                                                                stroke="currentColor" viewBox="0 0 24 24">
-                                                                <path d="M20 12H4" stroke-width="2"
-                                                                    stroke-linecap="round" stroke-linejoin="round" />
-                                                            </svg>
-                                                        </button>
-                                                        <input type="number"
-                                                            wire:model="articuloSeleccionado.{{ $index }}.cantidad"
-                                                            wire:change="calcularSubTotalProducto({{ $index }})"
-                                                            class="text-center w-12 px-1 py-1 border-y border-gray-300 focus:ring-purple-500 focus:border-purple-500 text-xs"
-                                                            min="1">
-                                                        <button type="button"
-                                                            wire:click="incrementarCantidad({{ $index }})"
-                                                            class="bg-gray-200 px-1.5 py-1 rounded-r-md hover:bg-gray-300 transition">
-                                                            <svg class="w-3.5 h-3.5" fill="none"
-                                                                stroke="currentColor" viewBox="0 0 24 24">
-                                                                <path d="M12 4v16m8-8H4" stroke-width="2"
-                                                                    stroke-linecap="round" stroke-linejoin="round" />
-                                                            </svg>
-                                                        </button>
-                                                    </div>
+                                                    @if ($art['permite_decimales'] ?? false)
+                                                        <!-- Input decimal para peso/volumen -->
+                                                        <div class="flex flex-col items-center">
+                                                            <input type="number"
+                                                                wire:model="articuloSeleccionado.{{ $index }}.cantidad"
+                                                                wire:change="calcularSubTotalProducto({{ $index }})"
+                                                                step="0.001" min="0.001"
+                                                                class="w-20 text-center px-2 py-1.5 border-gray-300 focus:ring-purple-500 focus:border-purple-500 text-xs rounded-md"
+                                                                placeholder="1.500">
+                                                            <span
+                                                                class="text-xs text-gray-500 mt-1">{{ $art['unidad_medida'] ?? '' }}</span>
+                                                        </div>
+                                                    @else
+                                                        <!-- Botones +/- para unidades -->
+                                                        <div class="flex items-center justify-center">
+                                                            <button type="button"
+                                                                wire:click="decrementarCantidad({{ $index }})"
+                                                                class="bg-gray-200 px-1.5 py-1 rounded-l-md hover:bg-gray-300 transition">
+                                                                <svg class="w-3.5 h-3.5" fill="none"
+                                                                    stroke="currentColor" viewBox="0 0 24 24">
+                                                                    <path d="M20 12H4" stroke-width="2"
+                                                                        stroke-linecap="round"
+                                                                        stroke-linejoin="round" />
+                                                                </svg>
+                                                            </button>
+                                                            <input type="number"
+                                                                wire:model="articuloSeleccionado.{{ $index }}.cantidad"
+                                                                wire:change="calcularSubTotalProducto({{ $index }})"
+                                                                class="text-center w-12 px-1 py-1 border-y border-gray-300 focus:ring-purple-500 focus:border-purple-500 text-xs"
+                                                                min="1">
+                                                            <button type="button"
+                                                                wire:click="incrementarCantidad({{ $index }})"
+                                                                class="bg-gray-200 px-1.5 py-1 rounded-r-md hover:bg-gray-300 transition">
+                                                                <svg class="w-3.5 h-3.5" fill="none"
+                                                                    stroke="currentColor" viewBox="0 0 24 24">
+                                                                    <path d="M12 4v16m8-8H4" stroke-width="2"
+                                                                        stroke-linecap="round"
+                                                                        stroke-linejoin="round" />
+                                                                </svg>
+                                                            </button>
+                                                        </div>
+                                                    @endif
                                                 </td>
 
                                                 <!-- Nuevo Stock -->

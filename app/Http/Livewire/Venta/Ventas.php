@@ -193,6 +193,20 @@ class Ventas extends Component
         }
 
         // Agregar nuevo item al carrito
+        $tipoVenta = $variante?->tipo_venta ?? $articulo->tipo_venta ?? 'unidad';
+        $unidadMedida = $variante?->unidad_medida ?? $articulo->unidad_medida;
+        $precioBase = $variante?->precio_unitario ?? $articulo->precio_unitario;
+
+        // Si es por peso/volumen, usar precio_por_unidad_medida
+        if ($tipoVenta === 'peso' || $tipoVenta === 'volumen') {
+            $precioBase = $articulo->precio_por_unidad_medida ?? $precioBase;
+        }
+
+        // Determinar el stock correcto según tipo de venta
+        $stockDisponible = ($tipoVenta === 'peso' || $tipoVenta === 'volumen')
+            ? ($variante?->stock_decimal ?? $articulo->stock_decimal ?? 0)
+            : ($variante?->stock ?? $articulo->stock ?? 0);
+
         $this->articuloSeleccionado[] = [
             'idarticulo' => $articulo->idarticulo,
             'id_variante' => $variante?->id_variante,
@@ -200,11 +214,19 @@ class Ventas extends Component
                 $articulo->nombre . ' - ' . $variante->descripcion_variante :
                 $articulo->nombre,
             'sku' => $variante?->sku ?? $articulo->codigo,
-            'precio_unitario' => $variante?->precio_unitario ?? $articulo->precio_unitario,
-            'stock' => $variante?->stock ?? $articulo->stock,
+            'precio_unitario' => $precioBase,
+            'stock' => $stockDisponible, // Stock correcto según tipo de venta
             'cantidad' => 1,
             'descripcion' => $articulo->descripcion,
-            'descripcion_variante' => $variante?->descripcion_variante
+            'descripcion_variante' => $variante?->descripcion_variante,
+            // Campos para venta por peso/volumen
+            'tipo_venta' => $tipoVenta,
+            'unidad_medida' => $unidadMedida,
+            'precio_por_unidad_medida' => ($tipoVenta === 'peso' || $tipoVenta === 'volumen') ? $precioBase : null,
+            'stock_decimal' => ($tipoVenta === 'peso' || $tipoVenta === 'volumen')
+                ? $stockDisponible
+                : null,
+            'permite_decimales' => ($tipoVenta === 'peso' || $tipoVenta === 'volumen'),
         ];
 
         $this->calcularSubTotalProducto();
@@ -256,6 +278,7 @@ class Ventas extends Component
                 $calc_subtotal = $cantidad * $precio;
                 $subtotal = round($calc_subtotal, 2);
 
+
                 // Descontamos el stock original
                 $nuevo_stock = $stock_original - $cantidad;
 
@@ -263,6 +286,11 @@ class Ventas extends Component
                 $this->articuloSeleccionado[$index]['subtotal'] = $subtotal;
                 $this->articuloSeleccionado[$index]['stock'] = $nuevo_stock;
                 $this->articuloSeleccionado[$index]['stock_original'] = $stock_original;
+
+                // Si es por peso/volumen, también actualizar stock_decimal
+                if ($articulo['permite_decimales'] ?? false) {
+                    $this->articuloSeleccionado[$index]['stock_decimal'] = $nuevo_stock;
+                }
 
                 // Actualizamos el total
                 $this->actualizarTotal();
@@ -348,7 +376,7 @@ class Ventas extends Component
             );
 
             foreach ($this->articuloSeleccionado as $articulo) {
-                // Crear DetalleVenta con soporte para variantes
+                // Crear DetalleVenta con soporte para variantes y peso
                 $detalle_venta = DetalleVenta::create([
                     'idventa' => $venta->id,
                     'idarticulo' => $articulo['idarticulo'],
@@ -357,7 +385,10 @@ class Ventas extends Component
                     'descripcion_variante' => $articulo['descripcion_variante'] ?? null,
                     'cantidad' => $articulo['cantidad'],
                     'precio_venta' => $articulo['precio_unitario'],
-                    'estado' => 'activo'
+                    'estado' => 'activo',
+                    // Campos para venta por peso/volumen
+                    'cantidad_decimal' => ($articulo['permite_decimales'] ?? false) ? $articulo['cantidad'] : null,
+                    'unidad_medida_venta' => $articulo['unidad_medida'] ?? null,
                 ]);
 
                 // Actualizar stock según si es variante o producto simple
@@ -365,14 +396,24 @@ class Ventas extends Component
                     // Descontar stock de la variante
                     $variante = ArticuloVariante::find($articulo['id_variante']);
                     if ($variante) {
-                        $variante->stock = $articulo['stock'];
+                        // Si es por peso/volumen, actualizar stock_decimal
+                        if ($articulo['permite_decimales'] ?? false) {
+                            $variante->stock_decimal = $articulo['stock_decimal'];
+                        } else {
+                            $variante->stock = $articulo['stock'];
+                        }
                         $variante->save();
                     }
                 } else {
                     // Descontar stock del producto principal
                     $articuloModel = Articulo::find($articulo['idarticulo']);
                     if ($articuloModel) {
-                        $articuloModel->stock = $articulo['stock'];
+                        // Si es por peso/volumen, actualizar stock_decimal
+                        if ($articulo['permite_decimales'] ?? false) {
+                            $articuloModel->stock_decimal = $articulo['stock_decimal'];
+                        } else {
+                            $articuloModel->stock = $articulo['stock'];
+                        }
                         $articuloModel->save();
                     }
                 }

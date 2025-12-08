@@ -169,10 +169,13 @@ class Checkout extends Component
 
                 $detalleData = [
                     'pedido_id' => $pedido->id,
-                    'cantidad' => $item['quantity'],
+                    'cantidad' => isset($item['cantidad_decimal']) ? null : $item['quantity'], // null para peso, valor para unidad
                     'precio_unitario' => $item['price'],
                     'subtotal' => $item['price'] * $item['quantity'],
                     'sku_vendido' => $item['sku'] ?? null,
+                    // Campos para productos por peso/volumen
+                    'cantidad_decimal' => $item['cantidad_decimal'] ?? null, // Solo si es peso/volumen
+                    'unidad_medida_pedido' => $item['unidad_medida'] ?? null,
                 ];
 
                 if ($item['type'] === 'articulo') {
