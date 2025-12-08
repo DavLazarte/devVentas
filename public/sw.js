@@ -1,4 +1,4 @@
-const CACHE_NAME = 'tienda-dux-v5';
+const CACHE_NAME = 'tienda-dux-v6';
 const urlsToCache = [
   '/',
   '/css/app.css',
