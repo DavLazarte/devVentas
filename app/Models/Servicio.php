@@ -42,7 +42,7 @@ class Servicio extends Model
 
     public function getImagenUrlAttribute()
     {
-        return $this->imagen ? asset('storage/' . $this->imagen) : asset('images/default-product.jpg');
+        return $this->imagen ? asset('storage/' . $this->imagen) : null;
     }
 
     public function getPrecioUnitarioAttribute()

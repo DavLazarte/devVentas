@@ -175,6 +175,11 @@ class Compras extends Component
             $this->articuloSeleccionado[$index]['stock'] = $nuevo_stock;
             $this->articuloSeleccionado[$index]['stock_original'] = $stock_original;
 
+            // Si es por peso/volumen, también actualizar stock_decimal
+            if ($articulo['permite_decimales'] ?? false) {
+                $this->articuloSeleccionado[$index]['stock_decimal'] = $nuevo_stock;
+            }
+
             // Actualizamos el total
             $this->actualizarTotal();
         }
@@ -238,7 +243,7 @@ class Compras extends Component
             session()->flash('error', 'Debe agregar al menos un producto a la compra.');
             return;
         }
-    
+
         // Validar que todos los productos tengan precio de compra
         foreach ($this->articuloSeleccionado as $index => $articulo) {
             if (empty($articulo['precio_compra']) || $articulo['precio_compra'] <= 0) {
@@ -246,7 +251,7 @@ class Compras extends Component
                 return;
             }
         }
-    
+
         // Validar compra a cuenta corriente
         if ($this->tipo_venta === 'cuenta_corriente') {
             if (!$this->proveedorSeleccionado) {
@@ -254,19 +259,19 @@ class Compras extends Component
                 return;
             }
         }
-    
+
         // Validar que el pago no sea mayor al total en compra rápida
         if ($this->tipo_venta === 'venta_rapida' && $this->saldo > 0) {
             session()->flash('error', 'Una compra rápida no puede tener saldo pendiente. Ajuste el pago o cambie a cuenta corriente.');
             return;
         }
-    
+
         try {
             DB::beginTransaction();
-            
+
             // Ajustar el valor de saldo
             $this->saldo = max(0, $this->saldo);
-    
+
             $compra = Compra::updateOrCreate(
                 ['id' => $this->id_compra],
                 [
@@ -283,7 +288,7 @@ class Compras extends Component
                     'id_local' => $this->idLocal,
                 ]
             );
-    
+
             foreach ($this->articuloSeleccionado as $articulo) {
                 // Crear detalle de compra con soporte para variantes
                 $detalle_compra = Detalle_compra::create([
@@ -294,14 +299,22 @@ class Compras extends Component
                     'descripcion_variante' => $articulo['descripcion_variante'] ?? null,
                     'cantidad' => $articulo['cantidad'],
                     'precio_compra' => $articulo['precio_compra'],
+                    // Campos para compra por peso/volumen
+                    'cantidad_decimal' => ($articulo['permite_decimales'] ?? false) ? $articulo['cantidad'] : null,
+                    'unidad_medida_compra' => $articulo['unidad_medida'] ?? null,
                 ]);
-    
+
                 // Actualizar stock Y precio de venta según si es variante o producto simple
                 if (isset($articulo['id_variante']) && $articulo['id_variante']) {
                     // Actualizar stock y precio de la variante
                     $variante = ArticuloVariante::find($articulo['id_variante']);
                     if ($variante) {
-                        $variante->stock = $articulo['stock'];
+                        // Si es por peso/volumen, actualizar stock_decimal
+                        if ($articulo['permite_decimales'] ?? false) {
+                            $variante->stock_decimal = $articulo['stock'];
+                        } else {
+                            $variante->stock = $articulo['stock'];
+                        }
                         $variante->precio_unitario = $articulo['precio_venta'];
                         $variante->save();
                     }
@@ -309,17 +322,22 @@ class Compras extends Component
                     // Actualizar stock y precio del producto principal
                     $articuloModel = Articulo::find($articulo['idarticulo']);
                     if ($articuloModel) {
-                        $articuloModel->stock = $articulo['stock'];
+                        // Si es por peso/volumen, actualizar stock_decimal
+                        if ($articulo['permite_decimales'] ?? false) {
+                            $articuloModel->stock_decimal = $articulo['stock'];
+                        } else {
+                            $articuloModel->stock = $articulo['stock'];
+                        }
                         $articuloModel->precio_unitario = $articulo['precio_venta'];
                         $articuloModel->save();
                     }
                 }
             }
-    
+
             DB::commit();
-    
+
             $this->mensajeVenta = 'COMPRA EXITOSA!';
-    
+
             $this->reset([
                 'nombre_cliente',
                 'compra_total',
@@ -343,7 +361,6 @@ class Compras extends Component
                 'searchArticulo',
                 'num_recibo'
             ]);
-    
         } catch (\Exception $e) {
             DB::rollback();
             Log::error('Ocurrió un error al guardar la compra: ' . $e->getMessage());
@@ -384,6 +401,14 @@ class Compras extends Component
             return;
         }
 
+        // Determinar tipo de venta y stock
+        $tipoVenta = $variante?->tipo_venta ?? $articulo->tipo_venta ?? 'unidad';
+        $unidadMedida = $variante?->unidad_medida ?? $articulo->unidad_medida;
+
+        $stockDisponible = ($tipoVenta === 'peso' || $tipoVenta === 'volumen')
+            ? ($variante?->stock_decimal ?? $articulo->stock_decimal ?? 0)
+            : ($variante?->stock ?? $articulo->stock ?? 0);
+
         $this->articuloSeleccionado[] = [
             'idarticulo' => $articulo->idarticulo,
             'id_variante' => $variante?->id_variante,
@@ -392,14 +417,19 @@ class Compras extends Component
                 $articulo->nombre,
             'sku' => $variante?->sku ?? $articulo->codigo,
             'precio_compra' => 0,
-            'porcentaje_ganancia' => 0,    
-            'precio_venta' => 0,            
-            'stock' => $variante?->stock ?? $articulo->stock,
-            'stock_original' => $variante?->stock ?? $articulo->stock,
+            'porcentaje_ganancia' => 0,
+            'precio_venta' => 0,
+            'stock' => $stockDisponible,
+            'stock_original' => $stockDisponible,
             'cantidad' => 1,
             'descripcion' => $articulo->descripcion,
             'descripcion_variante' => $variante?->descripcion_variante,
-            'subtotal' => 0
+            'subtotal' => 0,
+            // Campos para compra por peso/volumen
+            'tipo_venta' => $tipoVenta,
+            'unidad_medida' => $unidadMedida,
+            'stock_decimal' => ($tipoVenta === 'peso' || $tipoVenta === 'volumen') ? $stockDisponible : null,
+            'permite_decimales' => ($tipoVenta === 'peso' || $tipoVenta === 'volumen'),
         ];
 
         $this->calcularSubTotalProducto(count($this->articuloSeleccionado) - 1);

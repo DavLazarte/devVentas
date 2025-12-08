@@ -12,18 +12,23 @@ class Articulo extends Model
     protected $table = 'articulos';
     protected $primaryKey = 'idarticulo';
     protected $fillable = [
-        'idcategoria', 
-        'codigo', 
-        'nombre', 
-        'stock', 
-        'descripcion', 
-        'imagen', 
-        'precio_unitario', 
-        'estado', 
-        'mostrar_feed', 
-        'destacado', 
+        'idcategoria',
+        'codigo',
+        'nombre',
+        'stock',
+        'descripcion',
+        'imagen',
+        'precio_unitario',
+        'estado',
+        'mostrar_feed',
+        'destacado',
         'id_local',
-        'tiene_variantes' // NUEVO CAMPO
+        'tiene_variantes',
+        // Campos para venta por peso/volumen
+        'tipo_venta',
+        'unidad_medida',
+        'precio_por_unidad_medida',
+        'stock_decimal'
     ];
 
     protected $appends = ['imagen_url', 'precio_minimo', 'precio_maximo', 'stock_total'];
@@ -31,12 +36,14 @@ class Articulo extends Model
     protected $casts = [
         'tiene_variantes' => 'boolean',
         'destacado' => 'boolean',
-        'mostrar_feed' => 'boolean'
+        'mostrar_feed' => 'boolean',
+        'precio_por_unidad_medida' => 'decimal:2',
+        'stock_decimal' => 'decimal:3'
     ];
 
     public function getImagenUrlAttribute()
     {
-        return $this->imagen ? asset('storage/' . $this->imagen) : asset('images/default-product.jpg');
+        return $this->imagen ? asset('storage/' . $this->imagen) : null;
     }
 
     // RELACIONES EXISTENTES
@@ -59,14 +66,14 @@ class Articulo extends Model
     public function variantesActivas()
     {
         return $this->hasMany(ArticuloVariante::class, 'idarticulo', 'idarticulo')
-                    ->where('estado', 'activo');
+            ->where('estado', 'activo');
     }
 
     public function variantePrincipal()
     {
         return $this->hasOne(ArticuloVariante::class, 'idarticulo', 'idarticulo')
-                    ->where('es_variante_principal', true)
-                    ->where('estado', 'activo');
+            ->where('es_variante_principal', true)
+            ->where('estado', 'activo');
     }
 
     // ACCESSORS PARA MANEJAR PRECIOS Y STOCK CON VARIANTES
@@ -91,10 +98,27 @@ class Articulo extends Model
     public function getStockTotalAttribute()
     {
         if (!$this->tiene_variantes) {
+            // Si es venta por peso, retornar stock_decimal
+            if ($this->tipo_venta === 'peso' || $this->tipo_venta === 'volumen') {
+                return $this->stock_decimal ?? 0;
+            }
             return $this->stock;
         }
 
+        if ($this->tipo_venta === 'peso' || $this->tipo_venta === 'volumen') {
+            return $this->variantesActivas->sum('stock_decimal');
+        }
+
         return $this->variantesActivas->sum('stock');
+    }
+
+    // Accessor para mostrar precio formateado según tipo de venta
+    public function getPrecioDisplayAttribute()
+    {
+        if ($this->tipo_venta === 'peso' || $this->tipo_venta === 'volumen') {
+            return '$' . number_format($this->precio_por_unidad_medida, 2) . '/' . $this->unidad_medida;
+        }
+        return '$' . number_format($this->precio_unitario, 2);
     }
 
     // SCOPES EXISTENTES
@@ -119,13 +143,13 @@ class Articulo extends Model
         return $query->where(function ($query) {
             // Productos sin variantes con stock
             $query->where('tiene_variantes', false)
-                  ->where('stock', '>', 0);
+                ->where('stock', '>', 0);
         })->orWhere(function ($query) {
             // Productos con variantes que tienen stock
             $query->where('tiene_variantes', true)
-                  ->whereHas('variantesActivas', function ($subQuery) {
-                      $subQuery->where('stock', '>', 0);
-                  });
+                ->whereHas('variantesActivas', function ($subQuery) {
+                    $subQuery->where('stock', '>', 0);
+                });
         });
     }
 
@@ -151,11 +175,11 @@ class Articulo extends Model
         foreach ($variantes as $variante) {
             foreach ($variante->atributoValores as $atributoValor) {
                 $nombreAtributo = $atributoValor->atributo->nombre;
-                
+
                 if (!isset($atributos[$nombreAtributo])) {
                     $atributos[$nombreAtributo] = [];
                 }
-                
+
                 $atributos[$nombreAtributo][] = $atributoValor;
             }
         }

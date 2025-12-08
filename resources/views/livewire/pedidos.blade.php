@@ -1,33 +1,76 @@
-<div class="py-12">
-    <div class="max-w-7xl mx-auto sm:px6 lg:px-8">
-        <h1 class="text-2xl font-bold text-gray-900">Gestión</h1>
+<div class="py-12 min-h-screen">
+    <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+
         @if (session()->has('message'))
-            <div class="mt-4 bg-purple-100 border-l-4 border-purple-500 text-purple-700 p-4" role="alert">
+            <div class="mx-4 sm:mx-0 mb-4 bg-purple-100 border-l-4 border-purple-500 text-purple-700 p-4 rounded-r shadow-sm"
+                role="alert">
                 <p class="font-bold">Notificación</p>
                 <p>{{ session('message') }}</p>
             </div>
         @endif
-        <div class="bg-white overflow-hidden shadow-xl sm:rounded-lg px-4 py-4">
-            {{-- Your existing button and modal code --}}
-            <div class="flex justify-end space-x-2 mb-4">
-                <button wire:click="$set('vista', 'lista')"
-                    class="px-4 py-2 rounded-lg font-semibold text-white 
-                           {{ $vista === 'lista' ? 'bg-purple-600 hover:bg-purple-700' : 'bg-gray-500 hover:bg-gray-600' }}">
-                    Lista
-                </button>
 
-                @if ($tipoPedido === 'servicio')
-                    <button wire:click="$set('vista', 'calendario')"
-                        class="px-4 py-2 rounded-lg font-semibold text-white 
-                               {{ $vista === 'calendario' ? 'bg-purple-600 hover:bg-purple-700' : 'bg-gray-500 hover:bg-gray-600' }}">
-                        Calendario
+        <div class="bg-white overflow-hidden shadow-xl sm:rounded-lg px-4 py-6">
+            {{-- Mobile Card View Styles --}}
+            <style>
+                @media (max-width: 640px) {
+
+                    /* Hide the table header */
+                    .livewire-datatable thead {
+                        display: none;
+                    }
+
+                    /* Make rows display as blocks (cards) */
+                    .livewire-datatable tbody tr {
+                        display: block;
+                        margin-bottom: 1rem;
+                        background-color: #ffffff;
+                        border-radius: 0.75rem;
+                        box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+                        border: 1px solid #f3f4f6;
+                        padding: 1rem;
+                    }
+
+                    /* Make cells display as flex items */
+                    .livewire-datatable tbody td {
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                        padding: 0.5rem 0;
+                        border-bottom: 1px solid #f3f4f6;
+                    }
+
+                    .livewire-datatable tbody td:last-child {
+                        border-bottom: none;
+                        padding-top: 1rem;
+                        justify-content: center;
+                    }
+                }
+            </style>
+
+            <div class="flex flex-col sm:flex-row items-center justify-between mb-6 gap-4">
+                <h1 class="text-2xl font-bold text-gray-900">Gestión de Pedidos</h1>
+
+                <div class="flex space-x-2">
+                    <button wire:click="$set('vista', 'lista')"
+                        class="px-4 py-2 rounded-lg font-semibold text-sm transition-colors duration-200 
+                               {{ $vista === 'lista' ? 'bg-purple-600 text-white shadow-md' : 'bg-gray-100 text-gray-600 hover:bg-gray-200' }}">
+                        <i class="fas fa-list mr-2"></i>Lista
                     </button>
-                @endif
+
+                    @if ($tipoPedido === 'servicio')
+                        <button wire:click="$set('vista', 'calendario')"
+                            class="px-4 py-2 rounded-lg font-semibold text-sm transition-colors duration-200 
+                                   {{ $vista === 'calendario' ? 'bg-purple-600 text-white shadow-md' : 'bg-gray-100 text-gray-600 hover:bg-gray-200' }}">
+                            <i class="fas fa-calendar-alt mr-2"></i>Calendario
+                        </button>
+                    @endif
+                </div>
             </div>
 
             @if ($vista === 'lista')
-                {{-- @livewire('pedido-table' ) --}}
-                <livewire:pedido-table />
+                <div class="livewire-datatable">
+                    <livewire:pedido-table />
+                </div>
             @else
                 {{-- Calendar View --}}
                 <div class="mt-4">
@@ -38,16 +81,26 @@
 
             @if ($isDetailOpen)
                 <div x-data="{ open: @entangle('isDetailOpen') }" x-show="open" x-on:keydown.escape.window="open = false"
-                    class="fixed inset-0 z-50 overflow-y-auto" style="display: none;">
-                    <div
-                        class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-                        <div x-show="open" class="fixed inset-0 transition-opacity" aria-hidden="true">
-                            <div class="absolute inset-0 bg-gray-500 opacity-75"></div>
+                    class="fixed inset-0 z-50 overflow-hidden" style="display: none;">
+                    <div class="absolute inset-0 overflow-hidden">
+                        <div x-show="open" x-transition:enter="ease-in-out duration-500"
+                            x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
+                            x-transition:leave="ease-in-out duration-500" x-transition:leave-start="opacity-100"
+                            x-transition:leave-end="opacity-0"
+                            class="absolute inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true">
                         </div>
 
-                        <div
-                            class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-7xl sm:w-full">
-                            @include('livewire.pedido.show')
+                        <div class="fixed inset-y-0 right-0 pl-0 sm:pl-10 max-w-full flex">
+                            <div x-show="open"
+                                x-transition:enter="transform transition ease-in-out duration-500 sm:duration-700"
+                                x-transition:enter-start="translate-x-full" x-transition:enter-end="translate-x-0"
+                                x-transition:leave="transform transition ease-in-out duration-500 sm:duration-700"
+                                x-transition:leave-start="translate-x-0" x-transition:leave-end="translate-x-full"
+                                class="w-screen sm:max-w-5xl">
+                                <div class="h-full flex flex-col bg-white shadow-xl overflow-y-scroll">
+                                    @include('livewire.pedido.show')
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -55,16 +108,26 @@
 
             @if ($isOpen)
                 <div x-data="{ open: @entangle('isOpen') }" x-show="open" x-on:keydown.escape.window="open = false"
-                    class="fixed inset-0 z-50 overflow-y-auto" style="display: none;">
-                    <div
-                        class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-                        <div x-show="open" class="fixed inset-0 transition-opacity" aria-hidden="true">
-                            <div class="absolute inset-0 bg-gray-500 opacity-75"></div>
+                    class="fixed inset-0 z-50 overflow-hidden" style="display: none;">
+                    <div class="absolute inset-0 overflow-hidden">
+                        <div x-show="open" x-transition:enter="ease-in-out duration-500"
+                            x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
+                            x-transition:leave="ease-in-out duration-500" x-transition:leave-start="opacity-100"
+                            x-transition:leave-end="opacity-0"
+                            class="absolute inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true">
                         </div>
 
-                        <div
-                            class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-7xl sm:w-full">
-                            @include('livewire.pedido.editar')
+                        <div class="fixed inset-y-0 right-0 pl-0 sm:pl-10 max-w-full flex">
+                            <div x-show="open"
+                                x-transition:enter="transform transition ease-in-out duration-500 sm:duration-700"
+                                x-transition:enter-start="translate-x-full" x-transition:enter-end="translate-x-0"
+                                x-transition:leave="transform transition ease-in-out duration-500 sm:duration-700"
+                                x-transition:leave-start="translate-x-0" x-transition:leave-end="translate-x-full"
+                                class="w-screen sm:max-w-5xl">
+                                <div class="h-full flex flex-col bg-white shadow-xl overflow-y-scroll">
+                                    @include('livewire.pedido.editar')
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>

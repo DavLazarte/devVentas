@@ -25,7 +25,7 @@ class ProductDetail extends Component
     public $isFavorite = false;
     public $currentImageIndex = 0;
     public $showFullDescription = false;
-    public $quantity = 1;
+    public $quantity = 0;
 
     // Variantes (para articulos)
     public $selectedVariantId = null;
@@ -56,12 +56,12 @@ class ProductDetail extends Component
             } else {
                 $this->product = Servicio::with(['categoria', 'local', 'empleados'])->findOrFail($id);
             }
-    
+
             // Esta lógica ahora funcionará correctamente
             if ($this->type === 'servicio' && $this->product->empleados->count() === 1) {
                 $this->selectedEmployeeId = $this->product->empleados->first()->idpersona;
             }
-    
+
             if ($this->type === 'servicio') {
                 $this->currentMonth = now()->month;
                 $this->currentYear = now()->year;
@@ -201,7 +201,7 @@ class ProductDetail extends Component
                         $slots[] = $inicio->format('H:i');
                     }
                     // $inicio->addMinutes(self::SLOT_INTERVAL_MINUTES);
-                     $inicio->addMinutes($this->product->duracion + ($this->product->buffer_tiempo ?? 0));
+                    $inicio->addMinutes($this->product->duracion + ($this->product->buffer_tiempo ?? 0));
                 }
             }
 
@@ -428,6 +428,32 @@ class ProductDetail extends Component
                 $itemData['variant'] = $variant->descripcion_variante;
                 // asegurar precio preciso por variante
                 $itemData['price'] = (float) $variant->precio_unitario;
+            }
+        }
+
+        // Datos de peso/volumen para artículos
+        if ($this->type === 'articulo') {
+            $tipoVenta = 'unidad';
+            $unidadMedida = null;
+
+            // Si tiene variante seleccionada, usar tipo de la variante
+            if ($this->product->tiene_variantes && $this->selectedVariantId) {
+                $variant = optional($this->product->variantesActivas)->firstWhere('id_variante', $this->selectedVariantId);
+                if ($variant) {
+                    $tipoVenta = $variant->tipo_venta ?? 'unidad';
+                    $unidadMedida = $variant->unidad_medida;
+                }
+            } else {
+                // Producto simple, usar tipo del producto
+                $tipoVenta = $this->product->tipo_venta ?? 'unidad';
+                $unidadMedida = $this->product->unidad_medida;
+            }
+
+            // Agregar campos si es por peso/volumen
+            if ($tipoVenta === 'peso' || $tipoVenta === 'volumen') {
+                $itemData['cantidad_decimal'] = $quantity;
+                $itemData['unidad_medida'] = $unidadMedida;
+                $itemData['tipo_venta'] = $tipoVenta;
             }
         }
 

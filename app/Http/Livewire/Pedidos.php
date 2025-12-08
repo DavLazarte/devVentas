@@ -45,7 +45,7 @@ class Pedidos extends Component
     public function mount()
     {
         $this->tipoPedido = auth()->user()->local->tipo;
-        
+
         // The calendar will only be shown for 'servicio' type
         if ($this->tipoPedido === 'servicio') {
             $this->cargarReservas();
@@ -75,7 +75,7 @@ class Pedidos extends Component
         $this->codigo_postal = $pedido->codigo_postal;
         $this->notas_entrega = $pedido->notas_entrega;
         $this->metodo_pago = $pedido->metodo_pago;
-        
+
         // Asignar el estado correcto según el tipo de pedido
         if ($pedido->tipo_pedido === 'servicio') {
             $this->estado = $pedido->estado_reserva;
@@ -93,11 +93,14 @@ class Pedidos extends Component
                 'id' => $detalle->idarticulo ?? $detalle->idservicio,
                 'name' => $producto->nombre ?? 'Producto',
                 'price' => $detalle->precio_unitario,
-                'quantity' => $detalle->cantidad,
+                'quantity' => $detalle->cantidad, // Solo para productos por unidad
                 'variant' => $variante?->descripcion_variante,
-                'image' => $producto->imagen_url ?? asset('images/default-product.jpg'),
+                'image' => $producto->imagen_url ?? null,
                 'shop' => $pedido->local->nombre ?? 'Tienda',
-                'type' => $detalle->idarticulo ? 'articulo' : 'servicio'
+                'type' => $detalle->idarticulo ? 'articulo' : 'servicio',
+                // Campos para peso/volumen
+                'cantidad_decimal' => $detalle->cantidad_decimal,
+                'unidad_medida' => $detalle->unidad_medida_pedido,
             ];
 
             // Agregar información específica de servicios
@@ -130,7 +133,7 @@ class Pedidos extends Component
         $pedidos = Pedido::where('tipo_pedido', 'servicio')
             ->whereNotNull('fecha_servicio')
             ->get();
-        
+
         $this->reservas = $pedidos->map(function ($pedido) {
             // Determinar el color según el estado_reserva
             $color = '#ffc107'; // Amarillo por defecto (pendiente)
@@ -149,7 +152,7 @@ class Pedidos extends Component
                     $color = '#ffc107'; // Amarillo
                     break;
             }
-            
+
             return [
                 'id'    => $pedido->id,
                 'title' => 'Reserva #' . $pedido->id . ' - ' . $pedido->nombre_cliente,
@@ -159,7 +162,7 @@ class Pedidos extends Component
             ];
         })->toArray();
     }
-    
+
 
     public function verDetalle($id)
     {
@@ -173,7 +176,7 @@ class Pedidos extends Component
         $this->codigo_postal = $pedido->codigo_postal;
         $this->notas_entrega = $pedido->notas_entrega;
         $this->metodo_pago = $pedido->metodo_pago;
-        
+
         // Asignar el estado correcto según el tipo de pedido
         if ($pedido->tipo_pedido === 'servicio') {
             $this->estado = $pedido->estado_reserva;
@@ -201,12 +204,12 @@ class Pedidos extends Component
         try {
             $pedido = Pedido::findOrFail($id);
             $tipoPedido = $pedido->tipo_pedido; // Guardar el tipo antes de eliminar
-            
+
             $pedido->detalles()->delete(); // Eliminar detalles primero
             $pedido->delete();
             session()->flash('message', 'Pedido eliminado exitosamente.');
             $this->emit('refreshDatatablePedidos');
-            
+
             // Si era un servicio, refrescar también el calendario
             if ($tipoPedido === 'servicio') {
                 $this->cargarReservas();
@@ -236,13 +239,13 @@ class Pedidos extends Component
 
             session()->flash('message', 'Estado del pedido actualizado exitosamente.');
             $this->emit('refreshDatatablePedidos');
-            
+
             // Si es un servicio, refrescar también el calendario
             if ($pedido->tipo_pedido === 'servicio') {
                 $this->cargarReservas();
                 $this->emit('refreshCalendar', $this->reservas);
             }
-            
+
             $this->closeModal();
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\Log::error("Error al actualizar el estado del pedido: " . $e->getMessage());

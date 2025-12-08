@@ -21,13 +21,16 @@ class DetallePedido extends Model
         'variante',
         'sku_vendido',
         'descripcion_variante',
-        'id_empleado'
+        'id_empleado',
+        'cantidad_decimal',
+        'unidad_medida_pedido',
     ];
 
     protected $casts = [
         'cantidad' => 'integer',
         'precio_unitario' => 'decimal:2',
-        'subtotal' => 'decimal:2'
+        'subtotal' => 'decimal:2',
+        'cantidad_decimal' => 'decimal:3',
     ];
 
     public function empleado()

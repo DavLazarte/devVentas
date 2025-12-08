@@ -12,17 +12,17 @@
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&display=swap">
 
 
-
-    <!-- Bootstrap (ahora está después de tu CSS) -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" rel="stylesheet"
-        integrity="sha384-rbsA2VBKQhggwzxH7pPCaAqO46MgnOM80zW1RWuH61DGLwZJEdK2Kadq2F9CUG65" crossorigin="anonymous">
-    <!-- Tu CSS (cárgalo antes para que Bootstrap lo sobrescriba en caso de conflicto) -->
-    <link href="{{ mix('css/app.css') }}" rel="stylesheet">
-    <!-- SweetAlert2 CSS (después de Bootstrap para evitar conflictos) -->
+    <!-- SweetAlert2 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
 
     <!-- FontAwesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+
+    <!-- Tu CSS con Tailwind (ÚLTIMO para que tenga prioridad) -->
+    <link href="{{ mix('css/app.css') }}" rel="stylesheet">
+    <!-- Bootstrap (primero) -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-rbsA2VBKQhggwzxH7pPCaAqO46MgnOM80zW1RWuH61DGLwZJEdK2Kadq2F9CUG65" crossorigin="anonymous">
 
     <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
@@ -40,6 +40,11 @@
     <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
     {{-- estilo de las notificaciones es solo para mvp mover a resources cuando lo validemos en produ --}}
     <style>
+        a {
+            text-decoration: none !important;
+            /* color: inherit !important; */
+        }
+
         .order-notification-toast {
             position: fixed;
             bottom: -100px;
@@ -194,6 +199,7 @@
                 opacity: 0;
                 transform: translateX(100%);
             }
+
             to {
                 opacity: 1;
                 transform: translateX(0);
@@ -219,7 +225,7 @@
                 class="fixed inset-y-0 left-0 z-30 w-64 overflow-y-auto transition duration-300 transform bg-gray-900 lg:translate-x-0 lg:static lg:inset-0">
                 <div class="flex items-center justify-center mt-8">
                     <div class="flex items-center">
-                       
+
                         <a href="https://ventas.tiendadux.ar/" class="mx-2 text-2xl font-semibold text-white">
                             <div class="flex items-center">
                                 <img src="{{ asset('images/logodux.svg') }}" alt="Tienda Dux"
@@ -419,9 +425,11 @@
 
             </div>
             <div class="flex flex-col flex-1 overflow-hidden">
-                <header class="flex items-center justify-between px-6 py-4 bg-white border-b-4 border-purple-600">
+                <header
+                    class="sticky top-0 z-40 flex items-center justify-between px-6 py-3 bg-white/90 backdrop-blur-md border-b border-gray-200 shadow-sm transition-all duration-300">
                     <div class="flex items-center">
-                        <button @click="sidebarOpen = true" class="text-gray-500 focus:outline-none lg:hidden">
+                        <button @click="sidebarOpen = true"
+                            class="text-gray-500 focus:outline-none lg:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors">
                             <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none"
                                 xmlns="http://www.w3.org/2000/svg">
                                 <path d="M4 6H20M4 12H20M4 18H11" stroke="currentColor" stroke-width="2"
@@ -431,7 +439,7 @@
 
                         <div class="relative mx-4 lg:mx-0">
                             <span class="absolute inset-y-0 left-0 flex items-center pl-3">
-                                <svg class="w-5 h-5 text-gray-500" viewBox="0 0 24 24" fill="none">
+                                <svg class="w-5 h-5 text-gray-400" viewBox="0 0 24 24" fill="none">
                                     <path
                                         d="M21 21L15 15M17 10C17 13.866 13.866 17 10 17C6.13401 17 3 13.866 3 10C3 6.13401 6.13401 3 10 3C13.866 3 17 6.13401 17 10Z"
                                         stroke="currentColor" stroke-width="2" stroke-linecap="round"
@@ -442,9 +450,10 @@
                         </div>
                     </div>
 
-                    <div class="flex items-center">
+                    <div class="flex items-center gap-2">
                         <div class="relative">
-                            <button data-notification-bell class="flex mx-4 text-gray-600 focus:outline-none relative">
+                            <button data-notification-bell
+                                class="flex mx-2 text-gray-500 hover:text-purple-600 focus:outline-none relative p-2 rounded-full hover:bg-gray-100 transition-all">
                                 <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none"
                                     xmlns="http://www.w3.org/2000/svg">
                                     <path
@@ -460,7 +469,7 @@
                             <x-dropdown align="right" width="48">
                                 <x-slot name="trigger">
                                     <button
-                                        class="flex items-center text-m font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300 focus:outline-none focus:text-gray-700 focus:border-gray-300 transition duration-150 ease-in-out">
+                                        class="flex items-center text-sm font-medium text-gray-600 hover:text-gray-900 focus:outline-none transition duration-150 ease-in-out bg-gray-50 px-3 py-2 rounded-full border border-gray-200 hover:bg-white hover:shadow-sm">
                                         <div>{{ Auth::user()->name }}</div>
 
                                         <div class="ml-1">

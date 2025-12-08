@@ -25,7 +25,7 @@
                                 <strong>Fecha de Compra:</strong> {{ $ver_compra->created_at }}
                             </p>
                             <p class="text-lg font-semibold text-gray-700">
-                                <strong>Proveedor:</strong> 
+                                <strong>Proveedor:</strong>
                                 {{ $ver_compra->proveedor ? $ver_compra->proveedor->nombre : 'Compra Rápida' }}
                             </p>
                         </div>
@@ -57,8 +57,21 @@
                                 @foreach ($ver_compra->detallesCompra as $detalle)
                                     <tr class="border-b">
                                         <td class="px-4 py-2">{{ $detalle->articulo->nombre }}</td>
-                                        <td class="px-4 py-2">{{ $detalle->cantidad }}</td>
-                                        <td class="px-4 py-2">{{ $detalle->precio_compra }}</td>
+                                        <td class="px-4 py-2">
+                                            @if ($detalle->cantidad_decimal)
+                                                {{ $detalle->cantidad_decimal }} <span
+                                                    class="text-xs text-gray-500">{{ $detalle->unidad_medida_compra ?? 'kg' }}</span>
+                                            @else
+                                                {{ $detalle->cantidad }}
+                                            @endif
+                                        </td>
+                                        <td class="px-4 py-2">
+                                            ${{ number_format($detalle->precio_compra, 2) }}
+                                            @if ($detalle->unidad_medida_compra)
+                                                <span
+                                                    class="text-xs text-gray-500">/{{ $detalle->unidad_medida_compra }}</span>
+                                            @endif
+                                        </td>
                                         <td class="px-4 py-2">{{ $detalle->cantidad * $detalle->precio_compra }}</td>
                                     </tr>
                                 @endforeach

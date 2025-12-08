@@ -17,6 +17,12 @@ class Detalle_compra extends Model
         'id_variante',
         'sku_comprado',
         'descripcion_variante',
+        'cantidad_decimal',
+        'unidad_medida_compra',
+    ];
+
+    protected $casts = [
+        'cantidad_decimal' => 'decimal:3',
     ];
 
     public function compra()

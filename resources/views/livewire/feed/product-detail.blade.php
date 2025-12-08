@@ -45,8 +45,10 @@
                     <img src="{{ Voyager::image($product->imagen) }}" alt="{{ $product->nombre }}"
                         class="w-full h-full object-cover">
                 @else
-                    <div class="w-full h-full bg-gray-200 flex items-center justify-center">
-                        <span class="text-gray-400">Sin imagen</span>
+                    <div class="w-full h-full bg-purple-50 flex items-center justify-center">
+                        <span class="text-6xl font-bold text-purple-200 uppercase select-none">
+                            {{ substr($product->nombre, 0, 1) }}
+                        </span>
                     </div>
                 @endif
 
@@ -201,27 +203,60 @@
                     <div class="flex items-center justify-between">
                         <span class="text-sm text-gray-600">Cantidad:</span>
                         <div class="flex items-center space-x-2">
-                            <button
-                                class="w-8 h-8 bg-gray-100 text-gray-600 rounded-full flex items-center justify-center hover:bg-gray-200 transition-colors"
-                                wire:click="updateQuantity({{ $quantity - 1 }})">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none"
-                                    viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M20 12H4" />
-                                </svg>
-                            </button>
+                            @php
+                                // Detectar si es por peso/volumen
+                                $tipoVenta = 'unidad';
+                                $unidadMedida = null;
 
-                            <span class="text-sm font-medium w-8 text-center">{{ $quantity }}</span>
+                                if ($product->tiene_variantes && $selectedVariantId) {
+                                    $variant = $product->variantesActivas->firstWhere(
+                                        'id_variante',
+                                        $selectedVariantId,
+                                    );
+                                    if ($variant) {
+                                        $tipoVenta = $variant->tipo_venta ?? 'unidad';
+                                        $unidadMedida = $variant->unidad_medida;
+                                    }
+                                } else {
+                                    $tipoVenta = $product->tipo_venta ?? 'unidad';
+                                    $unidadMedida = $product->unidad_medida;
+                                }
 
-                            <button
-                                class="w-8 h-8 bg-gray-100 text-gray-600 rounded-full flex items-center justify-center hover:bg-gray-200 transition-colors"
-                                wire:click="updateQuantity({{ $quantity + 1 }})">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none"
-                                    viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M12 6v6m0 0v6m-6 0h6m-6 0H6" />
-                                </svg>
-                            </button>
+                                $permiteDecimales = $tipoVenta === 'peso' || $tipoVenta === 'volumen';
+                            @endphp
+
+                            @if ($permiteDecimales)
+                                <!-- Input decimal para peso/volumen -->
+                                <div class="flex flex-col items-center">
+                                    <input type="number" wire:model="quantity" step="0.001" min="0.001"
+                                        class="w-20 text-center text-sm font-medium border border-gray-300 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                                        placeholder="1.500">
+                                    <span class="text-xs text-gray-500 mt-1">{{ $unidadMedida ?? 'kg' }}</span>
+                                </div>
+                            @else
+                                <!-- Botones +/- para unidades -->
+                                <button
+                                    class="w-8 h-8 bg-gray-100 text-gray-600 rounded-full flex items-center justify-center hover:bg-gray-200 transition-colors active:scale-95"
+                                    wire:click="updateQuantity({{ $quantity - 1 }})">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none"
+                                        viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M20 12H4" />
+                                    </svg>
+                                </button>
+
+                                <span class="text-sm font-medium w-8 text-center">{{ $quantity }}</span>
+
+                                <button
+                                    class="w-8 h-8 bg-gray-100 text-gray-600 rounded-full flex items-center justify-center hover:bg-gray-200 transition-colors active:scale-95"
+                                    wire:click="updateQuantity({{ $quantity + 1 }})">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none"
+                                        viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M12 4v16m8-8H4" />
+                                    </svg>
+                                </button>
+                            @endif
                         </div>
                     </div>
                 @elseif($type === 'servicio' && $product->tipo_reserva === 'turno_fijo')
