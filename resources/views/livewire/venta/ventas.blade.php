@@ -1,10 +1,10 @@
 <div class="min-h-screen bg-gray-50">
     <!-- HEADER FIJO SUPERIOR -->
     <div class="sticky top-0 z-40 bg-white shadow-lg border-b-2 border-purple-200">
-        <div class="max-w-full mx-auto px-3 sm:px-4 py-3">
+        <div class="max-w-full mx-auto px-2 sm:px-3 py-1">
             <!-- Título y Mensaje -->
-            <div class="flex items-center justify-between mb-3">
-                <h3 class="text-lg sm:text-xl font-bold text-gray-900">PUNTO DE VENTA</h3>
+            <div class="flex items-center justify-between mb-1">
+                <h3 class="text-base sm:text-lg font-bold text-gray-900">PUNTO DE VENTA</h3>
                 @if ($mensajeVenta)
                     <div class="bg-teal-100 rounded px-3 sm:px-4 py-2 shadow-md" role="alert">
                         <span class="text-teal-900 font-medium text-sm">{{ $mensajeVenta }}</span>
@@ -13,7 +13,7 @@
             </div>
 
             <!-- FILA 1: Configuraciones de la venta -->
-            <div class="grid grid-cols-12 gap-3 sm:gap-4 mb-4">
+            <div class="grid grid-cols-12 gap-2 sm:gap-3 mb-2">
                 <!-- Buscar Producto -->
                 <div class="col-span-12 md:col-span-6 lg:col-span-4 relative">
                     <div class="flex items-center justify-between mb-2">
@@ -28,7 +28,7 @@
                         </button>
                     </div>
                     <input wire:model.debounce.300ms="searchArticulo" type="text"
-                        class="block w-full text-sm border border-gray-300 rounded-md py-2.5 px-3 focus:ring-purple-500 focus:border-purple-500"
+                        class="block w-full text-sm border border-gray-300 rounded-md py-1.5 px-3 focus:ring-purple-500 focus:border-purple-500"
                         placeholder="Escanear o buscar..." autofocus>
                     @if ($searchArticulo)
                         <div class="absolute z-50 bg-white w-full rounded-md shadow-lg mt-1 max-h-60 overflow-y-auto">
@@ -51,7 +51,7 @@
                             <input type="radio" name="tipo_venta" value="venta_rapida" wire:model="tipo_venta"
                                 class="peer sr-only">
                             <div
-                                class="w-full px-3 py-2 bg-white border-2 rounded-md border-gray-200 text-gray-600 peer-checked:border-purple-500 peer-checked:bg-purple-50 peer-checked:text-purple-700 hover:border-gray-300 text-xs font-medium text-center transition-all">
+                                class="w-full px-2 py-1 bg-white border-2 rounded-md border-gray-200 text-gray-600 peer-checked:border-purple-500 peer-checked:bg-purple-50 peer-checked:text-purple-700 hover:border-gray-300 text-xs font-medium text-center transition-all">
                                 Venta Rápida
                             </div>
                         </label>
@@ -59,7 +59,7 @@
                             <input type="radio" name="tipo_venta" value="cuenta_corriente" wire:model="tipo_venta"
                                 class="peer sr-only">
                             <div
-                                class="w-full px-3 py-2 bg-white border-2 rounded-md border-gray-200 text-gray-600 peer-checked:border-purple-500 peer-checked:bg-purple-50 peer-checked:text-purple-700 hover:border-gray-300 text-xs font-medium text-center transition-all">
+                                class="w-full px-2 py-1 bg-white border-2 rounded-md border-gray-200 text-gray-600 peer-checked:border-purple-500 peer-checked:bg-purple-50 peer-checked:text-purple-700 hover:border-gray-300 text-xs font-medium text-center transition-all">
                                 Cuenta Corriente
                             </div>
                         </label>
@@ -71,7 +71,7 @@
                     <div class="col-span-6 md:col-span-3 lg:col-span-3 relative">
                         <label class="block text-xs font-medium text-gray-700 mb-1">Cliente</label>
                         <input type="text" wire:model.debounce.300ms="searchCliente"
-                            class="block w-full text-sm border border-gray-300 rounded-md py-2 px-3 focus:ring-purple-500 focus:border-purple-500"
+                            class="block w-full text-sm border border-gray-300 rounded-md py-1.5 px-3 focus:ring-purple-500 focus:border-purple-500"
                             placeholder="Buscar cliente...">
                         @if ($searchCliente)
                             <div
@@ -98,7 +98,7 @@
                 <div class="col-span-12 md:col-span-6 lg:col-span-3">
                     <label class="block text-xs font-medium text-gray-700 mb-1">Forma de Pago</label>
                     <select wire:model="forma_de_pago"
-                        class="block w-full text-sm border-gray-300 rounded-md py-2 px-3 focus:ring-purple-500 focus:border-purple-500">
+                        class="block w-full text-sm border-gray-300 rounded-md py-1.5 px-3 focus:ring-purple-500 focus:border-purple-500">
                         <option value="efectivo">💵 Efectivo</option>
                         <option value="transferencia">🏦 Transferencia</option>
                         <option value="tarjeta">💳 Tarjeta</option>
@@ -109,47 +109,47 @@
 
             <!-- FILA 2: Totales y Acciones (MÁS GRANDE) -->
             <div
-                class="grid grid-cols-12 gap-2 sm:gap-3 bg-gradient-to-r from-purple-50 to-blue-50 p-3 rounded-lg border-2 border-purple-200">
+                class="grid grid-cols-12 gap-2 bg-gradient-to-r from-purple-50 to-blue-50 p-1 rounded-lg border border-purple-200">
                 <!-- Descuento -->
                 <div class="col-span-6 sm:col-span-4 md:col-span-3 lg:col-span-2">
-                    <label class="block text-xs font-semibold text-gray-700 mb-1.5">Descuento %</label>
+                    <label class="block text-[10px] font-semibold text-gray-700 mb-0.5">Descuento %</label>
                     <input type="number" wire:model.debounce.500ms="descuento"
-                        class="block w-full text-sm sm:text-base border-gray-300 rounded-md py-2 px-2 sm:px-3 focus:ring-purple-500 focus:border-purple-500 font-medium"
+                        class="block w-full text-xs border-gray-300 rounded-md py-0.5 px-1 focus:ring-purple-500 focus:border-purple-500 font-medium"
                         placeholder="0">
                 </div>
 
                 <!-- Recargo -->
                 <div class="col-span-6 sm:col-span-4 md:col-span-3 lg:col-span-2">
-                    <label class="block text-xs font-semibold text-gray-700 mb-1.5">Recargo %</label>
+                    <label class="block text-[10px] font-semibold text-gray-700 mb-0.5">Recargo %</label>
                     <input type="number" wire:model.debounce.500ms="recargo"
-                        class="block w-full text-sm sm:text-base border-gray-300 rounded-md py-2 px-2 sm:px-3 focus:ring-purple-500 focus:border-purple-500 font-medium"
+                        class="block w-full text-xs border-gray-300 rounded-md py-0.5 px-1 focus:ring-purple-500 focus:border-purple-500 font-medium"
                         placeholder="0">
                 </div>
 
                 <!-- TOTAL (MÁS GRANDE) -->
                 <div class="col-span-12 sm:col-span-4 md:col-span-6 lg:col-span-3">
-                    <label class="block text-xs sm:text-sm font-bold text-gray-700 mb-1.5">TOTAL</label>
+                    <label class="block text-[10px] font-bold text-gray-700 mb-0.5">TOTAL</label>
                     <div
-                        class="text-2xl sm:text-3xl font-black text-purple-600 bg-white border-4 border-purple-400 rounded-lg py-2 sm:py-3 px-3 sm:px-4 text-center shadow-lg">
+                        class="text-lg sm:text-xl font-black text-purple-600 bg-white border border-purple-400 rounded-md py-0.5 px-1 text-center shadow-sm">
                         ${{ number_format($venta_total, 2) }}
                     </div>
                 </div>
 
                 <!-- Pago -->
                 <div class="col-span-6 sm:col-span-6 md:col-span-4 lg:col-span-2">
-                    <label class="block text-xs font-semibold text-gray-700 mb-1.5">Pago</label>
+                    <label class="block text-[10px] font-semibold text-gray-700 mb-0.5">Pago</label>
                     <input type="number" wire:model.debounce.500ms="pago"
-                        class="block w-full text-sm sm:text-base border-gray-300 rounded-md py-2 px-2 sm:px-3 focus:ring-purple-500 focus:border-purple-500 font-medium"
+                        class="block w-full text-xs border-gray-300 rounded-md py-0.5 px-1 focus:ring-purple-500 focus:border-purple-500 font-medium"
                         placeholder="0.00">
                 </div>
 
                 <!-- Saldo/Cambio (MÁS GRANDE) -->
                 <div class="col-span-6 sm:col-span-6 md:col-span-4 lg:col-span-2">
-                    <label class="block text-xs font-bold mb-1.5"
+                    <label class="block text-[10px] font-bold mb-0.5"
                         :class="{ 'text-green-700': $wire.saldo < 0, 'text-red-700': $wire.saldo >= 0 }">
                         <span x-text="$wire.saldo < 0 ? 'CAMBIO' : 'SALDO'"></span>
                     </label>
-                    <div class="text-lg sm:text-xl font-bold rounded-lg py-2 sm:py-2.5 px-2 sm:px-3 text-center border-4"
+                    <div class="text-sm sm:text-base font-bold rounded-md py-0.5 px-1 text-center border"
                         :class="{
                             'text-green-700 bg-green-50 border-green-400': $wire.saldo < 0,
                             'text-red-700 bg-red-50 border-red-400': $wire.saldo >= 0
@@ -160,9 +160,9 @@
 
                 <!-- Botón Cargar Venta (MÁS GRANDE) -->
                 <div class="col-span-12 md:col-span-4 lg:col-span-1">
-                    <label class="block text-xs font-medium text-transparent mb-1.5">.</label>
+                    <label class="block text-[10px] font-medium text-transparent mb-0.5">.</label>
                     <button wire:click="guardar()"
-                        class="w-full bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white py-2.5 sm:py-3 px-3 sm:px-4 rounded-lg shadow-lg focus:outline-none focus:ring-4 focus:ring-purple-400 transition-all text-sm sm:text-base font-bold transform hover:scale-105">
+                        class="w-full bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white py-1 px-2 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-400 transition-all text-xs font-bold transform hover:scale-105">
                         CARGAR
                     </button>
                 </div>
@@ -204,12 +204,12 @@
         </div>
     @endif
 
-    <!-- TABLA DE PRODUCTOS - PANTALLA COMPLETA -->
-    <div class="max-w-full mx-auto px-3 sm:px-4 py-4">
+    <!-- TABLA DE PRODUCTOS - RESPONSIVE (Cards en Mobile, Tabla en Desktop) -->
+    <div class="max-w-full mx-auto px-2 sm:px-4 py-4 pb-20">
         <div class="bg-white rounded-lg shadow-lg overflow-hidden">
-            <div class="overflow-x-auto">
+            <div class="w-full">
                 <table class="min-w-full divide-y divide-gray-200">
-                    <thead class="bg-gradient-to-r from-purple-600 to-purple-700">
+                    <thead class="bg-gradient-to-r from-purple-600 to-purple-700 hidden sm:table-header-group">
                         <tr>
                             <th
                                 class="px-3 sm:px-4 py-3 text-left text-xs font-bold text-white uppercase tracking-wider">
@@ -234,19 +234,38 @@
                     <tbody class="bg-white divide-y divide-gray-200">
                         @forelse ($articuloSeleccionado as $index => $art)
                             @if (!isset($art['eliminado']) || !$art['eliminado'])
-                                <tr class="hover:bg-purple-50 transition-colors">
-                                    <!-- Producto -->
-                                    <td class="px-3 sm:px-4 py-3">
-                                        <div class="text-sm font-semibold text-gray-900">{{ $art['nombre'] ?? '' }}
-                                        </div>
-                                        @if ($art['descripcion_variante'] ?? false)
-                                            <div class="text-xs text-gray-500">{{ $art['descripcion_variante'] }}
+                                <tr
+                                    class="hover:bg-purple-50 transition-colors block sm:table-row border-b-4 border-gray-100 sm:border-b last:border-0 mb-2 sm:mb-0">
+
+                                    <!-- Producto (Mobile: Header de Card) -->
+                                    <td
+                                        class="px-3 sm:px-4 py-2 sm:py-3 block sm:table-cell bg-purple-50 sm:bg-transparent">
+                                        <div class="flex justify-between items-start sm:block">
+                                            <div>
+                                                <div class="text-sm font-bold sm:font-semibold text-gray-900">
+                                                    {{ $art['nombre'] ?? '' }}</div>
+                                                @if ($art['descripcion_variante'] ?? false)
+                                                    <div class="text-xs text-gray-500">
+                                                        {{ $art['descripcion_variante'] }}</div>
+                                                @endif
                                             </div>
-                                        @endif
+                                            <!-- Mobile Delete Button visible in header of card -->
+                                            <button wire:click="eliminarArticulo({{ $index }})"
+                                                class="sm:hidden text-red-500 p-1">
+                                                <svg class="w-5 h-5" fill="none" stroke="currentColor"
+                                                    viewBox="0 0 24 24">
+                                                    <path d="M6 18L18 6M6 6l12 12" stroke-linecap="round"
+                                                        stroke-linejoin="round" stroke-width="2" />
+                                                </svg>
+                                            </button>
+                                        </div>
                                     </td>
 
                                     <!-- Stock -->
-                                    <td class="px-3 sm:px-4 py-3">
+                                    <td
+                                        class="px-3 sm:px-4 py-2 sm:py-3 block sm:table-cell flex justify-between items-center sm:block">
+                                        <span
+                                            class="sm:hidden text-xs font-semibold text-gray-500 uppercase">Stock:</span>
                                         <span class="text-sm text-gray-700 font-medium">
                                             {{ $art['stock'] ?? '' }}
                                             @if ($art['permite_decimales'] ?? false)
@@ -257,74 +276,83 @@
                                     </td>
 
                                     <!-- Precio -->
-                                    <td class="px-3 sm:px-4 py-3">
-                                        <div class="relative w-24 sm:w-28">
+                                    <td
+                                        class="px-3 sm:px-4 py-2 sm:py-3 block sm:table-cell flex justify-between items-center sm:block">
+                                        <span
+                                            class="sm:hidden text-xs font-semibold text-gray-500 uppercase">Precio:</span>
+                                        <div class="relative w-32 sm:w-28">
                                             <span
                                                 class="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-500 text-sm">$</span>
                                             <input type="number"
                                                 wire:model="articuloSeleccionado.{{ $index }}.precio_unitario"
                                                 wire:change="calcularSubTotalProducto({{ $index }})"
                                                 step="0.01"
-                                                class="pl-6 pr-2 py-1.5 w-full text-sm border-gray-300 rounded-md focus:ring-purple-500 focus:border-purple-500 text-right">
+                                                class="pl-6 pr-2 py-1.5 w-full text-sm border-gray-300 rounded-md focus:ring-purple-500 focus:border-purple-500 text-right font-semibold">
                                         </div>
                                     </td>
 
                                     <!-- Cantidad -->
-                                    <td class="px-3 sm:px-4 py-3">
-                                        @if ($art['permite_decimales'] ?? false)
-                                            <!-- Input decimal para peso/volumen -->
-                                            <div class="flex flex-col items-center">
-                                                <input type="number"
-                                                    wire:model="articuloSeleccionado.{{ $index }}.cantidad"
-                                                    wire:change="calcularSubTotalProducto({{ $index }})"
-                                                    step="0.001" min="0.001"
-                                                    class="w-20 sm:w-24 text-center px-2 py-1.5 border-gray-300 focus:ring-purple-500 focus:border-purple-500 text-sm rounded-md"
-                                                    placeholder="1.500">
-                                                <span
-                                                    class="text-xs text-gray-500 mt-1">{{ $art['unidad_medida'] ?? '' }}</span>
-                                            </div>
-                                        @else
-                                            <!-- Botones +/- para unidades -->
-                                            <div class="flex items-center justify-center gap-1 sm:gap-2">
-                                                <button type="button"
-                                                    wire:click="decrementarCantidad({{ $index }})"
-                                                    class="bg-purple-100 hover:bg-purple-200 text-purple-700 w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center transition-colors">
-                                                    <svg class="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none"
-                                                        stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path d="M20 12H4" stroke-width="2.5" stroke-linecap="round"
-                                                            stroke-linejoin="round" />
-                                                    </svg>
-                                                </button>
-                                                <input type="number"
-                                                    wire:model="articuloSeleccionado.{{ $index }}.cantidad"
-                                                    wire:change="calcularSubTotalProducto({{ $index }})"
-                                                    min="1"
-                                                    class="w-12 sm:w-16 text-center px-1 sm:px-2 py-1.5 border-gray-300 focus:ring-purple-500 focus:border-purple-500 text-sm rounded-md font-semibold">
-                                                <button type="button"
-                                                    wire:click="incrementarCantidad({{ $index }})"
-                                                    class="bg-purple-100 hover:bg-purple-200 text-purple-700 w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center transition-colors">
-                                                    <svg class="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none"
-                                                        stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path d="M12 4v16m8-8H4" stroke-width="2.5"
-                                                            stroke-linecap="round" stroke-linejoin="round" />
-                                                    </svg>
-                                                </button>
-                                            </div>
-                                        @endif
+                                    <td
+                                        class="px-3 sm:px-4 py-2 sm:py-3 block sm:table-cell flex justify-between items-center sm:block">
+                                        <span
+                                            class="sm:hidden text-xs font-semibold text-gray-500 uppercase">Cantidad:</span>
+                                        <div class="flex justify-end sm:justify-center w-full sm:w-auto">
+                                            @if ($art['permite_decimales'] ?? false)
+                                                <div class="flex items-center gap-2">
+                                                    <input type="number"
+                                                        wire:model="articuloSeleccionado.{{ $index }}.cantidad"
+                                                        wire:change="calcularSubTotalProducto({{ $index }})"
+                                                        step="0.001" min="0.001"
+                                                        class="w-24 text-center px-2 py-1.5 border-gray-300 focus:ring-purple-500 focus:border-purple-500 text-sm rounded-md"
+                                                        placeholder="1.500">
+                                                    <span
+                                                        class="text-xs text-gray-500">{{ $art['unidad_medida'] ?? '' }}</span>
+                                                </div>
+                                            @else
+                                                <div class="flex items-center gap-2">
+                                                    <button type="button"
+                                                        wire:click="decrementarCantidad({{ $index }})"
+                                                        class="bg-purple-100 hover:bg-purple-200 text-purple-700 w-8 h-8 rounded-full flex items-center justify-center transition-colors">
+                                                        <svg class="w-4 h-4" fill="none" stroke="currentColor"
+                                                            viewBox="0 0 24 24">
+                                                            <path d="M20 12H4" stroke-width="2.5"
+                                                                stroke-linecap="round" stroke-linejoin="round" />
+                                                        </svg>
+                                                    </button>
+                                                    <input type="number"
+                                                        wire:model="articuloSeleccionado.{{ $index }}.cantidad"
+                                                        wire:change="calcularSubTotalProducto({{ $index }})"
+                                                        min="1"
+                                                        class="w-16 text-center px-1 py-1.5 border-gray-300 focus:ring-purple-500 focus:border-purple-500 text-sm rounded-md font-bold text-gray-800">
+                                                    <button type="button"
+                                                        wire:click="incrementarCantidad({{ $index }})"
+                                                        class="bg-purple-100 hover:bg-purple-200 text-purple-700 w-8 h-8 rounded-full flex items-center justify-center transition-colors">
+                                                        <svg class="w-4 h-4" fill="none" stroke="currentColor"
+                                                            viewBox="0 0 24 24">
+                                                            <path d="M12 4v16m8-8H4" stroke-width="2.5"
+                                                                stroke-linecap="round" stroke-linejoin="round" />
+                                                        </svg>
+                                                    </button>
+                                                </div>
+                                            @endif
+                                        </div>
                                     </td>
 
                                     <!-- Subtotal -->
-                                    <td class="px-3 sm:px-4 py-3 text-right">
-                                        <span class="text-sm font-bold text-gray-900">
+                                    <td
+                                        class="px-3 sm:px-4 py-2 sm:py-3 block sm:table-cell flex justify-between items-center sm:block bg-gray-50 sm:bg-transparent">
+                                        <span
+                                            class="sm:hidden text-xs font-bold text-gray-600 uppercase">Subtotal:</span>
+                                        <span class="text-base sm:text-sm font-bold text-gray-900">
                                             ${{ isset($art['subtotal']) ? number_format($art['subtotal'], 2) : '0.00' }}
                                         </span>
                                     </td>
 
-                                    <!-- Acción -->
-                                    <td class="px-3 sm:px-4 py-3 text-center">
+                                    <!-- Acción (Desktop Only - Mobile is in Header) -->
+                                    <td class="hidden sm:table-cell px-3 sm:px-4 py-3 text-center">
                                         <button wire:click="eliminarArticulo({{ $index }})"
-                                            class="inline-flex items-center justify-center p-1.5 sm:p-2 rounded-md text-red-600 hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-500 transition-colors">
-                                            <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor"
+                                            class="inline-flex items-center justify-center p-2 rounded-md text-red-600 hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-500 transition-colors">
+                                            <svg class="w-5 h-5" fill="none" stroke="currentColor"
                                                 viewBox="0 0 24 24">
                                                 <path d="M6 18L18 6M6 6l12 12" stroke-linecap="round"
                                                     stroke-linejoin="round" stroke-width="2" />
@@ -335,16 +363,15 @@
                             @endif
                         @empty
                             <tr>
-                                <td colspan="6" class="px-4 py-12 text-center">
+                                <td colspan="6" class="px-4 py-12 text-center block sm:table-cell">
                                     <div class="flex flex-col items-center justify-center text-gray-400">
-                                        <svg class="w-12 h-12 sm:w-16 sm:h-16 mb-3" fill="none"
-                                            stroke="currentColor" viewBox="0 0 24 24">
+                                        <svg class="w-16 h-16 mb-3" fill="none" stroke="currentColor"
+                                            viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                                 d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
                                         </svg>
-                                        <p class="text-base sm:text-lg font-medium">No hay productos en el carrito</p>
-                                        <p class="text-xs sm:text-sm mt-1">Busca y agrega productos para comenzar la
-                                            venta</p>
+                                        <p class="text-lg font-medium">No hay productos en el carrito</p>
+                                        <p class="text-sm mt-1">Busca y agrega productos para comenzar la venta</p>
                                     </div>
                                 </td>
                             </tr>

@@ -503,7 +503,7 @@
                 </header>
                 <main class="flex-1 overflow-x-hidden overflow-y-auto bg-gray-200">
                     @if (auth()->user()->local->tipo == 'venta')
-                        <div class="max-w-xl mx-auto mt-2 px-1 sm:px-1 lg:px-1">
+                        <div class="mt-2">
                             @include('livewire.accesos-directos')
                         </div>
                     @endif

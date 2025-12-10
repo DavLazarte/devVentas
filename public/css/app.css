@@ -1092,6 +1092,9 @@ select {
 .mb-0 {
   margin-bottom: 0px;
 }
+.mb-0\.5 {
+  margin-bottom: 0.125rem;
+}
 .mb-1 {
   margin-bottom: 0.25rem;
 }
@@ -1846,6 +1849,9 @@ select {
 .border-b-2 {
   border-bottom-width: 2px;
 }
+.border-b-4 {
+  border-bottom-width: 4px;
+}
 .border-l-0 {
   border-left-width: 0px;
 }
@@ -2437,6 +2443,9 @@ select {
   font-size: 3.75rem;
   line-height: 1;
 }
+.text-\[10px\] {
+  font-size: 10px;
+}
 .text-\[8px\] {
   font-size: 8px;
 }
@@ -2954,12 +2963,11 @@ select {
   --tw-content: '';
   content: var(--tw-content);
 }
+.last\:border-0:last-child {
+  border-width: 0px;
+}
 .last\:border-b-0:last-child {
   border-bottom-width: 0px;
-}
-.hover\:-translate-y-1:hover {
-  --tw-translate-y: -0.25rem;
-  transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
 }
 .hover\:scale-105:hover {
   --tw-scale-x: 1.05;
@@ -2970,6 +2978,10 @@ select {
   --tw-border-opacity: 1;
   border-color: rgb(191 219 254 / var(--tw-border-opacity));
 }
+.hover\:border-blue-300:hover {
+  --tw-border-opacity: 1;
+  border-color: rgb(147 197 253 / var(--tw-border-opacity));
+}
 .hover\:border-gray-300:hover {
   --tw-border-opacity: 1;
   border-color: rgb(209 213 219 / var(--tw-border-opacity));
@@ -2977,6 +2989,10 @@ select {
 .hover\:border-green-200:hover {
   --tw-border-opacity: 1;
   border-color: rgb(187 247 208 / var(--tw-border-opacity));
+}
+.hover\:border-green-300:hover {
+  --tw-border-opacity: 1;
+  border-color: rgb(134 239 172 / var(--tw-border-opacity));
 }
 .hover\:border-purple-300:hover {
   --tw-border-opacity: 1;
@@ -3439,25 +3455,25 @@ select {
   --tw-border-opacity: 1;
   border-color: rgb(168 85 247 / var(--tw-border-opacity));
 }
-.group:hover .group-hover\:bg-blue-600 {
+.group:hover .group-hover\:bg-blue-200 {
   --tw-bg-opacity: 1;
-  background-color: rgb(37 99 235 / var(--tw-bg-opacity));
+  background-color: rgb(191 219 254 / var(--tw-bg-opacity));
 }
-.group:hover .group-hover\:bg-green-600 {
+.group:hover .group-hover\:bg-green-200 {
   --tw-bg-opacity: 1;
-  background-color: rgb(22 163 74 / var(--tw-bg-opacity));
+  background-color: rgb(187 247 208 / var(--tw-bg-opacity));
 }
-.group:hover .group-hover\:bg-purple-600 {
+.group:hover .group-hover\:bg-purple-200 {
   --tw-bg-opacity: 1;
-  background-color: rgb(147 51 234 / var(--tw-bg-opacity));
+  background-color: rgb(233 213 255 / var(--tw-bg-opacity));
 }
-.group:hover .group-hover\:text-blue-600 {
+.group:hover .group-hover\:text-blue-700 {
   --tw-text-opacity: 1;
-  color: rgb(37 99 235 / var(--tw-text-opacity));
+  color: rgb(29 78 216 / var(--tw-text-opacity));
 }
-.group:hover .group-hover\:text-green-600 {
+.group:hover .group-hover\:text-green-700 {
   --tw-text-opacity: 1;
-  color: rgb(22 163 74 / var(--tw-text-opacity));
+  color: rgb(21 128 61 / var(--tw-text-opacity));
 }
 .group:hover .group-hover\:text-purple-600 {
   --tw-text-opacity: 1;
@@ -3466,10 +3482,6 @@ select {
 .group:hover .group-hover\:text-purple-700 {
   --tw-text-opacity: 1;
   color: rgb(126 34 206 / var(--tw-text-opacity));
-}
-.group:hover .group-hover\:text-white {
-  --tw-text-opacity: 1;
-  color: rgb(255 255 255 / var(--tw-text-opacity));
 }
 .group:hover .group-hover\:opacity-0 {
   opacity: 0;
@@ -3574,6 +3586,10 @@ select {
     margin-bottom: 2rem;
   }
 
+  .sm\:mb-0 {
+    margin-bottom: 0px;
+  }
+
   .sm\:mb-2 {
     margin-bottom: 0.5rem;
   }
@@ -3640,6 +3656,14 @@ select {
 
   .sm\:table-cell {
     display: table-cell;
+  }
+
+  .sm\:table-header-group {
+    display: table-header-group;
+  }
+
+  .sm\:table-row {
+    display: table-row;
   }
 
   .sm\:hidden {
@@ -3868,6 +3892,14 @@ select {
     border-radius: 0.5rem;
   }
 
+  .sm\:border-b {
+    border-bottom-width: 1px;
+  }
+
+  .sm\:bg-transparent {
+    background-color: transparent;
+  }
+
   .sm\:p-0 {
     padding: 0px;
   }
@@ -3886,11 +3918,6 @@ select {
 
   .sm\:p-6 {
     padding: 1.5rem;
-  }
-
-  .sm\:px-1 {
-    padding-left: 0.25rem;
-    padding-right: 0.25rem;
   }
 
   .sm\:px-2 {
@@ -3994,6 +4021,10 @@ select {
   .sm\:text-xl {
     font-size: 1.25rem;
     line-height: 1.75rem;
+  }
+
+  .sm\:font-semibold {
+    font-weight: 600;
   }
 
   .sm\:leading-5 {
@@ -4250,11 +4281,6 @@ select {
 
   .lg\:grid-cols-4 {
     grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
-
-  .lg\:px-1 {
-    padding-left: 0.25rem;
-    padding-right: 0.25rem;
   }
 
   .lg\:px-8 {
