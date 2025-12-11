@@ -1,6 +1,6 @@
 <div class="min-h-screen bg-gray-50">
     <!-- HEADER FIJO SUPERIOR -->
-    <div class="sticky top-0 z-40 bg-white shadow-lg border-b-2 border-purple-200">
+    <div class="top-0 z-40 bg-white shadow-lg border-b-2 border-purple-200">
         <div class="max-w-full mx-auto px-2 sm:px-3 py-1">
             <!-- Título y Mensaje -->
             <div class="flex items-center justify-between mb-1">
@@ -99,6 +99,9 @@
                     <label class="block text-xs font-medium text-gray-700 mb-1">Forma de Pago</label>
                     <select wire:model="forma_de_pago"
                         class="block w-full text-sm border-gray-300 rounded-md py-1.5 px-3 focus:ring-purple-500 focus:border-purple-500">
+                        <option value="">
+                            Seleccionar forma de pago
+                        </option>
                         <option value="efectivo">💵 Efectivo</option>
                         <option value="transferencia">🏦 Transferencia</option>
                         <option value="tarjeta">💳 Tarjeta</option>

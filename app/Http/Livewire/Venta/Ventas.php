@@ -27,7 +27,7 @@ class Ventas extends Component
     public $nombre_cliente = 'consumidor_final';
     public $idcliente;
     public $tipo_venta = "venta_rapida";
-    public $forma_de_pago = "efectivo";
+    public $forma_de_pago = "";
     // public $venta_total;
     public $venta_total_original;
     public $idLocal;
@@ -345,6 +345,11 @@ class Ventas extends Component
     }
     public function guardar()
     {
+        if (empty($this->forma_de_pago)) {
+            $this->dispatchBrowserEvent('errorVenta', ['message' => 'Debe elegir una forma de pago.']);
+            return;
+        }
+
         if ($this->tipo_venta === 'venta_rapida' && $this->saldo > 0) {
             $this->dispatchBrowserEvent('errorVenta', ['message' => 'Una venta rápida no puede tener saldo pendiente. Seleccione un cliente o ajuste el pago.']);
             return;
@@ -424,7 +429,7 @@ class Ventas extends Component
 
             $this->mensajeVenta = 'VENTA EXITOSA!';
             $this->tipo_venta = "venta_rapida";
-            $this->forma_de_pago = "efectivo";
+            $this->forma_de_pago = "";
 
             $this->reset([
                 'nombre_cliente',
