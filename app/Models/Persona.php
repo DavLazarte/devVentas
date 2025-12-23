@@ -21,8 +21,22 @@ class Persona extends Model
         'telefono',
         'mail',
         'estado',
-        'id_local'
+        'id_local',
+        'user_id',
+        'fecha_nacimiento',
+        'foto',
+        'estado_membresia',
     ];
+
+    protected $casts = [
+        'fecha_nacimiento' => 'date',
+    ];
+
+    // Relación con User (NUEVA)
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
     public function ventas()
     {
         return $this->hasMany(Venta::class, 'idcliente');
@@ -32,8 +46,56 @@ class Persona extends Model
         return $this->hasMany(Compra::class, 'idpersona');
     }
 
+    public function membresias()
+    {
+        return $this->hasMany(Membresia::class, 'idpersona');
+    }
+
     public function servicios()
     {
         return $this->belongsToMany(Servicio::class, 'servicio_empleado', 'empleado_id', 'servicio_id');
+    }
+    // Accesor para obtener membresía activa
+    public function getMembresiaActivaAttribute()
+    {
+        return $this->membresias()
+            ->where('estado', 'activa')
+            ->where('fecha_fin', '>=', now())
+            ->first();
+    }
+
+    // Accesor para estado de membresía
+    public function getEstadoMembresiaCalculadoAttribute()
+    {
+        $membresia = $this->membresia_activa;
+
+        if (!$membresia) {
+            return 'inactivo';
+        }
+
+        // Si es por créditos, es activo si tiene créditos
+        if ($membresia->tipo === 'creditos') {
+            return $membresia->creditos_restantes > 0 ? 'activo' : 'vencido';
+        }
+
+        // Si es por fecha, comparamos con hoy
+        $diasRestantes = now()->diffInDays($membresia->fecha_fin, false);
+
+        if ($diasRestantes < 0) {
+            return 'vencido';
+        }
+
+        return 'activo';
+    }
+
+    /**
+     * Sincroniza el campo estado_membresia de la tabla personas
+     * con la membresía activa actual.
+     */
+    public function syncEstadoMembresia()
+    {
+        $this->update([
+            'estado_membresia' => $this->estado_membresia_calculado
+        ]);
     }
 }

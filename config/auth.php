@@ -42,6 +42,11 @@ return [
         ],
     ],
 
+    'api' => [
+        'driver' => 'sanctum',  // Para tu API de Next.js
+        'provider' => 'users',
+    ],
+
     /*
     |--------------------------------------------------------------------------
     | User Providers
