@@ -12,10 +12,33 @@ use Illuminate\Support\Facades\Auth;
 
 class SocioController extends Controller
 {
+    /**
+     * Obtener el ID del local actual de forma robusta.
+     */
+    private function getLocalId()
+    {
+        $user = Auth::user();
+        if (!$user) return null;
+
+        try {
+            if ($user->local && isset($user->local->id)) {
+                return $user->local->id;
+            }
+        } catch (\Exception $e) {
+        }
+
+        $persona = Persona::where('user_id', $user->id)->first();
+        if ($persona) {
+            return $persona->id_local;
+        }
+
+        return $user->id_local ?? $user->local_id ?? null;
+    }
+
     public function index(Request $request)
     {
         $user = Auth::user();
-        $localId = Auth::user()->local->id;
+        $localId = $this->getLocalId();
 
         $tipoPersona = $request->query('tipo_persona', 'cliente');
 
@@ -203,7 +226,7 @@ class SocioController extends Controller
     // Eliminar socio
     public function destroy($id)
     {
-        $socio = Persona::where('id_local', Auth::user()->local->id)->findOrFail($id);
+        $socio = Persona::where('id_local', $this->getLocalId())->findOrFail($id);
         $socio->delete();
 
         return response()->json([
@@ -240,5 +263,42 @@ class SocioController extends Controller
             'message' => 'Usuario creado exitosamente',
             'user' => $user,
         ], 201);
+    }
+
+    // Obtener perfil del socio autenticado
+    public function getProfile(Request $request)
+    {
+        $user = Auth::user();
+
+        $socio = Persona::where('user_id', $user->id)
+            ->with(['membresias.plan'])
+            ->first();
+
+        if (!$socio) {
+            return response()->json([
+                'message' => 'No se encontró el perfil de socio para este usuario.'
+            ], 404);
+        }
+
+        $membresiaActiva = $socio->membresia_activa;
+
+        return response()->json([
+            'socio' => [
+                'id' => $socio->idpersona,
+                'nombre' => $socio->nombre,
+                'email' => $socio->mail,
+                'telefono' => $socio->telefono,
+                'direccion' => $socio->direccion,
+                'fechaNacimiento' => $socio->fecha_nacimiento?->format('Y-m-d'),
+                'foto' => $socio->foto,
+                'dni' => $socio->dni_cuit,
+                'estado' => $socio->estado_membresia,
+                'planNombre' => $membresiaActiva?->plan->nombre ?? 'Sin plan',
+                'planId' => $membresiaActiva?->idservicio,
+                'fechaVencimiento' => $membresiaActiva?->fecha_fin?->format('Y-m-d'),
+                'tipo_membresia' => $membresiaActiva?->tipo,
+                'creditos_restantes' => $membresiaActiva?->creditos_restantes,
+            ]
+        ]);
     }
 }

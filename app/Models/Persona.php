@@ -73,16 +73,19 @@ class Persona extends Model
             return 'inactivo';
         }
 
-        // Si es por créditos, es activo si tiene créditos
-        if ($membresia->tipo === 'creditos') {
-            return $membresia->creditos_restantes > 0 ? 'activo' : 'vencido';
+        // 1. Verificar vencimiento por FECHA (siempre que tenga fecha_fin)
+        if ($membresia->fecha_fin) {
+            $diasRestantes = now()->diffInDays($membresia->fecha_fin, false);
+            if ($diasRestantes < 0) {
+                return 'vencido';
+            }
         }
 
-        // Si es por fecha, comparamos con hoy
-        $diasRestantes = now()->diffInDays($membresia->fecha_fin, false);
-
-        if ($diasRestantes < 0) {
-            return 'vencido';
+        // 2. Verificar vencimiento por CRÉDITOS (si es tipo créditos)
+        if ($membresia->tipo === 'creditos') {
+            if ($membresia->creditos_restantes <= 0) {
+                return 'vencido';
+            }
         }
 
         return 'activo';
