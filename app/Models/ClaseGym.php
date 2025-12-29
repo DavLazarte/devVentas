@@ -12,20 +12,23 @@ class ClaseGym extends Model
     protected $table = 'clases_gym';
 
     protected $fillable = [
+        'nombre',
         'idservicio',
         'id_local',
         'id_coach',
-        'fecha',
+        'dias_semana',
         'hora_inicio',
         'hora_fin',
+        'duracion_minutos',
         'cupo_maximo',
         'estado',
     ];
 
     protected $casts = [
-        'fecha' => 'date',
+        'dias_semana' => 'string', // Store as comma separated for now
         'hora_inicio' => 'datetime:H:i',
         'hora_fin' => 'datetime:H:i',
+        'duracion_minutos' => 'integer',
         'cupo_maximo' => 'integer',
     ];
 

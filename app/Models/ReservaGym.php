@@ -14,9 +14,14 @@ class ReservaGym extends Model
     protected $fillable = [
         'id_persona',
         'id_clase_gym',
+        'fecha_reserva',
         'id_membresia',
         'id_local',
         'estado',
+    ];
+
+    protected $casts = [
+        'fecha_reserva' => 'date',
     ];
 
     // Relaciones

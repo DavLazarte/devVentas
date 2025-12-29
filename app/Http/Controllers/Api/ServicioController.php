@@ -4,21 +4,37 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Servicio;
+use App\Models\Persona;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
 class ServicioController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     *
-     * @return \Illuminate\Http\Response
-     */
+    private function getLocalId()
+    {
+        $user = Auth::user();
+        if (!$user) return null;
+
+        try {
+            if ($user->local && isset($user->local->id)) {
+                return $user->local->id;
+            }
+        } catch (\Exception $e) {
+        }
+
+        $persona = Persona::where('user_id', $user->id)->first();
+        if ($persona) {
+            return $persona->id_local;
+        }
+
+        return $user->id_local ?? $user->local_id ?? null;
+    }
+
     public function index(Request $request)
     {
         $user = Auth::user();
-        $localId = $user->local->id;
+        $localId = $this->getLocalId();
 
         // Default to 'plan' if not specified, or allow filtering
         $tipoServicio = $request->query('tipo_servicio', 'plan');
@@ -55,7 +71,7 @@ class ServicioController extends Controller
      */
     public function store(Request $request)
     {
-        $localId = Auth::user()->local->id;
+        $localId = $this->getLocalId();
 
         $validated = $request->validate([
             'nombre' => 'required|string|max:255',
@@ -96,7 +112,7 @@ class ServicioController extends Controller
      */
     public function show($id)
     {
-        $localId = Auth::user()->local->id;
+        $localId = $this->getLocalId();
         $servicio = Servicio::where('id_local', $localId)->findOrFail($id);
 
         return response()->json(['servicio' => $servicio]);
@@ -111,7 +127,7 @@ class ServicioController extends Controller
      */
     public function update(Request $request, $id)
     {
-        $localId = Auth::user()->local->id;
+        $localId = $this->getLocalId();
         $servicio = Servicio::where('id_local', $localId)->findOrFail($id);
 
         $validated = $request->validate([
@@ -140,7 +156,7 @@ class ServicioController extends Controller
      */
     public function destroy($id)
     {
-        $localId = Auth::user()->local->id;
+        $localId = $this->getLocalId();
         $servicio = Servicio::where('id_local', $localId)->findOrFail($id);
 
         $servicio->delete();

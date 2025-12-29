@@ -39,9 +39,18 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/socios/{id}', [SocioController::class, 'update']);
     Route::delete('/socios/{id}', [SocioController::class, 'destroy']);
     Route::post('/socios/{id}/create-user', [SocioController::class, 'createUser']);
+    Route::get('/perfil', [SocioController::class, 'getProfile']);
 
     // Servicios (Planes, Clases)
     Route::apiResource('servicios', \App\Http\Controllers\Api\ServicioController::class);
+
+    // Clases (Horarios/Templates)
+    Route::apiResource('clases', \App\Http\Controllers\Api\ClaseGymController::class);
+
+    // Reservas y Disponibilidad
+    Route::get('/clases-disponibles', [\App\Http\Controllers\Api\ReservaGymController::class, 'getAvailableClasses']);
+    Route::post('/asistencias', [\App\Http\Controllers\Api\ReservaGymController::class, 'marcarAsistencia']);
+    Route::apiResource('reservas', \App\Http\Controllers\Api\ReservaGymController::class);
 
     // Membresías
     Route::apiResource('membresias', \App\Http\Controllers\Api\MembresiaController::class);

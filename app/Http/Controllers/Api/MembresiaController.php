@@ -13,6 +13,26 @@ use Carbon\Carbon;
 
 class MembresiaController extends Controller
 {
+    private function getLocalId()
+    {
+        $user = Auth::user();
+        if (!$user) return null;
+
+        try {
+            if ($user->local && isset($user->local->id)) {
+                return $user->local->id;
+            }
+        } catch (\Exception $e) {
+        }
+
+        $persona = Persona::where('user_id', $user->id)->first();
+        if ($persona) {
+            return $persona->id_local;
+        }
+
+        return $user->id_local ?? $user->local_id ?? null;
+    }
+
     /**
      * Display a listing of the resource.
      *
@@ -21,7 +41,7 @@ class MembresiaController extends Controller
     public function index(Request $request)
     {
         $user = Auth::user();
-        $localId = $user->local->id;
+        $localId = $this->getLocalId();
 
         $query = Membresia::with(['socio', 'plan'])
             ->where('id_local', $localId);
@@ -55,7 +75,7 @@ class MembresiaController extends Controller
     public function store(Request $request)
     {
         $user = Auth::user();
-        $localId = $user->local->id;
+        $localId = $this->getLocalId();
 
         $validated = $request->validate([
             'id_socio' => 'required|exists:personas,idpersona',
@@ -73,13 +93,15 @@ class MembresiaController extends Controller
         $tipo = 'fecha';
 
         if ($plan->duracion_dias) {
-            $tipo = 'fecha';
             $fechaFin = $fechaInicio->copy()->addDays($plan->duracion_dias);
-        } elseif ($plan->creditos) {
+        }
+
+        if ($plan->creditos) {
             $tipo = 'creditos';
             $creditosTotales = $plan->creditos;
             $creditosRestantes = $plan->creditos;
-            // Opcionalmente, algunos gimnasios ponen vencimiento a los créditos, por ahora lo dejamos null según el modelo.
+        } else {
+            $tipo = 'fecha';
         }
 
         // Antes de crear, podrías marcar membresías anteriores del mismo socio como inactivas/vencidas
@@ -114,7 +136,7 @@ class MembresiaController extends Controller
      */
     public function show($id)
     {
-        $localId = Auth::user()->local->id;
+        $localId = $this->getLocalId();
         $membresia = Membresia::with(['socio', 'plan'])
             ->where('id_local', $localId)
             ->findOrFail($id);
@@ -131,7 +153,7 @@ class MembresiaController extends Controller
      */
     public function update(Request $request, $id)
     {
-        $localId = Auth::user()->local->id;
+        $localId = $this->getLocalId();
         $membresia = Membresia::where('id_local', $localId)->findOrFail($id);
 
         $validated = $request->validate([
@@ -156,15 +178,17 @@ class MembresiaController extends Controller
             $dataToUpdate['fecha_inicio'] = $fechaInicio;
 
             if ($plan->duracion_dias) {
-                $dataToUpdate['tipo'] = 'fecha';
                 $dataToUpdate['fecha_fin'] = $fechaInicio->copy()->addDays($plan->duracion_dias);
-                $dataToUpdate['creditos_totales'] = null;
-                $dataToUpdate['creditos_restantes'] = null;
-            } elseif ($plan->creditos) {
+            }
+
+            if ($plan->creditos) {
                 $dataToUpdate['tipo'] = 'creditos';
                 $dataToUpdate['creditos_totales'] = $plan->creditos;
                 $dataToUpdate['creditos_restantes'] = $plan->creditos;
-                $dataToUpdate['fecha_fin'] = null;
+            } else {
+                $dataToUpdate['tipo'] = 'fecha';
+                $dataToUpdate['creditos_totales'] = null;
+                $dataToUpdate['creditos_restantes'] = null;
             }
         }
 
@@ -195,7 +219,7 @@ class MembresiaController extends Controller
      */
     public function destroy($id)
     {
-        $localId = Auth::user()->local->id;
+        $localId = $this->getLocalId();
         $membresia = Membresia::where('id_local', $localId)->findOrFail($id);
         $socio = $membresia->socio;
 
