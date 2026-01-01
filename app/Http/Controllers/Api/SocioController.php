@@ -120,16 +120,18 @@ class SocioController extends Controller
 
             $userId = null;
             if ($request->crearUsuario) {
-                // Determine role based on tipo_persona
-                // 6 = gym_socio (default), need to know ID for instructor if different
-                // For now, assume same role or handle later
-                $roleId = 6;
+                // Buscar el rol por nombre para evitar problemas con IDs diferentes en producción
+                $gymSocioRole = Role::where('name', 'gym_socio')->first();
+
+                if (!$gymSocioRole) {
+                    throw new \Exception('Error: No se encontró el rol gym_socio en el sistema');
+                }
 
                 $newUser = User::create([
                     'name' => $validated['nombre'],
                     'email' => $validated['email'],
                     'password' => Hash::make($validated['password']),
-                    'role_id' => $roleId,
+                    'role_id' => $gymSocioRole->id,
                 ]);
                 $userId = $newUser->id;
             }
