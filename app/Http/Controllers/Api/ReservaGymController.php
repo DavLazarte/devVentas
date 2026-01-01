@@ -297,7 +297,10 @@ class ReservaGymController extends Controller
         try {
             // Devolver crédito si corresponde (solo si NO había asistido ya)
             if ($reserva->estado !== 'asistio' && $reserva->membresia->tipo === 'creditos') {
-                $reserva->membresia->increment('creditos_restantes');
+                $maxCreditos = $reserva->membresia->creditos_totales ?? 0;
+                if ($reserva->membresia->creditos_restantes < $maxCreditos) {
+                    $reserva->membresia->increment('creditos_restantes');
+                }
                 $reserva->persona->syncEstadoMembresia();
             }
 
@@ -309,45 +312,5 @@ class ReservaGymController extends Controller
             DB::rollBack();
             return response()->json(['message' => 'Error al eliminar reserva'], 500);
         }
-    }
-
-    /**
-     * Marcar asistencia.
-     */
-    public function marcarAsistencia(Request $request)
-    {
-        $validated = $request->validate([
-            'id_persona' => 'required|exists:personas,idpersona',
-            'id_clase_gym' => 'nullable|exists:clases_gym,id',
-            'id_reserva' => 'nullable|exists:reservas_gym,id',
-        ]);
-
-        $socio = Persona::findOrFail($validated['id_persona']);
-        $membresia = $socio->membresia_activa;
-
-        if (!$membresia) {
-            return response()->json(['message' => 'El socio no tiene membresía activa.'], 403);
-        }
-
-        $asistencia = AsistenciaGym::create([
-            'id_persona' => $socio->idpersona,
-            'id_clase_gym' => $validated['id_clase_gym'] ?? null,
-            'id_membresia' => $membresia->id,
-            'id_local' => $this->getLocalId(),
-            'fecha_asistencia' => now(),
-        ]);
-
-        // Si se marca desde una reserva, podríamos actualizar el estado de la reserva
-        if ($request->id_reserva) {
-            $reserva = ReservaGym::find($request->id_reserva);
-            if ($reserva) {
-                $reserva->update(['estado' => 'asistio']);
-            }
-        }
-
-        return response()->json([
-            'message' => 'Asistencia registrada correctamente',
-            'asistencia' => $asistencia
-        ]);
     }
 }

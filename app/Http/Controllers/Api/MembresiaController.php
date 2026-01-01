@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Membresia;
 use App\Models\Persona;
 use App\Models\Servicio;
+use App\Models\PagoGym;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -63,6 +64,10 @@ class MembresiaController extends Controller
 
         $membresias = $query->orderBy('created_at', 'desc')->get();
 
+        $membresias->each(function ($m) {
+            $m->append(['saldo_pendiente', 'total_pagado']);
+        });
+
         return response()->json(['membresias' => $membresias]);
     }
 
@@ -81,6 +86,11 @@ class MembresiaController extends Controller
             'id_socio' => 'required|exists:personas,idpersona',
             'id_plan' => 'required|exists:servicios,idservicio',
             'fecha_inicio' => 'nullable|date',
+            // Campos opcionales para registro de pago atómico
+            'registrar_pago' => 'nullable|boolean',
+            'metodo_pago' => 'required_if:registrar_pago,true|string',
+            'monto_pago' => 'required_if:registrar_pago,true|numeric',
+            'observaciones_pago' => 'nullable|string',
         ]);
 
         $idPlan = $validated['id_plan'];
@@ -104,28 +114,54 @@ class MembresiaController extends Controller
             $tipo = 'fecha';
         }
 
-        // Antes de crear, podrías marcar membresías anteriores del mismo socio como inactivas/vencidas
-        // Eso depende de la lógica del negocio. Por ahora creamos la nueva como activa.
+        DB::beginTransaction();
+        try {
+            // Antes de crear, marcamos membresías anteriores del mismo socio como vencidas
+            Membresia::where('idpersona', $validated['id_socio'])
+                ->where('id_local', $localId)
+                ->where('estado', 'activa')
+                ->update(['estado' => 'vencida']);
 
-        $membresia = Membresia::create([
-            'idpersona' => $validated['id_socio'],
-            'idservicio' => $validated['id_plan'],
-            'id_local' => $localId,
-            'tipo' => $tipo,
-            'fecha_inicio' => $fechaInicio,
-            'fecha_fin' => $fechaFin,
-            'creditos_totales' => $creditosTotales,
-            'creditos_restantes' => $creditosRestantes,
-            'estado' => 'activa',
-        ]);
+            $membresia = Membresia::create([
+                'idpersona' => $validated['id_socio'],
+                'idservicio' => $validated['id_plan'],
+                'id_local' => $localId,
+                'tipo' => $tipo,
+                'fecha_inicio' => $fechaInicio,
+                'fecha_fin' => $fechaFin,
+                'creditos_totales' => $creditosTotales,
+                'creditos_restantes' => $creditosRestantes,
+                'monto_total' => $plan->precio,
+                'estado' => 'activa',
+            ]);
 
-        // Sincronizar estado del socio
-        $membresia->socio->syncEstadoMembresia();
+            // Registrar pago si se solicitó
+            if ($request->registrar_pago) {
+                PagoGym::create([
+                    'idpersona' => $validated['id_socio'],
+                    'id_membresia' => $membresia->id,
+                    'id_local' => $localId,
+                    'id_user' => $user->id,
+                    'monto' => $validated['monto_pago'],
+                    'metodo_pago' => $validated['metodo_pago'],
+                    'fecha_pago' => Carbon::now(),
+                    'observaciones' => $validated['observaciones_pago'] ?? 'Pago inicial al asignar membresía',
+                ]);
+            }
 
-        return response()->json([
-            'message' => 'Membresía asignada correctamente',
-            'membresia' => $membresia->load(['socio', 'plan'])
-        ], 201);
+            // Sincronizar estado del socio
+            $membresia->socio->syncEstadoMembresia();
+
+            DB::commit();
+
+            return response()->json([
+                'message' => 'Membresía asignada correctamente' . ($request->registrar_pago ? ' y pago registrado' : ''),
+                'membresia' => $membresia->load(['socio', 'plan'])
+            ], 201);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['message' => 'Error al procesar la solicitud', 'error' => $e->getMessage()], 500);
+        }
     }
 
     /**
@@ -195,6 +231,15 @@ class MembresiaController extends Controller
         // Mapear id_socio a idpersona si viene
         if ($request->has('id_socio')) {
             $dataToUpdate['idpersona'] = $request->id_socio;
+        }
+
+        // Validar que los créditos restantes no superen el total
+        if (isset($dataToUpdate['creditos_restantes'])) {
+            // Usar el nuevo total si se recalculó, o el existente si no
+            $maxCreditos = $dataToUpdate['creditos_totales'] ?? $membresia->creditos_totales;
+            if ($maxCreditos !== null && $dataToUpdate['creditos_restantes'] > $maxCreditos) {
+                $dataToUpdate['creditos_restantes'] = $maxCreditos;
+            }
         }
 
         $membresia->update($dataToUpdate);

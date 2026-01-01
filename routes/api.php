@@ -49,9 +49,11 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Reservas y Disponibilidad
     Route::get('/clases-disponibles', [\App\Http\Controllers\Api\ReservaGymController::class, 'getAvailableClasses']);
-    Route::post('/asistencias', [\App\Http\Controllers\Api\ReservaGymController::class, 'marcarAsistencia']);
+    Route::get('/asistencias', [\App\Http\Controllers\Api\AsistenciaGymController::class, 'index']);
+    Route::post('/asistencias', [\App\Http\Controllers\Api\AsistenciaGymController::class, 'store']);
     Route::apiResource('reservas', \App\Http\Controllers\Api\ReservaGymController::class);
 
     // Membresías
     Route::apiResource('membresias', \App\Http\Controllers\Api\MembresiaController::class);
+    Route::apiResource('pagos-gym', \App\Http\Controllers\Api\PagoGymController::class);
 });
