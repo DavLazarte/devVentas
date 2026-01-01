@@ -21,6 +21,7 @@ class Membresia extends Model
         'fecha_fin',
         'creditos_totales',
         'creditos_restantes',
+        'monto_total',
         'estado',
     ];
 
@@ -29,6 +30,7 @@ class Membresia extends Model
         'fecha_fin' => 'date',
         'creditos_totales' => 'integer',
         'creditos_restantes' => 'integer',
+        'monto_total' => 'float',
     ];
 
     // Relaciones
@@ -78,6 +80,19 @@ class Membresia extends Model
         }
 
         return false;
+    }
+
+    // Accesor para saldo pendiente
+    public function getSaldoPendienteAttribute()
+    {
+        $pagado = $this->pagos()->sum('monto');
+        $saldo = $this->monto_total - $pagado;
+        return $saldo > 0 ? $saldo : 0;
+    }
+
+    public function getTotalPagadoAttribute()
+    {
+        return $this->pagos()->sum('monto');
     }
 
     // Accesor para días restantes (solo para tipo fecha)

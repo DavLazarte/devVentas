@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Persona;
 use App\Models\User;
+use App\Models\Role;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
@@ -250,11 +251,20 @@ class SocioController extends Controller
             'password' => 'required|min:8',
         ]);
 
+        // Buscar el rol por nombre para evitar problemas con IDs diferentes en producción
+        $gymSocioRole = Role::where('name', 'gym_socio')->first();
+
+        if (!$gymSocioRole) {
+            return response()->json([
+                'message' => 'Error: No se encontró el rol gym_socio en el sistema'
+            ], 500);
+        }
+
         $user = User::create([
             'name' => $socio->nombre,
             'email' => $validated['email'],
             'password' => Hash::make($validated['password']),
-            'role_id' => 6, // gym_socio
+            'role_id' => $gymSocioRole->id,
         ]);
 
         $socio->update(['user_id' => $user->id]);
