@@ -25,6 +25,7 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 // Auth público (sin token)
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/register', [AuthController::class, 'register']);
+Route::get('/images/perfiles/{filename}', [SocioController::class, 'serveImage']);
 
 // Rutas protegidas (requieren token Sanctum)
 Route::middleware('auth:sanctum')->group(function () {
@@ -40,6 +41,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/socios/{id}', [SocioController::class, 'destroy']);
     Route::post('/socios/{id}/create-user', [SocioController::class, 'createUser']);
     Route::get('/perfil', [SocioController::class, 'getProfile']);
+    Route::post('/perfil', [SocioController::class, 'updateProfile']);
 
     // Servicios (Planes, Clases)
     Route::apiResource('servicios', \App\Http\Controllers\Api\ServicioController::class);

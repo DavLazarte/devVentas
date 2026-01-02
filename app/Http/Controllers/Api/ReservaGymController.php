@@ -8,6 +8,7 @@ use App\Models\ReservaGym;
 use App\Models\AsistenciaGym;
 use App\Models\Persona;
 use App\Models\Membresia;
+use App\Models\Role;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -53,7 +54,10 @@ class ReservaGymController extends Controller
             ->where('id_local', $localId);
 
         // Si es socio, forzar el filtro por su propia persona
-        if ($user->role_id == 6) {
+        $gymSocioRole = Role::where('name', 'gym_socio')->first();
+        $isSocio = $gymSocioRole && $user->role_id == $gymSocioRole->id;
+
+        if ($isSocio) {
             $socio = Persona::where('user_id', $user->id)->first();
             if ($socio) {
                 $query->where('id_persona', $socio->idpersona);
@@ -115,11 +119,23 @@ class ReservaGymController extends Controller
                 ];
             }
             $inscritosMap[$key]['count']++;
-            $inscritosMap[$key]['alumnos'][] = $reserva->persona->nombre;
+
+            // Fix URL foto
+            $foto = $reserva->persona->foto;
+            if ($foto) {
+                $foto = preg_match('/^http/', $foto) ? $foto : url($foto);
+            }
+
+            $inscritosMap[$key]['alumnos'][] = [
+                'nombre' => $reserva->persona->nombre,
+                'foto' => $foto
+            ];
 
             // Si es la reserva del usuario actual (si es socio), guardamos su ID
-            $socioActual = null;
-            if ($user->role_id == 6) {
+            $gymSocioRole = Role::where('name', 'gym_socio')->first();
+            $isSocio = $gymSocioRole && $user->role_id == $gymSocioRole->id;
+
+            if ($isSocio) {
                 // cache persona to avoid multiple queries
                 static $cachedSocio = null;
                 if (is_null($cachedSocio)) {
@@ -195,7 +211,10 @@ class ReservaGymController extends Controller
         ]);
 
         // Determinar el socio
-        if ($user->role_id == 6) { // Socio
+        $gymSocioRole = Role::where('name', 'gym_socio')->first();
+        $isSocio = $gymSocioRole && $user->role_id == $gymSocioRole->id;
+
+        if ($isSocio) { // Socio
             $socio = Persona::where('user_id', $user->id)->first();
             if (!$socio) {
                 return response()->json(['message' => 'No se encontró perfil de socio vinculado.'], 403);
@@ -286,7 +305,10 @@ class ReservaGymController extends Controller
         }
 
         $user = Auth::user();
-        if ($user->role_id == 6) { // Socio
+        $gymSocioRole = Role::where('name', 'gym_socio')->first();
+        $isSocio = $gymSocioRole && $user->role_id == $gymSocioRole->id;
+
+        if ($isSocio) { // Socio
             $socio = Persona::where('user_id', $user->id)->first();
             if (!$socio || $reserva->id_persona != $socio->idpersona) {
                 return response()->json(['message' => 'No puedes cancelar una reserva que no es tuya.'], 403);

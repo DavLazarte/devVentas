@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 
 class SocioController extends Controller
 {
@@ -80,7 +81,7 @@ class SocioController extends Controller
                 'telefono' => $socio->telefono,
                 'direccion' => $socio->direccion,
                 'fechaNacimiento' => $socio->fecha_nacimiento?->format('Y-m-d'),
-                'foto' => $socio->foto,
+                'foto' => $socio->foto ? (preg_match('/^http/', $socio->foto) ? $socio->foto : url($socio->foto)) : null,
                 'dni' => $socio->dni_cuit,
                 'estado' => $socio->tipo_persona === 'cliente' ? $socio->estado_membresia : $socio->estado,
                 'planNombre' => $membresiaActiva?->plan->nombre ?? 'Sin plan',
@@ -120,16 +121,18 @@ class SocioController extends Controller
 
             $userId = null;
             if ($request->crearUsuario) {
-                // Determine role based on tipo_persona
-                // 6 = gym_socio (default), need to know ID for instructor if different
-                // For now, assume same role or handle later
-                $roleId = 6;
+                // Buscar el rol por nombre para evitar problemas con IDs diferentes en producción
+                $gymSocioRole = Role::where('name', 'gym_socio')->first();
+
+                if (!$gymSocioRole) {
+                    throw new \Exception('Error: No se encontró el rol gym_socio en el sistema');
+                }
 
                 $newUser = User::create([
                     'name' => $validated['nombre'],
                     'email' => $validated['email'],
                     'password' => Hash::make($validated['password']),
-                    'role_id' => $roleId,
+                    'role_id' => $gymSocioRole->id,
                 ]);
                 $userId = $newUser->id;
             }
@@ -178,7 +181,7 @@ class SocioController extends Controller
                 'telefono' => $socio->telefono,
                 'direccion' => $socio->direccion,
                 'fechaNacimiento' => $socio->fecha_nacimiento?->format('Y-m-d'),
-                'foto' => $socio->foto,
+                'foto' => $socio->foto ? (preg_match('/^http/', $socio->foto) ? $socio->foto : url($socio->foto)) : null,
                 'dni' => $socio->dni_cuit,
                 'tieneUsuario' => !!$socio->user_id,
                 'usuario' => $socio->user ? [
@@ -188,6 +191,96 @@ class SocioController extends Controller
                 ] : null,
             ]
         ]);
+    }
+
+    // Actualizar perfil del socio (desde el panel de cliente)
+    public function updateProfile(Request $request)
+    {
+        /** @var \App\Models\User $user */
+        $user = Auth::user();
+        $socio = Persona::where('user_id', $user->id)->first();
+
+        if (!$socio) {
+            return response()->json(['message' => 'Perfil no encontrado'], 404);
+        }
+
+        $validated = $request->validate([
+            'nombre' => 'required|string|max:255',
+            'email' => 'required|email|unique:personas,mail,' . $socio->idpersona . ',idpersona',
+            'telefono' => 'nullable|string',
+            'password' => 'nullable|min:8|confirmed',
+            'foto' => 'nullable|string', // Acepta URL o base64
+        ]);
+
+        DB::beginTransaction();
+        try {
+            $fotoUrl = $socio->foto;
+            if ($request->has('foto') && !empty($validated['foto'])) {
+                $foto = $validated['foto'];
+                // Verificar si es base64
+                if (preg_match('/^data:image\/(\w+);base64,/', $foto, $type)) {
+                    $foto = substr($foto, strpos($foto, ',') + 1);
+                    $type = strtolower($type[1]); // jpg, png, gif
+
+                    if (!in_array($type, ['jpg', 'jpeg', 'gif', 'png'])) {
+                        throw new \Exception('Tipo de imagen inválido. Solo jpg, jpeg, png, gif.');
+                    }
+                    $foto = base64_decode($foto);
+                    if ($foto === false) {
+                        throw new \Exception('Error al decodificar la imagen base64.');
+                    }
+
+                    // Generar nombre archivo
+                    $filename = 'perfiles/' . uniqid() . '.' . $type;
+
+                    // Guardar en disco publico
+                    Storage::disk('public')->put($filename, $foto);
+
+                    // URL Proxy
+                    $fotoUrl = url('/api/images/perfiles/' . basename($filename));
+                } else {
+                    $fotoUrl = $foto;
+                }
+            }
+
+            // 1. Actualizar Persona (Socio)
+            $socio->update([
+                'nombre' => $validated['nombre'],
+                'mail' => $validated['email'],
+                'telefono' => $validated['telefono'],
+                'foto' => $fotoUrl,
+            ]);
+
+            // 2. Actualizar Usuario asociado
+            $user->name = $validated['nombre'];
+
+            // Si cambió el email, verificar unicidad en users
+            if ($user->email !== $validated['email']) {
+                if (User::where('email', $validated['email'])->where('id', '!=', $user->id)->exists()) {
+                    throw new \Exception('El email ya está en uso por otro usuario.');
+                }
+                $user->email = $validated['email'];
+            }
+
+            // Si envió password
+            if (!empty($validated['password'])) {
+                $user->password = Hash::make($validated['password']);
+            }
+
+            $user->save();
+
+            DB::commit();
+
+            // Refrescar el modelo para asegurar datos actuales
+            $socio->refresh();
+            // Transformar la foto a URL absoluta para la respuesta inmediata
+            $socio->foto = $socio->foto ? (preg_match('/^http/', $socio->foto) ? $socio->foto : url($socio->foto)) : null;
+
+            return response()->json(['message' => 'Perfil actualizado correctamente', 'socio' => $socio]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['message' => 'Error al actualizar perfil', 'error' => $e->getMessage()], 500);
+        }
     }
 
     // Actualizar socio
@@ -300,15 +393,24 @@ class SocioController extends Controller
                 'telefono' => $socio->telefono,
                 'direccion' => $socio->direccion,
                 'fechaNacimiento' => $socio->fecha_nacimiento?->format('Y-m-d'),
-                'foto' => $socio->foto,
+                'fechaNacimiento' => $socio->fecha_nacimiento?->format('Y-m-d'),
+                'foto' => $socio->foto ? (preg_match('/^http/', $socio->foto) ? $socio->foto : url($socio->foto)) : null,
                 'dni' => $socio->dni_cuit,
-                'estado' => $socio->estado_membresia,
-                'planNombre' => $membresiaActiva?->plan->nombre ?? 'Sin plan',
-                'planId' => $membresiaActiva?->idservicio,
-                'fechaVencimiento' => $membresiaActiva?->fecha_fin?->format('Y-m-d'),
-                'tipo_membresia' => $membresiaActiva?->tipo,
-                'creditos_restantes' => $membresiaActiva?->creditos_restantes,
+                'membresia' => $membresiaActiva ? [
+                    'plan' => $membresiaActiva->plan->nombre,
+                    'estado' => $socio->estado_membresia, // Usamos el calculado
+                    'vencimiento' => $membresiaActiva->fecha_fin?->format('Y-m-d'),
+                    'tipo' => $membresiaActiva->tipo,
+                    'creditos' => $membresiaActiva->creditos_restantes,
+                ] : null,
             ]
         ]);
+    }
+
+    public function serveImage($filename)
+    {
+        $path = storage_path('app/public/perfiles/' . $filename);
+        if (!file_exists($path)) abort(404);
+        return response()->file($path);
     }
 }

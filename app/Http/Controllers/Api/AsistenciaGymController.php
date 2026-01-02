@@ -9,6 +9,7 @@ use App\Models\ReservaGym;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use App\Models\Role;
 
 class AsistenciaGymController extends Controller
 {
@@ -39,11 +40,32 @@ class AsistenciaGymController extends Controller
             ->with(['persona', 'clase', 'membresia'])
             ->orderBy('fecha_asistencia', 'desc');
 
+        // Si es socio, filtrar solo sus asistencias
+        $gymSocioRole = Role::where('name', 'gym_socio')->first();
+        $user = Auth::user();
+        $isSocio = $gymSocioRole && $user->role_id == $gymSocioRole->id;
+
+        if ($isSocio) {
+            $socio = Persona::where('user_id', $user->id)->first();
+            if ($socio) {
+                $query->where('id_persona', $socio->idpersona);
+            } else {
+                return response()->json(['asistencias' => []]);
+            }
+        }
+
         if ($request->has('fecha')) {
             $query->whereDate('fecha_asistencia', $request->fecha);
         }
 
-        $asistencias = $query->get();
+        $asistencias = $query->get()->map(function ($asistencia) {
+            if ($asistencia->persona && $asistencia->persona->foto) {
+                $asistencia->persona->foto = preg_match('/^http/', $asistencia->persona->foto)
+                    ? $asistencia->persona->foto
+                    : url($asistencia->persona->foto);
+            }
+            return $asistencia;
+        });
 
         return response()->json(['asistencias' => $asistencias]);
     }
