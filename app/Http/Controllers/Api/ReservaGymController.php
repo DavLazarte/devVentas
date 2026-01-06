@@ -159,6 +159,8 @@ class ReservaGymController extends Controller
             'Sunday' => 'Domingo',
         ];
 
+        $now = Carbon::now();
+
         for ($date = $carbonStart->copy(); $date->lte($carbonEnd); $date->addDay()) {
             $diaNombre = $diasTraduccion[$date->format('l')];
 
@@ -168,6 +170,22 @@ class ReservaGymController extends Controller
                 if (in_array($diaNombre, $diasClase)) {
                     $dateStr = $date->format('Y-m-d');
                     $key = $dateStr . '|' . $template->id;
+
+                    // Crear datetime completo de la clase combinando fecha y hora
+                    $horaInicio = Carbon::parse($template->hora_inicio)->format('H:i:s');
+                    $claseDateTime = Carbon::parse($dateStr . ' ' . $horaInicio);
+
+                    // Filtrar clases que ya pasaron
+                    if ($claseDateTime->isPast()) {
+                        continue;
+                    }
+
+                    // Filtrar clases que están a más de 24 horas de distancia
+                    // Solo mostrar si faltan menos de 24 horas para la clase
+                    $horasHastaClase = $now->diffInHours($claseDateTime, false);
+                    if ($horasHastaClase > 24) {
+                        continue;
+                    }
 
                     $inscritosData = $inscritosMap[$key] ?? ['count' => 0, 'alumnos' => []];
                     $enrolled = $inscritosData['count'];
@@ -181,6 +199,7 @@ class ReservaGymController extends Controller
                         'instructor' => $template->coach->nombre,
                         'fecha' => $dateStr,
                         'hora' => Carbon::parse($template->hora_inicio)->format('H:i'),
+                        'hora_completa' => $claseDateTime->format('Y-m-d H:i:s'), // Para ordenar
                         'duracion' => $template->duracion_minutos,
                         'capacidad' => $template->cupo_maximo,
                         'inscritos' => $enrolled,
@@ -192,6 +211,17 @@ class ReservaGymController extends Controller
                 }
             }
         }
+
+        // Ordenar por hora de inicio (hora_completa)
+        usort($instancias, function ($a, $b) {
+            return strcmp($a['hora_completa'], $b['hora_completa']);
+        });
+
+        // Remover el campo temporal hora_completa antes de devolver
+        $instancias = array_map(function ($instancia) {
+            unset($instancia['hora_completa']);
+            return $instancia;
+        }, $instancias);
 
         return response()->json(['instancias' => $instancias]);
     }
@@ -242,9 +272,11 @@ class ReservaGymController extends Controller
             return response()->json(['message' => 'Ya tienes una reserva para esta clase.'], 400);
         }
 
-        // 2. Verificar membresía activa
+        // 2. Verificar membresía activa (Solo si NO es instructor)
+        $isInstructor = $socio->tipo_persona === 'instructor';
         $membresia = $socio->membresia_activa;
-        if (!$membresia) {
+
+        if (!$isInstructor && !$membresia) {
             return response()->json(['message' => 'No tienes una membresía activa para reservar.'], 403);
         }
 
@@ -261,8 +293,8 @@ class ReservaGymController extends Controller
 
         DB::beginTransaction();
         try {
-            // 4. Si es membresía por créditos, validar y descontar
-            if ($membresia->tipo === 'creditos') {
+            // 4. Si es membresía por créditos, validar y descontar (Solo si NO es instructor)
+            if (!$isInstructor && $membresia && $membresia->tipo === 'creditos') {
                 if ($membresia->creditos_restantes <= 0) {
                     return response()->json(['message' => 'No te quedan créditos disponibles.'], 400);
                 }
@@ -274,7 +306,7 @@ class ReservaGymController extends Controller
                 'id_persona' => $socio->idpersona,
                 'id_clase_gym' => $validated['id_clase_gym'],
                 'fecha_reserva' => $validated['fecha_reserva'],
-                'id_membresia' => $membresia->id,
+                'id_membresia' => $isInstructor ? null : $membresia->id,
                 'id_local' => $localId,
                 'estado' => 'reservada'
             ]);

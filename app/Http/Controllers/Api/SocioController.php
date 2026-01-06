@@ -297,24 +297,45 @@ class SocioController extends Controller
             'dni' => 'nullable|string',
             'foto' => 'nullable|string',
             'estado' => 'sometimes|string|in:activo,inactivo',
+            'password' => 'nullable|min:8', // Nueva validación para contraseña
         ]);
 
-        $socio->update([
-            'nombre' => $validated['nombre'] ?? $socio->nombre,
-            'mail' => $validated['email'] ?? $socio->mail,
-            'telefono' => $validated['telefono'] ?? $socio->telefono,
-            'direccion' => $validated['direccion'] ?? $socio->direccion,
-            'fecha_nacimiento' => $validated['fechaNacimiento'] ?? $socio->fecha_nacimiento,
+        DB::beginTransaction();
+        try {
+            $socio->update([
+                'nombre' => $validated['nombre'] ?? $socio->nombre,
+                'mail' => $validated['email'] ?? $socio->mail,
+                'telefono' => $validated['telefono'] ?? $socio->telefono,
+                'direccion' => $validated['direccion'] ?? $socio->direccion,
+                'fecha_nacimiento' => $validated['fechaNacimiento'] ?? $socio->fecha_nacimiento,
+                'dni_cuit' => $validated['dni'] ?? $socio->dni_cuit,
+                'foto' => $validated['foto'] ?? $socio->foto,
+                'estado' => $validated['estado'] ?? $socio->estado,
+            ]);
 
-            'dni_cuit' => $validated['dni'] ?? $socio->dni_cuit,
-            'foto' => $validated['foto'] ?? $socio->foto,
-            'estado' => $validated['estado'] ?? $socio->estado,
-        ]);
+            // Si se proporcionó una contraseña y el socio tiene usuario, actualizar la contraseña
+            if (!empty($validated['password']) && $socio->user_id) {
+                $user = User::find($socio->user_id);
+                if ($user) {
+                    $user->update([
+                        'password' => Hash::make($validated['password'])
+                    ]);
+                }
+            }
 
-        return response()->json([
-            'message' => 'Socio actualizado exitosamente',
-            'socio' => $socio,
-        ]);
+            DB::commit();
+
+            return response()->json([
+                'message' => 'Socio actualizado exitosamente',
+                'socio' => $socio,
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'message' => 'Error al actualizar socio',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
     // Eliminar socio
@@ -392,13 +413,14 @@ class SocioController extends Controller
                 'email' => $socio->mail,
                 'telefono' => $socio->telefono,
                 'direccion' => $socio->direccion,
-                'fechaNacimiento' => $socio->fecha_nacimiento?->format('Y-m-d'),
+                'tipo_persona' => $socio->tipo_persona, // Importante para frontend
+                'role' => $user->role->name ?? 'unknown',
                 'fechaNacimiento' => $socio->fecha_nacimiento?->format('Y-m-d'),
                 'foto' => $socio->foto ? (preg_match('/^http/', $socio->foto) ? $socio->foto : url($socio->foto)) : null,
                 'dni' => $socio->dni_cuit,
                 'membresia' => $membresiaActiva ? [
                     'plan' => $membresiaActiva->plan->nombre,
-                    'estado' => $socio->estado_membresia, // Usamos el calculado
+                    'estado' => $socio->estado_membresia,
                     'vencimiento' => $membresiaActiva->fecha_fin?->format('Y-m-d'),
                     'tipo' => $membresiaActiva->tipo,
                     'creditos' => $membresiaActiva->creditos_restantes,
