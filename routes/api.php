@@ -58,4 +58,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // Membresías
     Route::apiResource('membresias', \App\Http\Controllers\Api\MembresiaController::class);
     Route::apiResource('pagos-gym', \App\Http\Controllers\Api\PagoGymController::class);
+
+    // Dashboard
+    Route::get('/dashboard/stats', [\App\Http\Controllers\Api\DashboardController::class, 'getStats']);
 });

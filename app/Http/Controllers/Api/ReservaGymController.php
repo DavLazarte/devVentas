@@ -160,31 +160,41 @@ class ReservaGymController extends Controller
         ];
 
         $now = Carbon::now();
+        $gymSocioRole = Role::where('name', 'gym_socio')->first();
+        $isSocio = $gymSocioRole && $user->role_id == $gymSocioRole->id;
+
+        // Si es socio, forzamos un rango de búsqueda de Hoy y Mañana para encontrar la PRÓXIMA clase de cada tipo
+        if ($isSocio) {
+            $carbonStart = $now->copy()->startOfDay();
+            $carbonEnd = $now->copy()->addDay()->endOfDay();
+        }
+
+        $addedTemplates = []; // Para trackear qué clases ya mostramos al socio
 
         for ($date = $carbonStart->copy(); $date->lte($carbonEnd); $date->addDay()) {
             $diaNombre = $diasTraduccion[$date->format('l')];
 
             foreach ($clasesTemplates as $template) {
+                // Si es socio y ya agregamos esta clase (su próxima instancia), saltamos
+                if ($isSocio && in_array($template->id, $addedTemplates)) {
+                    continue;
+                }
+
                 $diasClase = explode(',', $template->dias_semana);
 
                 if (in_array($diaNombre, $diasClase)) {
                     $dateStr = $date->format('Y-m-d');
                     $key = $dateStr . '|' . $template->id;
 
-                    // Crear datetime completo de la clase combinando fecha y hora
+                    // Crear datetime completo de la clase
                     $horaInicio = Carbon::parse($template->hora_inicio)->format('H:i:s');
                     $claseDateTime = Carbon::parse($dateStr . ' ' . $horaInicio);
 
-                    // Filtrar clases que ya pasaron
-                    if ($claseDateTime->isPast()) {
-                        continue;
-                    }
-
-                    // Filtrar clases que están a más de 24 horas de distancia
-                    // Solo mostrar si faltan menos de 24 horas para la clase
-                    $horasHastaClase = $now->diffInHours($claseDateTime, false);
-                    if ($horasHastaClase > 24) {
-                        continue;
+                    // Lógica para SOCIOS: Filtrar pasadas y solo mostrar UNA instancia
+                    if ($isSocio) {
+                        if ($claseDateTime->isPast()) {
+                            continue;
+                        }
                     }
 
                     $inscritosData = $inscritosMap[$key] ?? ['count' => 0, 'alumnos' => []];
@@ -199,7 +209,6 @@ class ReservaGymController extends Controller
                         'instructor' => $template->coach->nombre,
                         'fecha' => $dateStr,
                         'hora' => Carbon::parse($template->hora_inicio)->format('H:i'),
-                        'hora_completa' => $claseDateTime->format('Y-m-d H:i:s'), // Para ordenar
                         'duracion' => $template->duracion_minutos,
                         'capacidad' => $template->cupo_maximo,
                         'inscritos' => $enrolled,
@@ -208,20 +217,17 @@ class ReservaGymController extends Controller
                         'reservada' => !is_null($reservaId),
                         'estado_clase' => $template->estado
                     ];
+
+                    if ($isSocio) {
+                        $addedTemplates[] = $template->id;
+                    }
                 }
             }
         }
-
-        // Ordenar por hora de inicio (hora_completa)
+        // Ordenar por fecha y hora
         usort($instancias, function ($a, $b) {
-            return strcmp($a['hora_completa'], $b['hora_completa']);
+            return strcmp($a['fecha'] . ' ' . $a['hora'], $b['fecha'] . ' ' . $b['hora']);
         });
-
-        // Remover el campo temporal hora_completa antes de devolver
-        $instancias = array_map(function ($instancia) {
-            unset($instancia['hora_completa']);
-            return $instancia;
-        }, $instancias);
 
         return response()->json(['instancias' => $instancias]);
     }
@@ -250,9 +256,13 @@ class ReservaGymController extends Controller
                 return response()->json(['message' => 'No se encontró perfil de socio vinculado.'], 403);
             }
 
-            // Validar que la fecha sea estrictamente hoy
-            if (Carbon::parse($validated['fecha_reserva'])->format('Y-m-d') !== now()->format('Y-m-d')) {
-                return response()->json(['message' => 'Solo puedes reservar para el día de hoy.'], 400);
+            // Validar que la fecha sea hoy o mañana
+            $reservaDate = Carbon::parse($validated['fecha_reserva']);
+            if ($reservaDate->isPast() && !$reservaDate->isToday()) {
+                return response()->json(['message' => 'No puedes reservar para una fecha pasada.'], 400);
+            }
+            if ($reservaDate->isAfter(now()->addDay()->endOfDay())) {
+                return response()->json(['message' => 'Solo puedes reservar para hoy o mañana.'], 400);
             }
         } else {
             if (!$request->id_persona) {

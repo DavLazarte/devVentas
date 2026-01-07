@@ -55,6 +55,11 @@ class Persona extends Model
     {
         return $this->belongsToMany(Servicio::class, 'servicio_empleado', 'empleado_id', 'servicio_id');
     }
+
+    public function clasesCoach()
+    {
+        return $this->hasMany(ClaseGym::class, 'id_coach', 'idpersona');
+    }
     // Accesor para obtener membresía activa
     public function getMembresiaActivaAttribute()
     {

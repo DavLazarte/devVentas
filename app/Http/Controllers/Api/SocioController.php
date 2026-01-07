@@ -71,7 +71,10 @@ class SocioController extends Controller
             });
         }
 
-        $socios = $query->get()->map(function ($socio) {
+        $perPage = $request->query('per_page', 15);
+        $paginated = $query->paginate($perPage);
+
+        $socios = collect($paginated->items())->map(function ($socio) {
             $membresiaActiva = $socio->membresia_activa;
 
             return [
@@ -94,7 +97,15 @@ class SocioController extends Controller
             ];
         });
 
-        return response()->json(['socios' => $socios]);
+        return response()->json([
+            'socios' => $socios,
+            'meta' => [
+                'current_page' => $paginated->currentPage(),
+                'last_page' => $paginated->lastPage(),
+                'per_page' => $paginated->perPage(),
+                'total' => $paginated->total(),
+            ]
+        ]);
     }
 
     public function store(Request $request)
@@ -297,14 +308,18 @@ class SocioController extends Controller
             'dni' => 'nullable|string',
             'foto' => 'nullable|string',
             'estado' => 'sometimes|string|in:activo,inactivo',
-            'password' => 'nullable|min:8', // Nueva validación para contraseña
+            'password' => 'nullable|min:8',
         ]);
 
         DB::beginTransaction();
         try {
+            $nuevoNombre = $validated['nombre'] ?? $socio->nombre;
+            $nuevoEmail = $validated['email'] ?? $socio->mail;
+
+            // 1. Actualizar Persona (Socio/Instructor)
             $socio->update([
-                'nombre' => $validated['nombre'] ?? $socio->nombre,
-                'mail' => $validated['email'] ?? $socio->mail,
+                'nombre' => $nuevoNombre,
+                'mail' => $nuevoEmail,
                 'telefono' => $validated['telefono'] ?? $socio->telefono,
                 'direccion' => $validated['direccion'] ?? $socio->direccion,
                 'fecha_nacimiento' => $validated['fechaNacimiento'] ?? $socio->fecha_nacimiento,
@@ -313,20 +328,36 @@ class SocioController extends Controller
                 'estado' => $validated['estado'] ?? $socio->estado,
             ]);
 
-            // Si se proporcionó una contraseña y el socio tiene usuario, actualizar la contraseña
-            if (!empty($validated['password']) && $socio->user_id) {
+            // 2. Sincronizar con Usuario si existe
+            if ($socio->user_id) {
                 $user = User::find($socio->user_id);
                 if ($user) {
-                    $user->update([
-                        'password' => Hash::make($validated['password'])
-                    ]);
+                    // Validar email único en tabla users si está cambiando
+                    if ($nuevoEmail !== $user->email) {
+                        $emailExists = User::where('email', $nuevoEmail)->where('id', '!=', $user->id)->exists();
+                        if ($emailExists) {
+                            throw new \Exception("El email '{$nuevoEmail}' ya está siendo usado por otro usuario.");
+                        }
+                    }
+
+                    $userData = [
+                        'name' => $nuevoNombre,
+                        'email' => $nuevoEmail,
+                    ];
+
+                    // Actualizar password si se envió
+                    if (!empty($validated['password'])) {
+                        $userData['password'] = Hash::make($validated['password']);
+                    }
+
+                    $user->update($userData);
                 }
             }
 
             DB::commit();
 
             return response()->json([
-                'message' => 'Socio actualizado exitosamente',
+                'message' => 'Socio actualizado y sincronizado exitosamente',
                 'socio' => $socio,
             ]);
         } catch (\Exception $e) {
