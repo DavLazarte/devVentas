@@ -112,4 +112,88 @@ class ClaseGymController extends Controller
 
         return response()->json(['message' => 'Horario de clase eliminado exitosamente']);
     }
+    public function getInstructorStats(Request $request)
+    {
+        $validated = $request->validate([
+            'instructor_id' => 'required|exists:personas,idpersona',
+            'start_date' => 'required|date',
+            'end_date' => 'required|date|after_or_equal:start_date',
+        ]);
+
+        $localId = $this->getLocalId();
+        $instructorId = $validated['instructor_id'];
+        $startDate = \Carbon\Carbon::parse($validated['start_date'])->startOfDay();
+        $endDate = \Carbon\Carbon::parse($validated['end_date'])->endOfDay();
+
+        // 1. Get all class schedules for this instructor
+        $schedules = ClaseGym::where('id_coach', $instructorId)
+            ->where('id_local', $localId)
+            ->where('estado', 'activa')
+            ->get();
+
+        $givenClasses = [];
+        $totalClasses = 0;
+
+        // 2. Iterate through each day in range
+        $current = $startDate->copy();
+        while ($current <= $endDate) {
+            $dayName = $this->getDayName($current->dayOfWeek); // Helper needed or use Carbon locale
+
+            // Filter schedules active on this day
+            foreach ($schedules as $schedule) {
+                // Check if schedule runs on this day (dias_semana is "Lunes,Miércoles")
+                // Simple string check usually works if standardized, better to normalize
+                if (stripos($schedule->dias_semana, $dayName) !== false) {
+
+                    // 3. Check for reservations or attendance on this specific date
+                    $dateString = $current->format('Y-m-d');
+
+                    $hasActivity = \Illuminate\Support\Facades\DB::table('reservas_gym')
+                        ->where('id_clase_gym', $schedule->id)
+                        ->whereDate('fecha_reserva', $dateString)
+                        ->where('estado', '!=', 'cancelada')
+                        ->exists();
+
+                    if (!$hasActivity) {
+                        // Also check asistencias just in case
+                        $hasActivity = \Illuminate\Support\Facades\DB::table('asistencias_gym')
+                            ->where('id_clase_gym', $schedule->id)
+                            ->whereDate('fecha_asistencia', $dateString)
+                            ->exists();
+                    }
+
+                    if ($hasActivity) {
+                        $totalClasses++;
+                        $givenClasses[] = [
+                            'date' => $dateString,
+                            'day' => $dayName,
+                            'time' => $schedule->hora_inicio ? $schedule->hora_inicio->format('H:i') : '',
+                            'class_name' => $schedule->tipoClase?->nombre ?? 'Clase', // Assuming relationship exists or use $schedule->nombre
+                            'schedule_id' => $schedule->id
+                        ];
+                    }
+                }
+            }
+            $current->addDay();
+        }
+
+        return response()->json([
+            'total_classes' => $totalClasses,
+            'details' => $givenClasses
+        ]);
+    }
+
+    private function getDayName($dayOfWeek)
+    {
+        $days = [
+            0 => 'Domingo',
+            1 => 'Lunes',
+            2 => 'Martes',
+            3 => 'Miércoles',
+            4 => 'Jueves',
+            5 => 'Viernes',
+            6 => 'Sábado'
+        ];
+        return $days[$dayOfWeek] ?? '';
+    }
 }

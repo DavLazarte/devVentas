@@ -47,6 +47,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('servicios', \App\Http\Controllers\Api\ServicioController::class);
 
     // Clases (Horarios/Templates)
+    Route::get('/clases/instructor-stats', [\App\Http\Controllers\Api\ClaseGymController::class, 'getInstructorStats']);
     Route::apiResource('clases', \App\Http\Controllers\Api\ClaseGymController::class);
 
     // Reservas y Disponibilidad
@@ -61,4 +62,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Dashboard
     Route::get('/dashboard/stats', [\App\Http\Controllers\Api\DashboardController::class, 'getStats']);
+
+    // Salidas (Gastos)
+    // Salidas (Gastos)
+    Route::apiResource('salidas-gym', \App\Http\Controllers\Api\SalidaGymController::class);
 });

@@ -58,7 +58,10 @@ class AsistenciaGymController extends Controller
             $query->whereDate('fecha_asistencia', $request->fecha);
         }
 
-        $asistencias = $query->get()->map(function ($asistencia) {
+        $perPage = $request->input('per_page', 15);
+        $asistencias = $query->paginate($perPage);
+
+        $asistencias->through(function ($asistencia) {
             if ($asistencia->persona && $asistencia->persona->foto) {
                 $asistencia->persona->foto = preg_match('/^http/', $asistencia->persona->foto)
                     ? $asistencia->persona->foto
@@ -67,7 +70,15 @@ class AsistenciaGymController extends Controller
             return $asistencia;
         });
 
-        return response()->json(['asistencias' => $asistencias]);
+        return response()->json([
+            'asistencias' => $asistencias->items(),
+            'meta' => [
+                'current_page' => $asistencias->currentPage(),
+                'last_page' => $asistencias->lastPage(),
+                'per_page' => $asistencias->perPage(),
+                'total' => $asistencias->total(),
+            ]
+        ]);
     }
 
     public function store(Request $request)

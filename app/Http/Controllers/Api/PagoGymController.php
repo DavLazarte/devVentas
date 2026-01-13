@@ -51,7 +51,9 @@ class PagoGymController extends Controller
             });
         }
 
-        $pagos = $query->get();
+        $perPage = $request->input('per_page', 15);
+        $pagos = $query->paginate($perPage);
+
         $deudaTotal = Membresia::where('id_local', $localId)
             ->whereIn('estado', ['activa', 'por_vencer'])
             ->get()
@@ -60,7 +62,13 @@ class PagoGymController extends Controller
             });
 
         return response()->json([
-            'pagos' => $pagos,
+            'pagos' => $pagos->items(),
+            'meta' => [
+                'current_page' => $pagos->currentPage(),
+                'last_page' => $pagos->lastPage(),
+                'per_page' => $pagos->perPage(),
+                'total' => $pagos->total(),
+            ],
             'deuda_total' => $deudaTotal
         ]);
     }

@@ -78,6 +78,12 @@ class DashboardController extends Controller
             ->whereDate('fecha_pago', $today)
             ->sum('monto');
 
+        $salidasHoy = \App\Models\SalidaGym::where('id_local', $localId)
+            ->whereDate('fecha', $today)
+            ->sum('monto');
+
+        $balanceHoy = $ingresosHoy - $salidasHoy;
+
         // 2. Gráfico de Asistencia (Últimos 7 días)
         $asistenciaSemanal = [];
         for ($i = 6; $i >= 0; $i--) {
@@ -159,6 +165,8 @@ class DashboardController extends Controller
                 'clasesHoy' => $clasesHoyCount,
                 'reservasSemana' => $reservasSemana,
                 'ingresosHoy' => (float)$ingresosHoy,
+                'salidasHoy' => (float)$salidasHoy,
+                'balanceHoy' => (float)$balanceHoy,
             ],
             'charts' => [
                 'asistenciaSemanal' => $asistenciaSemanal,

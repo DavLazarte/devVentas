@@ -94,6 +94,16 @@ class ReservaGymController extends Controller
             ->with('coach')
             ->get();
 
+        // Si es socio, forzamos un rango de búsqueda de Hoy y Mañana para encontrar la PRÓXIMA clase de cada tipo
+        // Esto debe hacerse ANTES de buscar las reservas para que coincida el rango
+        $gymSocioRole = Role::where('name', 'gym_socio')->first();
+        $isSocio = $gymSocioRole && $user->role_id == $gymSocioRole->id;
+
+        if ($isSocio) {
+            $startDate = Carbon::now()->startOfDay()->format('Y-m-d');
+            $endDate = Carbon::now()->addDay()->endOfDay()->format('Y-m-d');
+        }
+
         $instancias = [];
         $carbonStart = Carbon::parse($startDate);
         $carbonEnd = Carbon::parse($endDate);
@@ -160,14 +170,8 @@ class ReservaGymController extends Controller
         ];
 
         $now = Carbon::now();
-        $gymSocioRole = Role::where('name', 'gym_socio')->first();
-        $isSocio = $gymSocioRole && $user->role_id == $gymSocioRole->id;
 
-        // Si es socio, forzamos un rango de búsqueda de Hoy y Mañana para encontrar la PRÓXIMA clase de cada tipo
-        if ($isSocio) {
-            $carbonStart = $now->copy()->startOfDay();
-            $carbonEnd = $now->copy()->addDay()->endOfDay();
-        }
+        // El rango para socios ya fue ajustado al inicio de la función
 
         $addedTemplates = []; // Para trackear qué clases ya mostramos al socio
 
