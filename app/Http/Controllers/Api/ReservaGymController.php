@@ -205,6 +205,25 @@ class ReservaGymController extends Controller
                     $enrolled = $inscritosData['count'];
                     $reservaId = $reservasSet[$key] ?? null;
 
+                    // Calcular si se puede reservar según el límite de tiempo
+                    $puedeReservar = true;
+                    if ($template->minutos_limite_reserva && $template->minutos_limite_reserva > 0) {
+                        $fechaReserva = Carbon::parse($dateStr);
+                        $horaInicio = Carbon::parse($template->hora_inicio);
+
+                        $inicioClase = Carbon::create(
+                            $fechaReserva->year,
+                            $fechaReserva->month,
+                            $fechaReserva->day,
+                            $horaInicio->hour,
+                            $horaInicio->minute,
+                            0
+                        );
+
+                        $tiempoRestante = now()->diffInMinutes($inicioClase, false);
+                        $puedeReservar = $tiempoRestante >= $template->minutos_limite_reserva;
+                    }
+
                     $instancias[] = [
                         'id' => $template->id . '_' . $dateStr, // ID único para el front
                         'clase_id' => $template->id,
@@ -219,7 +238,8 @@ class ReservaGymController extends Controller
                         'alumnos' => $inscritosData['alumnos'],
                         'disponibles' => max(0, $template->cupo_maximo - $enrolled),
                         'reservada' => !is_null($reservaId),
-                        'estado_clase' => $template->estado
+                        'estado_clase' => $template->estado,
+                        'puede_reservar' => $puedeReservar,
                     ];
 
                     if ($isSocio) {
@@ -305,6 +325,36 @@ class ReservaGymController extends Controller
             return response()->json(['message' => 'La clase ya alcanzó su cupo máximo.'], 400);
         }
 
+        // 4. Validar tiempo mínimo de anticipación para reservar
+        if ($clase->minutos_limite_reserva && $clase->minutos_limite_reserva > 0) {
+            $fechaReserva = Carbon::parse($validated['fecha_reserva']);
+            $horaInicio = Carbon::parse($clase->hora_inicio);
+
+            // Combinar fecha de reserva con hora de inicio de la clase
+            $inicioClase = Carbon::create(
+                $fechaReserva->year,
+                $fechaReserva->month,
+                $fechaReserva->day,
+                $horaInicio->hour,
+                $horaInicio->minute,
+                0
+            );
+
+            $tiempoRestante = now()->diffInMinutes($inicioClase, false);
+
+            if ($tiempoRestante < $clase->minutos_limite_reserva) {
+                $horasRequeridas = floor($clase->minutos_limite_reserva / 60);
+                $minutosRequeridos = $clase->minutos_limite_reserva % 60;
+                $tiempoTexto = $horasRequeridas > 0
+                    ? ($horasRequeridas . ' hora' . ($horasRequeridas > 1 ? 's' : '') . ($minutosRequeridos > 0 ? ' y ' . $minutosRequeridos . ' minutos' : ''))
+                    : ($minutosRequeridos . ' minutos');
+
+                return response()->json([
+                    'message' => "Debes reservar con al menos {$tiempoTexto} de anticipación."
+                ], 400);
+            }
+        }
+
         DB::beginTransaction();
         try {
             // 4. Si es membresía por créditos, validar y descontar (Solo si NO es instructor)
@@ -358,6 +408,37 @@ class ReservaGymController extends Controller
             $socio = Persona::where('user_id', $user->id)->first();
             if (!$socio || $reserva->id_persona != $socio->idpersona) {
                 return response()->json(['message' => 'No puedes cancelar una reserva que no es tuya.'], 403);
+            }
+        }
+
+        // Validar tiempo mínimo de anticipación para cancelar
+        $clase = ClaseGym::find($reserva->id_clase_gym);
+        if ($clase && $clase->minutos_limite_cancelacion && $clase->minutos_limite_cancelacion > 0) {
+            $fechaReserva = Carbon::parse($reserva->fecha_reserva);
+            $horaInicio = Carbon::parse($clase->hora_inicio);
+
+            // Combinar fecha de reserva con hora de inicio de la clase
+            $inicioClase = Carbon::create(
+                $fechaReserva->year,
+                $fechaReserva->month,
+                $fechaReserva->day,
+                $horaInicio->hour,
+                $horaInicio->minute,
+                0
+            );
+
+            $tiempoRestante = now()->diffInMinutes($inicioClase, false);
+
+            if ($tiempoRestante < $clase->minutos_limite_cancelacion) {
+                $horasRequeridas = floor($clase->minutos_limite_cancelacion / 60);
+                $minutosRequeridos = $clase->minutos_limite_cancelacion % 60;
+                $tiempoTexto = $horasRequeridas > 0
+                    ? ($horasRequeridas . ' hora' . ($horasRequeridas > 1 ? 's' : '') . ($minutosRequeridos > 0 ? ' y ' . $minutosRequeridos . ' minutos' : ''))
+                    : ($minutosRequeridos . ' minutos');
+
+                return response()->json([
+                    'message' => "Debes cancelar con al menos {$tiempoTexto} de anticipación."
+                ], 400);
             }
         }
 

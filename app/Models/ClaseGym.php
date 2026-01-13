@@ -22,6 +22,8 @@ class ClaseGym extends Model
         'duracion_minutos',
         'cupo_maximo',
         'estado',
+        'minutos_limite_reserva',
+        'minutos_limite_cancelacion',
     ];
 
     protected $casts = [
@@ -30,6 +32,8 @@ class ClaseGym extends Model
         'hora_fin' => 'datetime:H:i',
         'duracion_minutos' => 'integer',
         'cupo_maximo' => 'integer',
+        'minutos_limite_reserva' => 'integer',
+        'minutos_limite_cancelacion' => 'integer',
     ];
 
     // Relaciones

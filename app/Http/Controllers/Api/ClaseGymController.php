@@ -57,6 +57,8 @@ class ClaseGymController extends Controller
             'duracion_minutos' => 'required|integer',
             'cupo_maximo' => 'required|integer',
             'estado' => 'required|in:activa,cancelada',
+            'minutos_limite_reserva' => 'nullable|integer|min:0',
+            'minutos_limite_cancelacion' => 'nullable|integer|min:0',
         ]);
 
         $clase = ClaseGym::create(array_merge($validated, ['id_local' => $localId]));
@@ -92,6 +94,8 @@ class ClaseGymController extends Controller
             'duracion_minutos' => 'sometimes|integer',
             'cupo_maximo' => 'sometimes|integer',
             'estado' => 'sometimes|in:activa,cancelada',
+            'minutos_limite_reserva' => 'sometimes|nullable|integer|min:0',
+            'minutos_limite_cancelacion' => 'sometimes|nullable|integer|min:0',
         ]);
 
         $clase->update($validated);
