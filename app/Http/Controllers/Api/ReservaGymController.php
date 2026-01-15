@@ -100,7 +100,7 @@ class ReservaGymController extends Controller
         $isSocio = $gymSocioRole && $user->role_id == $gymSocioRole->id;
 
         if ($isSocio) {
-            $startDate = Carbon::now()->startOfDay()->format('Y-m-d');
+            $startDate = Carbon::now()->subHours(12)->format('Y-m-d H:i:s');
             $endDate = Carbon::now()->addDay()->endOfDay()->format('Y-m-d');
         }
 
@@ -179,10 +179,7 @@ class ReservaGymController extends Controller
             $diaNombre = $diasTraduccion[$date->format('l')];
 
             foreach ($clasesTemplates as $template) {
-                // Si es socio y ya agregamos esta clase (su próxima instancia), saltamos
-                if ($isSocio && in_array($template->id, $addedTemplates)) {
-                    continue;
-                }
+                // Eliminamos la restricción de addedTemplates para que se vean todas las clases del día/mañana
 
                 $diasClase = explode(',', $template->dias_semana);
 
@@ -194,32 +191,27 @@ class ReservaGymController extends Controller
                     $horaInicio = Carbon::parse($template->hora_inicio)->format('H:i:s');
                     $claseDateTime = Carbon::parse($dateStr . ' ' . $horaInicio);
 
-                    // Lógica para SOCIOS: Filtrar pasadas y solo mostrar UNA instancia
-                    if ($isSocio) {
-                        if ($claseDateTime->isPast()) {
-                            continue;
-                        }
-                    }
+                    // Ya no filtramos las pasadas aquí, para que se vean según el rango de startDate
 
                     $inscritosData = $inscritosMap[$key] ?? ['count' => 0, 'alumnos' => []];
                     $enrolled = $inscritosData['count'];
                     $reservaId = $reservasSet[$key] ?? null;
 
+                    $fechaReserva = Carbon::parse($dateStr);
+                    $horaInicioTemplate = Carbon::parse($template->hora_inicio);
+
+                    $inicioClase = Carbon::create(
+                        $fechaReserva->year,
+                        $fechaReserva->month,
+                        $fechaReserva->day,
+                        $horaInicioTemplate->hour,
+                        $horaInicioTemplate->minute,
+                        0
+                    );
+
                     // Calcular si se puede reservar según el límite de tiempo
                     $puedeReservar = true;
                     if ($template->minutos_limite_reserva && $template->minutos_limite_reserva > 0) {
-                        $fechaReserva = Carbon::parse($dateStr);
-                        $horaInicio = Carbon::parse($template->hora_inicio);
-
-                        $inicioClase = Carbon::create(
-                            $fechaReserva->year,
-                            $fechaReserva->month,
-                            $fechaReserva->day,
-                            $horaInicio->hour,
-                            $horaInicio->minute,
-                            0
-                        );
-
                         $tiempoRestante = now()->diffInMinutes($inicioClase, false);
                         $puedeReservar = $tiempoRestante >= $template->minutos_limite_reserva;
                     }
@@ -240,11 +232,8 @@ class ReservaGymController extends Controller
                         'reservada' => !is_null($reservaId),
                         'estado_clase' => $template->estado,
                         'puede_reservar' => $puedeReservar,
+                        'clase_pasada' => $inicioClase < now(),
                     ];
-
-                    if ($isSocio) {
-                        $addedTemplates[] = $template->id;
-                    }
                 }
             }
         }

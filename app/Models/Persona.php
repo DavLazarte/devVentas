@@ -65,7 +65,22 @@ class Persona extends Model
     {
         return $this->membresias()
             ->where('estado', 'activa')
-            ->where('fecha_fin', '>=', now())
+            ->where(function($query) {
+                // Membresías de fecha: verificar fecha_fin
+                $query->where(function($q) {
+                    $q->where('tipo', 'fecha')
+                      ->where('fecha_fin', '>=', now());
+                })
+                // Membresías de créditos: verificar créditos Y (fecha_fin NULL o futura)
+                ->orWhere(function($q) {
+                    $q->where('tipo', 'creditos')
+                      ->where('creditos_restantes', '>', 0)
+                      ->where(function($dateQ) {
+                          $dateQ->whereNull('fecha_fin')
+                                ->orWhere('fecha_fin', '>=', now());
+                      });
+                });
+            })
             ->first();
     }
 
