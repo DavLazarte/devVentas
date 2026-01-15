@@ -100,7 +100,7 @@ class ReservaGymController extends Controller
         $isSocio = $gymSocioRole && $user->role_id == $gymSocioRole->id;
 
         if ($isSocio) {
-            $startDate = Carbon::now()->subHours(12)->format('Y-m-d H:i:s');
+            $startDate = Carbon::now()->startOfDay()->format('Y-m-d H:i:s');
             $endDate = Carbon::now()->addDay()->endOfDay()->format('Y-m-d');
         }
 
@@ -116,6 +116,11 @@ class ReservaGymController extends Controller
 
         $inscritosMap = [];
         $reservasSet = []; // Para el usuario actual
+        $socioActual = null;
+
+        if ($isSocio) {
+            $socioActual = Persona::where('user_id', $user->id)->first();
+        }
 
         foreach ($todasLasReservas as $reserva) {
             $dateStr = Carbon::parse($reserva->fecha_reserva)->format('Y-m-d');
@@ -142,19 +147,8 @@ class ReservaGymController extends Controller
             ];
 
             // Si es la reserva del usuario actual (si es socio), guardamos su ID
-            $gymSocioRole = Role::where('name', 'gym_socio')->first();
-            $isSocio = $gymSocioRole && $user->role_id == $gymSocioRole->id;
-
-            if ($isSocio) {
-                // cache persona to avoid multiple queries
-                static $cachedSocio = null;
-                if (is_null($cachedSocio)) {
-                    $cachedSocio = Persona::where('user_id', $user->id)->first();
-                }
-
-                if ($cachedSocio && $reserva->id_persona == $cachedSocio->idpersona) {
-                    $reservasSet[$key] = $reserva->id;
-                }
+            if ($isSocio && $socioActual && $reserva->id_persona == $socioActual->idpersona) {
+                $reservasSet[$key] = $reserva->id;
             }
         }
 
@@ -191,7 +185,10 @@ class ReservaGymController extends Controller
                     $horaInicio = Carbon::parse($template->hora_inicio)->format('H:i:s');
                     $claseDateTime = Carbon::parse($dateStr . ' ' . $horaInicio);
 
-                    // Ya no filtramos las pasadas aquí, para que se vean según el rango de startDate
+                    // Para socios, mostramos solo clases futuras o de las últimas 12 horas
+                    if ($isSocio && $claseDateTime->lt(now()->subHours(12))) {
+                        continue;
+                    }
 
                     $inscritosData = $inscritosMap[$key] ?? ['count' => 0, 'alumnos' => []];
                     $enrolled = $inscritosData['count'];
