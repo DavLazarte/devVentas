@@ -12,6 +12,7 @@ use App\Models\Role;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
 use Carbon\Carbon;
 
 class ReservaGymController extends Controller
@@ -290,95 +291,109 @@ class ReservaGymController extends Controller
             $socio = Persona::findOrFail($request->id_persona);
         }
 
-        // 1. Verificar si ya tiene una reserva activa para esa clase y fecha
-        $existe = ReservaGym::where('id_persona', $socio->idpersona)
-            ->where('id_clase_gym', $validated['id_clase_gym'])
-            ->whereDate('fecha_reserva', $validated['fecha_reserva'])
-            ->where('estado', '!=', 'cancelada')
-            ->first();
+        // --- PROTECCIÓN ANTI-DUPLICADO (BLOQUEO ATÓMICO) ---
+        $lockKey = 'reserva_lock_' . $socio->idpersona . '_' . $validated['id_clase_gym'] . '_' . $validated['fecha_reserva'];
+        $lock = Cache::lock($lockKey, 10); // Bloqueo por 10 segundos
 
-        if ($existe) {
-            return response()->json(['message' => 'Ya tienes una reserva para esta clase.'], 400);
+        if (!$lock->get()) {
+            return response()->json(['message' => 'Estamos procesando tu reserva. Por favor espera un momento.'], 429);
         }
 
-        // 2. Verificar membresía activa (Solo si NO es instructor)
-        $isInstructor = $socio->tipo_persona === 'instructor';
-        $membresia = $socio->membresia_activa;
+        try {
+            // 1. Verificar si ya tiene una reserva activa para esa clase y fecha
+            $existe = ReservaGym::where('id_persona', $socio->idpersona)
+                ->where('id_clase_gym', $validated['id_clase_gym'])
+                ->whereDate('fecha_reserva', $validated['fecha_reserva'])
+                ->where('estado', '!=', 'cancelada')
+                ->first();
 
-        if (!$isInstructor && !$membresia) {
-            return response()->json(['message' => 'No tienes una membresía activa para reservar.'], 403);
-        }
+            if ($existe) {
+                return response()->json(['message' => 'Ya tienes una reserva para esta clase.'], 400);
+            }
 
-        // 3. Verificar cupo de la clase
-        $clase = ClaseGym::findOrFail($validated['id_clase_gym']);
-        $inscritos = ReservaGym::where('id_clase_gym', $clase->id)
-            ->whereDate('fecha_reserva', $validated['fecha_reserva'])
-            ->where('estado', '!=', 'cancelada')
-            ->count();
+            // 2. Verificar membresía activa (Solo si NO es instructor)
+            $isInstructor = $socio->tipo_persona === 'instructor';
+            $membresia = $socio->membresia_activa;
 
-        if ($inscritos >= $clase->cupo_maximo) {
-            return response()->json(['message' => 'La clase ya alcanzó su cupo máximo.'], 400);
-        }
+            if (!$isInstructor && !$membresia) {
+                return response()->json(['message' => 'No tienes una membresía activa para reservar.'], 403);
+            }
 
-        // 4. Validar tiempo mínimo de anticipación para reservar
-        if ($clase->minutos_limite_reserva && $clase->minutos_limite_reserva > 0) {
-            $fechaReserva = Carbon::parse($validated['fecha_reserva']);
-            $horaInicio = Carbon::parse($clase->hora_inicio);
+            // 3. Verificar cupo de la clase
+            $clase = ClaseGym::findOrFail($validated['id_clase_gym']);
+            $inscritos = ReservaGym::where('id_clase_gym', $clase->id)
+                ->whereDate('fecha_reserva', $validated['fecha_reserva'])
+                ->where('estado', '!=', 'cancelada')
+                ->count();
 
-            // Combinar fecha de reserva con hora de inicio de la clase
-            $inicioClase = Carbon::create(
-                $fechaReserva->year,
-                $fechaReserva->month,
-                $fechaReserva->day,
-                $horaInicio->hour,
-                $horaInicio->minute,
-                0
-            );
+            if ($inscritos >= $clase->cupo_maximo) {
+                return response()->json(['message' => 'La clase ya alcanzó su cupo máximo.'], 400);
+            }
 
-            $tiempoRestante = now()->diffInMinutes($inicioClase, false);
+            // 4. Validar tiempo mínimo de anticipación para reservar
+            if ($clase->minutos_limite_reserva && $clase->minutos_limite_reserva > 0) {
+                $fechaReserva = Carbon::parse($validated['fecha_reserva']);
+                $horaInicio = Carbon::parse($clase->hora_inicio);
 
-            if ($tiempoRestante < $clase->minutos_limite_reserva) {
-                $horasRequeridas = floor($clase->minutos_limite_reserva / 60);
-                $minutosRequeridos = $clase->minutos_limite_reserva % 60;
-                $tiempoTexto = $horasRequeridas > 0
-                    ? ($horasRequeridas . ' hora' . ($horasRequeridas > 1 ? 's' : '') . ($minutosRequeridos > 0 ? ' y ' . $minutosRequeridos . ' minutos' : ''))
-                    : ($minutosRequeridos . ' minutos');
+                // Combinar fecha de reserva con hora de inicio de la clase
+                $inicioClase = Carbon::create(
+                    $fechaReserva->year,
+                    $fechaReserva->month,
+                    $fechaReserva->day,
+                    $horaInicio->hour,
+                    $horaInicio->minute,
+                    0
+                );
+
+                $tiempoRestante = now()->diffInMinutes($inicioClase, false);
+
+                if ($tiempoRestante < $clase->minutos_limite_reserva) {
+                    $horasRequeridas = floor($clase->minutos_limite_reserva / 60);
+                    $minutosRequeridos = $clase->minutos_limite_reserva % 60;
+                    $tiempoTexto = $horasRequeridas > 0
+                        ? ($horasRequeridas . ' hora' . ($horasRequeridas > 1 ? 's' : '') . ($minutosRequeridos > 0 ? ' y ' . $minutosRequeridos . ' minutos' : ''))
+                        : ($minutosRequeridos . ' minutos');
+
+                    return response()->json([
+                        'message' => "Debes reservar con al menos {$tiempoTexto} de anticipación."
+                    ], 400);
+                }
+            }
+
+            DB::beginTransaction();
+            try {
+                // 4. Si es membresía por créditos, validar y descontar (Solo si NO es instructor)
+                if (!$isInstructor && $membresia && $membresia->tipo === 'creditos') {
+                    if ($membresia->creditos_restantes <= 0) {
+                        return response()->json(['message' => 'No te quedan créditos disponibles.'], 400);
+                    }
+                    $membresia->decrement('creditos_restantes');
+                    $socio->syncEstadoMembresia();
+                }
+
+                $reserva = ReservaGym::create([
+                    'id_persona' => $socio->idpersona,
+                    'id_clase_gym' => $validated['id_clase_gym'],
+                    'fecha_reserva' => $validated['fecha_reserva'],
+                    'id_membresia' => $isInstructor ? null : $membresia->id,
+                    'id_local' => $localId,
+                    'estado' => 'reservada'
+                ]);
+
+                DB::commit();
 
                 return response()->json([
-                    'message' => "Debes reservar con al menos {$tiempoTexto} de anticipación."
-                ], 400);
+                    'message' => 'Reserva creada con éxito.',
+                    'reserva' => $reserva->load('clase')
+                ]);
+            } catch (\Exception $e) {
+                DB::rollBack();
+                return response()->json(['message' => 'Error al crear la reserva: ' . $e->getMessage()], 500);
             }
-        }
-
-        DB::beginTransaction();
-        try {
-            // 4. Si es membresía por créditos, validar y descontar (Solo si NO es instructor)
-            if (!$isInstructor && $membresia && $membresia->tipo === 'creditos') {
-                if ($membresia->creditos_restantes <= 0) {
-                    return response()->json(['message' => 'No te quedan créditos disponibles.'], 400);
-                }
-                $membresia->decrement('creditos_restantes');
-                $socio->syncEstadoMembresia();
+        } finally {
+            if (isset($lock)) {
+                $lock->release();
             }
-
-            $reserva = ReservaGym::create([
-                'id_persona' => $socio->idpersona,
-                'id_clase_gym' => $validated['id_clase_gym'],
-                'fecha_reserva' => $validated['fecha_reserva'],
-                'id_membresia' => $isInstructor ? null : $membresia->id,
-                'id_local' => $localId,
-                'estado' => 'reservada'
-            ]);
-
-            DB::commit();
-
-            return response()->json([
-                'message' => 'Reserva creada exitosamente',
-                'reserva' => $reserva
-            ], 201);
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return response()->json(['message' => 'Error al procesar la reserva', 'error' => $e->getMessage()], 500);
         }
     }
 
