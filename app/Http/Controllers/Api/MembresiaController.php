@@ -44,15 +44,33 @@ class MembresiaController extends Controller
         $user = Auth::user();
         $localId = $this->getLocalId();
 
-        $query = Membresia::with(['socio', 'plan'])
+        $query = Membresia::with(['socio', 'plan', 'pagos'])
             ->where('id_local', $localId);
 
         if ($request->has('id_socio')) {
             $query->where('idpersona', $request->id_socio);
         }
 
-        if ($request->has('estado')) {
-            $query->where('estado', $request->estado);
+        if ($request->has('estado') && $request->estado !== 'todas') {
+            $today = Carbon::today();
+            $nextWeek = $today->copy()->addDays(7);
+
+            if ($request->estado === 'activa') {
+                // Coincidir con lógica Dashboard: > 7 días
+                $query->where('fecha_fin', '>', $nextWeek);
+            } elseif ($request->estado === 'por_vencer') {
+                // Coincidir con lógica Dashboard: próximos 7 días
+                $query->whereBetween('fecha_fin', [$today, $nextWeek]);
+            } elseif ($request->estado === 'vencida') {
+                // Vencidas
+                $query->where('fecha_fin', '<', $today);
+            } elseif ($request->estado === 'con_deuda') {
+                // Filtro para deudas: monto_total > pagado
+                $query->whereRaw('monto_total > (SELECT COALESCE(SUM(monto), 0) FROM pagos_gym WHERE pagos_gym.id_membresia = membresias.id)');
+            } else {
+                // Fallback a columna si es otro estado (ej. cancelada)
+                $query->where('estado', $request->estado);
+            }
         }
 
         if ($request->has('search')) {
@@ -62,13 +80,13 @@ class MembresiaController extends Controller
             });
         }
 
-        $membresias = $query->orderBy('created_at', 'desc')->get();
+        $membresias = $query->orderBy('created_at', 'desc')->paginate(10);
 
-        $membresias->each(function ($m) {
-            $m->append(['saldo_pendiente', 'total_pagado']);
+        $membresias->getCollection()->each(function ($m) {
+            $m->append(['saldo_pendiente', 'total_pagado', 'computed_status']);
         });
 
-        return response()->json(['membresias' => $membresias]);
+        return response()->json($membresias);
     }
 
     /**

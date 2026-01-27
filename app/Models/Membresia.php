@@ -95,7 +95,6 @@ class Membresia extends Model
         return $this->pagos()->sum('monto');
     }
 
-    // Accesor para días restantes (solo para tipo fecha)
     public function getDiasRestantesAttribute()
     {
         if ($this->tipo !== 'fecha' || !$this->fecha_fin) {
@@ -104,5 +103,37 @@ class Membresia extends Model
 
         $dias = Carbon::now()->diffInDays($this->fecha_fin, false);
         return $dias > 0 ? $dias : 0;
+    }
+
+    // Estado calculado en tiempo real (ignora columna BD si está desactualizada)
+    public function getComputedStatusAttribute()
+    {
+        if ($this->tipo === 'fecha') {
+            $today = Carbon::today();
+            $fechaFin = $this->fecha_fin;
+
+            if (!$fechaFin) return 'activa'; // Indefinido?
+
+            if ($fechaFin < $today) {
+                return 'vencida';
+            }
+
+            if ($fechaFin <= $today->copy()->addDays(7)) {
+                return 'por_vencer';
+            }
+
+            return 'activa';
+        }
+
+        // Para créditos
+        if ($this->tipo === 'creditos') {
+            if ($this->creditos_restantes <= 0) return 'vencida';
+            // Si tiene fecha fin además de créditos
+            if ($this->fecha_fin && $this->fecha_fin < Carbon::today()) return 'vencida';
+
+            return 'activa';
+        }
+
+        return $this->estado; // Fallback
     }
 }

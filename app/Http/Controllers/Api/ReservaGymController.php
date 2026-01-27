@@ -111,7 +111,7 @@ class ReservaGymController extends Controller
         // Obtener todas las reservas en el rango para el local
         $todasLasReservas = ReservaGym::where('id_local', $localId)
             ->whereBetween('fecha_reserva', [$startDate, $endDate])
-            ->with('persona')
+            ->with(['persona.asistencias', 'persona.membresias.plan'])
             ->get();
 
         $inscritosMap = [];
@@ -141,9 +141,18 @@ class ReservaGymController extends Controller
                 $foto = preg_match('/^http/', $foto) ? $foto : url($foto);
             }
 
+            $membresiaActiva = $reserva->persona->membresia_activa;
+
             $inscritosMap[$key]['alumnos'][] = [
+                'id' => $reserva->id,
+                'id_persona' => $reserva->id_persona,
+                'dni' => $reserva->persona->dni_cuit,
+                'racha_actual' => $reserva->persona->racha_actual,
+                'membresia' => $membresiaActiva ? ['id' => $membresiaActiva->id, 'nombre' => $membresiaActiva->nombre] : null,
                 'nombre' => $reserva->persona->nombre,
-                'foto' => $foto
+                'foto' => $foto,
+                'tipo_persona' => $reserva->persona->tipo_persona,
+                'estado_asistencia' => $reserva->estado
             ];
 
             // Si es la reserva del usuario actual (si es socio), guardamos su ID

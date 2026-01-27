@@ -426,7 +426,7 @@ class SocioController extends Controller
         $user = Auth::user();
 
         $socio = Persona::where('user_id', $user->id)
-            ->with(['membresias.plan'])
+            ->with(['membresias.plan', 'asistencias'])
             ->first();
 
         if (!$socio) {
@@ -449,6 +449,7 @@ class SocioController extends Controller
                 'fechaNacimiento' => $socio->fecha_nacimiento?->format('Y-m-d'),
                 'foto' => $socio->foto ? (preg_match('/^http/', $socio->foto) ? $socio->foto : url($socio->foto)) : null,
                 'dni' => $socio->dni_cuit,
+                'racha_actual' => $socio->racha_actual,
                 'membresia' => $membresiaActiva ? [
                     'plan' => $membresiaActiva->plan->nombre,
                     'estado' => $socio->estado_membresia,

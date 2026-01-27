@@ -127,11 +127,33 @@ class DashboardController extends Controller
                     ];
                 });
 
-            // 4. Estados de Membresía - Optimizado con una sola query
-            $membresiasStatus = Persona::where('id_local', $localId)
-                ->selectRaw('estado_membresia, COUNT(*) as count')
-                ->groupBy('estado_membresia')
-                ->pluck('count', 'estado_membresia');
+            // 4. Estados de Membresía (Calculado por fechas)
+            $porVencerStart = $today->copy();
+            $porVencerEnd = $today->copy()->addDays(7);
+
+            // Consultar tabla membresias directa (tiene id_local según modelo)
+            $membresiasQuery = Membresia::where('id_local', $localId);
+
+            $porVencer = (clone $membresiasQuery)
+                ->whereBetween('fecha_fin', [$porVencerStart, $porVencerEnd])
+                ->count();
+
+            // Vencidas (recientes - últimos 30 días para ser relevante)
+            $vencidas = (clone $membresiasQuery)
+                ->where('fecha_fin', '<', $today)
+                ->where('fecha_fin', '>=', $today->copy()->subDays(30))
+                ->count();
+
+            // Activas (más de 7 días restantes)
+            $activas = (clone $membresiasQuery)
+                ->where('fecha_fin', '>', $porVencerEnd)
+                ->count();
+
+            $membresiasStatus = [
+                'activo' => $activas,
+                'por_vencer' => $porVencer,
+                'vencido' => $vencidas
+            ];
 
             // 5. Ocupación Actual
             $currentClasses = ClaseGym::where('id_local', $localId)
