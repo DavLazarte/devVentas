@@ -69,10 +69,10 @@ class Persona extends Model
                 ->where('estado', 'activa')
                 ->filter(function ($m) {
                     if ($m->tipo === 'fecha') {
-                        return $m->fecha_fin >= now();
+                        return $m->fecha_fin >= today();
                     }
                     if ($m->tipo === 'creditos') {
-                        $dateValid = is_null($m->fecha_fin) || $m->fecha_fin >= now();
+                        $dateValid = is_null($m->fecha_fin) || $m->fecha_fin >= today();
                         return $m->creditos_restantes > 0 && $dateValid;
                     }
                     return false;
@@ -86,7 +86,7 @@ class Persona extends Model
                 // Membresías de fecha: verificar fecha_fin
                 $query->where(function ($q) {
                     $q->where('tipo', 'fecha')
-                        ->where('fecha_fin', '>=', now());
+                        ->where('fecha_fin', '>=', today());
                 })
                     // Membresías de créditos: verificar créditos Y (fecha_fin NULL o futura)
                     ->orWhere(function ($q) {
@@ -94,7 +94,7 @@ class Persona extends Model
                             ->where('creditos_restantes', '>', 0)
                             ->where(function ($dateQ) {
                                 $dateQ->whereNull('fecha_fin')
-                                    ->orWhere('fecha_fin', '>=', now());
+                                    ->orWhere('fecha_fin', '>=', today());
                             });
                     });
             })
@@ -112,7 +112,7 @@ class Persona extends Model
 
         // 1. Verificar vencimiento por FECHA (siempre que tenga fecha_fin)
         if ($membresia->fecha_fin) {
-            $diasRestantes = now()->diffInDays($membresia->fecha_fin, false);
+            $diasRestantes = today()->diffInDays($membresia->fecha_fin, false);
             if ($diasRestantes < 0) {
                 return 'vencido';
             }

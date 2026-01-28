@@ -90,10 +90,23 @@ class AsistenciaGymController extends Controller
         ]);
 
         $socio = Persona::findOrFail($validated['id_persona']);
-        $membresia = $socio->membresia_activa;
+        $membresia = null;
+
+        // 1. Prioridad: Membresía de la reserva
+        if ($validated['id_reserva']) {
+            $reserva = ReservaGym::find($validated['id_reserva']);
+            if ($reserva && $reserva->id_membresia) {
+                $membresia = \App\Models\Membresia::find($reserva->id_membresia);
+            }
+        }
+
+        // 2. Fallback: Membresía activa actual
+        if (!$membresia) {
+            $membresia = $socio->membresia_activa;
+        }
 
         if (!$membresia) {
-            return response()->json(['message' => 'El socio no tiene membresía activa.'], 403);
+            return response()->json(['message' => 'El socio no tiene membresía válida o activa para esta asistencia.'], 403);
         }
 
         DB::beginTransaction();

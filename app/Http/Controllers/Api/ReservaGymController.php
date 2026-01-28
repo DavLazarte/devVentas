@@ -95,14 +95,15 @@ class ReservaGymController extends Controller
             ->with('coach')
             ->get();
 
-        // Si es socio, forzamos un rango de búsqueda de Hoy y Mañana para encontrar la PRÓXIMA clase de cada tipo
-        // Esto debe hacerse ANTES de buscar las reservas para que coincida el rango
+        // Si es socio, validamos que no intente ver más allá de mañana por seguridad
         $gymSocioRole = Role::where('name', 'gym_socio')->first();
         $isSocio = $gymSocioRole && $user->role_id == $gymSocioRole->id;
 
         if ($isSocio) {
-            $startDate = Carbon::now()->startOfDay()->format('Y-m-d H:i:s');
-            $endDate = Carbon::now()->addDay()->endOfDay()->format('Y-m-d');
+            $tomorrow = Carbon::now()->addDay()->endOfDay();
+            if (Carbon::parse($startDate)->gt($tomorrow) || Carbon::parse($endDate)->gt($tomorrow)) {
+                return response()->json(['message' => 'Solo puedes ver clases hasta el día de mañana.'], 403);
+            }
         }
 
         $instancias = [];

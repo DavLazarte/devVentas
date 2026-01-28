@@ -58,8 +58,14 @@ class SocioController extends Controller
         }
 
         // Filtros
-        if ($request->has('estado')) {
-            // Implementar filtro según estado de membresía
+        if ($request->has('estado') && $request->estado !== 'todos') {
+            $estado = $request->estado;
+            if ($tipoPersona === 'cliente') {
+                // El estado_membresia es un campo calculado que se sincroniza en la tabla personas
+                $query->where('estado_membresia', $estado);
+            } else {
+                $query->where('estado', $estado);
+            }
         }
 
         if ($request->has('search')) {
