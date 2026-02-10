@@ -95,15 +95,23 @@ class ReservaGymController extends Controller
             ->with('coach')
             ->get();
 
-        // Si es socio, validamos que no intente ver más allá de mañana por seguridad
+        // Si es socio (cliente, no instructor), validamos que no intente ver más allá de mañana por seguridad
         $gymSocioRole = Role::where('name', 'gym_socio')->first();
         $isSocio = $gymSocioRole && $user->role_id == $gymSocioRole->id;
+        $isCliente = false; // Flag para diferenciar cliente de instructor
 
         if ($isSocio) {
-            $tomorrow = Carbon::now()->addDay()->endOfDay();
-            if (Carbon::parse($startDate)->gt($tomorrow) || Carbon::parse($endDate)->gt($tomorrow)) {
-                return response()->json(['message' => 'Solo puedes ver clases hasta el día de mañana.'], 403);
+            // Verificar si es un cliente real (no instructor)
+            $persona = Persona::where('user_id', $user->id)->first();
+            $isCliente = $persona && $persona->tipo_persona === 'cliente';
+
+            if ($isCliente) {
+                $tomorrow = Carbon::now()->addDay()->endOfDay();
+                if (Carbon::parse($startDate)->gt($tomorrow) || Carbon::parse($endDate)->gt($tomorrow)) {
+                    return response()->json(['message' => 'Solo puedes ver clases hasta el día de mañana.'], 403);
+                }
             }
+            // Los instructores no tienen restricción de fechas
         }
 
         $instancias = [];
@@ -196,8 +204,9 @@ class ReservaGymController extends Controller
                     $horaInicio = Carbon::parse($template->hora_inicio)->format('H:i:s');
                     $claseDateTime = Carbon::parse($dateStr . ' ' . $horaInicio);
 
-                    // Para socios, mostramos solo clases futuras o de las últimas 12 horas
-                    if ($isSocio && $claseDateTime->lt(now()->subHours(12))) {
+                    // Para socios CLIENTES, mostramos solo clases futuras o de las últimas 12 horas
+                    // Los instructores pueden ver historial completo
+                    if ($isCliente && $claseDateTime->lt(now()->subHours(12))) {
                         continue;
                     }
 

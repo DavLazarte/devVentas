@@ -49,9 +49,28 @@ class DashboardController extends Controller
             $now = Carbon::now();
 
             // 1. Métricas Clave
+            // Contar socios que tienen una membresía activa (no por estado_membresia sino por membresía real)
             $totalSociosActivos = Persona::where('id_local', $localId)
                 ->where('tipo_persona', 'cliente')
-                ->where('estado_membresia', 'activo')
+                ->whereHas('membresias', function ($q) {
+                    $q->where('estado', 'activa')
+                        ->where(function ($query) {
+                            // Membresías de fecha válidas
+                            $query->where(function ($q) {
+                                $q->where('tipo', 'fecha')
+                                    ->where('fecha_fin', '>=', Carbon::today());
+                            })
+                            // Membresías de créditos válidas
+                            ->orWhere(function ($q) {
+                                $q->where('tipo', 'creditos')
+                                    ->where('creditos_restantes', '>', 0)
+                                    ->where(function ($dateQ) {
+                                        $dateQ->whereNull('fecha_fin')
+                                            ->orWhere('fecha_fin', '>=', Carbon::today());
+                                    });
+                            });
+                        });
+                })
                 ->count();
 
             // Mejorar clases hoy: filtrar por día actual
