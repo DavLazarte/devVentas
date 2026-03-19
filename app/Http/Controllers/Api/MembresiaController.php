@@ -57,13 +57,20 @@ class MembresiaController extends Controller
 
             if ($request->estado === 'activa') {
                 // Coincidir con lógica Dashboard: > 7 días
-                $query->where('fecha_fin', '>', $nextWeek);
+                // Excluir explícitamente las marcadas como vencida/cancelada en BD
+                $query->where('fecha_fin', '>', $nextWeek)
+                      ->whereNotIn('estado', ['vencida', 'cancelada']);
             } elseif ($request->estado === 'por_vencer') {
                 // Coincidir con lógica Dashboard: próximos 7 días
-                $query->whereBetween('fecha_fin', [$today, $nextWeek]);
+                $query->whereBetween('fecha_fin', [$today, $nextWeek])
+                      ->whereNotIn('estado', ['vencida', 'cancelada']);
             } elseif ($request->estado === 'vencida') {
-                // Vencidas
-                $query->where('fecha_fin', '<', $today);
+                // Vencidas por fecha (últimos 30 días) O marcadas explícitamente como vencidas
+                $query->where(function($q) use ($today) {
+                    $q->where('fecha_fin', '<', $today)
+                      ->where('fecha_fin', '>=', $today->copy()->subDays(30))
+                      ->orWhere('estado', 'vencida');
+                });
             } elseif ($request->estado === 'con_deuda') {
                 // Filtro para deudas: monto_total > pagado
                 $query->whereRaw('monto_total > (SELECT COALESCE(SUM(monto), 0) FROM pagos_gym WHERE pagos_gym.id_membresia = membresias.id)');
@@ -134,11 +141,26 @@ class MembresiaController extends Controller
 
         DB::beginTransaction();
         try {
-            // Antes de crear, marcamos membresías anteriores del mismo socio como vencidas
+            // --- VALIDACIÓN DE SOLAPAMIENTO ---
+            // Si el socio ya tiene una membresía activa que NO ha vencido por fecha, impedimos la creación.
+            $actual = Membresia::where('idpersona', $validated['id_socio'])
+                ->where('id_local', $localId)
+                ->where('estado', 'activa')
+                ->where('tipo', 'fecha')
+                ->where('fecha_fin', '>=', Carbon::today())
+                ->first();
+
+            if ($actual) {
+                return response()->json([
+                    'message' => "El socio ya tiene una membresía vigente hasta el {$actual->fecha_fin->format('d/m/Y')}. No se puede registrar una nueva hasta que ésta venza."
+                ], 400);
+            }
+
+            // Antes de crear, marcamos membresías anteriores del mismo socio como renovadas
             Membresia::where('idpersona', $validated['id_socio'])
                 ->where('id_local', $localId)
                 ->where('estado', 'activa')
-                ->update(['estado' => 'vencida']);
+                ->update(['estado' => 'renovada']);
 
             $membresia = Membresia::create([
                 'idpersona' => $validated['id_socio'],

@@ -157,7 +157,7 @@ class ReservaGymController extends Controller
                 'id' => $reserva->id,
                 'id_persona' => $reserva->id_persona,
                 'dni' => $reserva->persona->dni_cuit,
-                'racha_actual' => $reserva->persona->racha_actual,
+                // 'racha_actual' => $reserva->persona->racha_actual,
                 'membresia' => $membresiaActiva ? ['id' => $membresiaActiva->id, 'nombre' => $membresiaActiva->nombre] : null,
                 'nombre' => $reserva->persona->nombre,
                 'foto' => $foto,

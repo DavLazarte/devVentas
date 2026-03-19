@@ -150,6 +150,8 @@ class Persona extends Model
      */
     public function getRachaActualAttribute()
     {
+        return 0; // Rachas desactivadas temporalmente
+        /*
         // Si la relación ya está cargada, usar la colección para evitar N+1
         if ($this->relationLoaded('asistencias')) {
             $dates = $this->asistencias
@@ -218,5 +220,6 @@ class Persona extends Model
         }
 
         return $streak;
+        */
     }
 }

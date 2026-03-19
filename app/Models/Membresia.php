@@ -105,9 +105,14 @@ class Membresia extends Model
         return $dias > 0 ? $dias : 0;
     }
 
-    // Estado calculado en tiempo real (ignora columna BD si está desactualizada)
+    // Estado calculado en tiempo real
     public function getComputedStatusAttribute()
     {
+        // Respetar estados manuales explícitos — si fue marcada como vencida/cancelada/renovada en BD, prevalece
+        if (in_array($this->estado, ['vencida', 'cancelada', 'renovada'])) {
+            return $this->estado;
+        }
+
         if ($this->tipo === 'fecha') {
             $today = Carbon::today();
             $fechaFin = $this->fecha_fin;

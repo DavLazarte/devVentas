@@ -125,13 +125,13 @@ class SocioController extends Controller
             'dni' => 'nullable|string',
             'foto' => 'nullable|string',
             'crearUsuario' => 'boolean',
-            'password' => 'required_if:crearUsuario,true|min:8',
+            'password' => 'nullable|required_if:crearUsuario,true|min:8',
             'tipo_persona' => 'sometimes|string|in:cliente,instructor',
         ]);
 
         DB::beginTransaction();
         try {
-            $localId = Auth::user()->local->id; // Default a 1 si no tiene persona
+            $localId = $this->getLocalId(); // Obtener local de forma robusta
             $tipoPersona = $request->input('tipo_persona', 'cliente');
             // FIX: Capturar estado del request (parametro opcional) para instructores
             $estadoInicial = $request->input('estado', 'activo');
@@ -455,7 +455,7 @@ class SocioController extends Controller
                 'fechaNacimiento' => $socio->fecha_nacimiento?->format('Y-m-d'),
                 'foto' => $socio->foto ? (preg_match('/^http/', $socio->foto) ? $socio->foto : url($socio->foto)) : null,
                 'dni' => $socio->dni_cuit,
-                'racha_actual' => $socio->racha_actual,
+                // 'racha_actual' => $socio->racha_actual,
                 'membresia' => $membresiaActiva ? [
                     'plan' => $membresiaActiva->plan->nombre,
                     'estado' => $socio->estado_membresia,
