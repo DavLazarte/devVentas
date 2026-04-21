@@ -20,11 +20,12 @@ return [
     'allowed_methods' => ['*'],
 
     'allowed_origins' => [
-        'http://localhost:3000',  // Tu Next.js en desarrollo
+        'http://localhost:3000',              // Next.js en desarrollo
         'http://127.0.0.1:3000',
-        'https://vertice-front-box.vercel.app',           // Tu Vercel
-        'https://vertice-front-box-*.vercel.app',         // Preview b
-        
+        'https://vertice-front-box.vercel.app',    // Gym (Vértice)
+        'https://vertice-front-box-*.vercel.app',  // Gym previews
+        'https://adlpos.vercel.app',               // ADL POS
+        'https://adlpos-*.vercel.app',             // ADL POS previews
     ],
 
     'allowed_origins_patterns' => [],
