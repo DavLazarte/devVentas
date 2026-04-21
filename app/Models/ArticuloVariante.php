@@ -24,14 +24,16 @@ class ArticuloVariante extends Model
         // Campos para venta por peso/volumen
         'stock_decimal',
         'tipo_venta',
-        'unidad_medida'
+        'unidad_medida',
+        'precios_por_cantidad'
     ];
 
     protected $casts = [
         'precio_unitario' => 'decimal:2',
         'stock' => 'integer',
         'es_variante_principal' => 'boolean',
-        'stock_decimal' => 'decimal:3'
+        'stock_decimal' => 'decimal:3',
+        'precios_por_cantidad' => 'array'
     ];
 
     protected $appends = ['imagen_url', 'tiene_stock'];

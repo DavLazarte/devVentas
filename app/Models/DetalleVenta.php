@@ -45,16 +45,16 @@ class DetalleVenta extends Model
         return $this->belongsTo(Articulo::class, 'idarticulo');
     }
 
-    public function variante()
+    public function variantesArticulos()
     {
         return $this->belongsTo(ArticuloVariante::class, 'id_variante', 'id_variante');
     }
 
     public function getNombreProductoAttribute()
     {
-        if ($this->variante) {
-            return $this->articulo->nombre . ' - ' . $this->variante->descripcion_variante;
+        if ($this->variantesArticulos) {
+            return ($this->producto->nombre ?? 'Producto eliminado') . ' - ' . $this->variantesArticulos->descripcion_variante;
         }
-        return $this->articulo->nombre ?? 'Producto eliminado';
+        return $this->producto->nombre ?? 'Producto eliminado';
     }
 }

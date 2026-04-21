@@ -53,7 +53,7 @@ class User extends \TCG\Voyager\Models\User
     {
         return $this->hasOne(Persona::class, 'user_id');
     }
-     // Relación con User
+    // Relación con User
     public function user()
     {
         return $this->belongsTo(User::class);
@@ -64,7 +64,7 @@ class User extends \TCG\Voyager\Models\User
     {
         return $this->hasMany(Membresia::class, 'idpersona', 'idpersona');
     }
-     public function pagos()
+    public function pagos()
     {
         return $this->hasMany(PagoGym::class, 'idpersona', 'idpersona');
     }
@@ -105,13 +105,13 @@ class User extends \TCG\Voyager\Models\User
     {
         return $this->membresias()
             ->where('estado', 'activa')
-            ->where(function($query) {
+            ->where(function ($query) {
                 $query->where('tipo', 'creditos')
-                      ->where('creditos_restantes', '>', 0)
-                      ->orWhere(function($q) {
-                          $q->where('tipo', 'fecha')
+                    ->where('creditos_restantes', '>', 0)
+                    ->orWhere(function ($q) {
+                        $q->where('tipo', 'fecha')
                             ->where('fecha_fin', '>=', now());
-                      });
+                    });
             })
             ->first();
     }
@@ -120,18 +120,18 @@ class User extends \TCG\Voyager\Models\User
     public function getEstadoMembresiaAttribute()
     {
         $membresia = $this->membresia_activa;
-        
+
         if (!$membresia) {
             return 'inactivo';
         }
 
         if ($membresia->tipo === 'fecha') {
             $diasRestantes = now()->diffInDays($membresia->fecha_fin, false);
-            
+
             if ($diasRestantes < 0) {
                 return 'vencido';
             }
-            
+
             if ($diasRestantes <= 7) {
                 return 'por_vencer';
             }
@@ -140,7 +140,7 @@ class User extends \TCG\Voyager\Models\User
         if ($membresia->tipo === 'creditos' && $membresia->creditos_restantes <= 2) {
             return 'por_agotar';
         }
-        
+
         return 'activo';
     }
 }

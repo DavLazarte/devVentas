@@ -28,7 +28,8 @@ class Articulo extends Model
         'tipo_venta',
         'unidad_medida',
         'precio_por_unidad_medida',
-        'stock_decimal'
+        'stock_decimal',
+        'precios_por_cantidad'
     ];
 
     protected $appends = ['imagen_url', 'precio_minimo', 'precio_maximo', 'stock_total'];
@@ -38,7 +39,8 @@ class Articulo extends Model
         'destacado' => 'boolean',
         'mostrar_feed' => 'boolean',
         'precio_por_unidad_medida' => 'decimal:2',
-        'stock_decimal' => 'decimal:3'
+        'stock_decimal' => 'decimal:3',
+        'precios_por_cantidad' => 'array'
     ];
 
     public function getImagenUrlAttribute()

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use App\Models\Local;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
@@ -26,16 +27,21 @@ class AuthController extends Controller
             ]);
         }
 
+        // Obtener local del vendedor
+        $local = Local::where('id_user', $user->id)->first();
+
         // Crear token Sanctum
         $token = $user->createToken('api-token')->plainTextToken;
 
         return response()->json([
             'user' => [
-                'id' => $user->id,
-                'name' => $user->name,
-                'email' => $user->email,
-                'role' => $user->role_id,
+                'id'        => $user->id,
+                'name'      => $user->name,
+                'email'     => $user->email,
+                'role'      => $user->role_id,
                 'role_name' => $user->role->name ?? null,
+                'local_id'  => $local?->id,
+                'local_nombre' => $local?->nombre,
             ],
             'token' => $token,
         ]);
@@ -44,16 +50,17 @@ class AuthController extends Controller
     public function user(Request $request)
     {
         $user = $request->user();
-        
-        
+        $local = Local::where('id_user', $user->id)->first();
 
         return response()->json([
             'user' => [
-                'id' => $user->id,
-                'name' => $user->name,
-                'email' => $user->email,
-                'role_id' => $user->role_id,
-                'role_name' => $user->role->name ?? null,
+                'id'           => $user->id,
+                'name'         => $user->name,
+                'email'        => $user->email,
+                'role_id'      => $user->role_id,
+                'role_name'    => $user->role->name ?? null,
+                'local_id'     => $local?->id,
+                'local_nombre' => $local?->nombre,
             ]
         ]);
     }
