@@ -27,8 +27,8 @@ class AuthController extends Controller
             ]);
         }
 
-        // Obtener local del vendedor
-        $local = Local::where('id_user', $user->id)->first();
+        // Obtener local del usuario (ya sea dueño o empleado)
+        $local = Local::where('id_user', $user->id)->first() ?? Local::find($user->id_local);
 
         // Crear token Sanctum
         $token = $user->createToken('api-token')->plainTextToken;
@@ -42,6 +42,7 @@ class AuthController extends Controller
                 'role_name' => $user->role->name ?? null,
                 'local_id'  => $local?->id,
                 'local_nombre' => $local?->nombre,
+                'local_tipo'   => $local?->tipo,
             ],
             'token' => $token,
         ]);
@@ -50,7 +51,7 @@ class AuthController extends Controller
     public function user(Request $request)
     {
         $user = $request->user();
-        $local = Local::where('id_user', $user->id)->first();
+        $local = Local::where('id_user', $user->id)->first() ?? Local::find($user->id_local);
 
         return response()->json([
             'user' => [
@@ -61,6 +62,7 @@ class AuthController extends Controller
                 'role_name'    => $user->role->name ?? null,
                 'local_id'     => $local?->id,
                 'local_nombre' => $local?->nombre,
+                'local_tipo'   => $local?->tipo,
             ]
         ]);
     }

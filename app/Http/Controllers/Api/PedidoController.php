@@ -41,11 +41,27 @@ class PedidoController extends Controller
             $query->where('estado', $request->estado);
         }
 
-        $pedidos = $query->orderByDesc('created_at')
-            ->get()
-            ->map(fn($p) => $this->formatPedido($p));
+        if ($request->has('search') && $request->search) {
+            $s = $request->search;
+            $query->where(function ($q) use ($s) {
+                $q->where('nombre_cliente', 'like', "%{$s}%")
+                  ->orWhere('telefono', 'like', "%{$s}%");
+            });
+        }
 
-        return response()->json(['orders' => $pedidos]);
+        $perPage = $request->input('per_page', 10);
+        $paginator = $query->orderByDesc('created_at')->paginate($perPage);
+
+        $pedidos = collect($paginator->items())->map(fn($p) => $this->formatPedido($p));
+
+        return response()->json([
+            'orders' => $pedidos,
+            'pagination' => [
+                'current_page' => $paginator->currentPage(),
+                'last_page' => $paginator->lastPage(),
+                'total' => $paginator->total(),
+            ]
+        ]);
     }
 
     /**

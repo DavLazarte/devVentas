@@ -25,14 +25,52 @@ class CajaController extends Controller
      */
     public function index(Request $request)
     {
+        $user = Auth::user();
         $local = $this->getLocal();
         if (!$local) {
             return response()->json(['message' => 'No tenés un local asignado.'], 403);
         }
 
         $date = $request->has('date') ? $request->date : today()->toDateString();
+        $isFinanciera = str_starts_with($user->role->name ?? '', 'financiera');
 
-        // Ventas del día como ingresos automáticos
+        if ($isFinanciera) {
+            $ingresosQuery = Ingreso::where('id_local', $local->id)->whereDate('created_at', $date)->get();
+            $ingresos = $ingresosQuery->map(fn($i) => [
+                'id'            => 'ING-' . $i->id_ingreso,
+                'type'          => 'ingreso',
+                'amount'        => (float) $i->monto,
+                'description'   => $i->descripcion ?? 'Ingreso',
+                'paymentMethod' => $i->tipo_pago ?? 'efectivo',
+                'createdAt'     => $i->created_at?->toISOString(),
+                'saleId'        => null,
+                'items'         => [],
+            ]);
+
+            $salidasQuery = Salida::where('id_local', $local->id)->whereDate('created_at', $date)->get();
+            $salidas = $salidasQuery->map(fn($s) => [
+                'id'            => 'SAL-' . $s->idsalida,
+                'type'          => 'egreso',
+                'amount'        => (float) $s->monto,
+                'description'   => $s->descripcion ?? 'Egreso',
+                'paymentMethod' => null,
+                'createdAt'     => $s->created_at?->toISOString(),
+                'saleId'        => null,
+                'items'         => [],
+            ]);
+
+            $resumen = [
+                'efectivo'      => (float) $ingresosQuery->where('tipo_pago', 'efectivo')->sum('monto') + (float) $ingresosQuery->whereNull('tipo_pago')->sum('monto'),
+                'transferencia' => (float) $ingresosQuery->where('tipo_pago', 'transferencia')->sum('monto'),
+                'cobros_deuda'  => 0,
+                'egresos'       => (float) $salidasQuery->sum('monto'),
+            ];
+
+            $all = $ingresos->concat($salidas)->sortByDesc('createdAt')->values();
+            return response()->json(['cashflow' => $all, 'resumen' => $resumen]);
+        }
+
+        // Ventas del día como ingresos automáticos (Para Pos Normal)
         $ventas = Venta::with(['detalles.producto', 'detalles.variantesArticulos'])
             ->where('id_local', $local->id)
             ->whereDate('created_at', $date)

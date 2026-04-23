@@ -10,6 +10,9 @@ use App\Http\Controllers\Api\PedidoController;
 use App\Http\Controllers\Api\ClienteController;
 use App\Http\Controllers\Api\CajaController;
 use App\Http\Controllers\Api\SuperadminController;
+use App\Http\Controllers\Api\PlanCreditoController;
+use App\Http\Controllers\Api\CreditoController;
+use App\Http\Controllers\Api\PagoCuotaController;
 
 /*
 |--------------------------------------------------------------------------
@@ -81,6 +84,18 @@ Route::middleware('auth:sanctum')->group(function () {
     // Caja / Cashflow
     Route::get('/caja', [CajaController::class, 'index']);
     Route::post('/caja', [CajaController::class, 'store']);
+
+    // ──────────────────────────────────────────────
+    // Financiera (Créditos y Préstamos)
+    // ──────────────────────────────────────────────
+    Route::apiResource('planes-credito', PlanCreditoController::class);
+    
+    Route::get('/creditos/dashboard', [CreditoController::class, 'dashboard']);
+    Route::get('/creditos', [CreditoController::class, 'index']);
+    Route::post('/creditos', [CreditoController::class, 'store']);
+    Route::get('/creditos/{id}', [CreditoController::class, 'show']);
+    
+    Route::post('/creditos/{id}/pagos', [PagoCuotaController::class, 'store']);
 
     // ──────────────────────────────────────────────
     // Socios / Gym (legacy)

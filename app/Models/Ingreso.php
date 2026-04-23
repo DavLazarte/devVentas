@@ -10,7 +10,7 @@ class Ingreso extends Model
     use HasFactory;
     protected $table = 'ingresos';
     protected $primaryKey = 'id_ingreso';
-    protected $fillable = ['idpersona', 'monto', 'descripcion', 'saldo', 'estado','id_local'];
+    protected $fillable = ['idpersona', 'monto', 'tipo_pago', 'descripcion', 'saldo', 'estado','id_local'];
 
     public function cliente()
     {

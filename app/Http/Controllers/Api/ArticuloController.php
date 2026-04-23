@@ -56,7 +56,10 @@ class ArticuloController extends Controller
             $query->where('tiene_variantes', false)->where('stock', '<=', 5)->where('stock', '>', 0);
         }
 
-        $articulos = $query->orderBy('nombre')->get()->map(function ($art) {
+        $perPage = $request->input('per_page', 10);
+        $paginator = $query->orderBy('nombre')->paginate($perPage);
+
+        $articulos = collect($paginator->items())->map(function ($art) {
             return $this->formatArticulo($art);
         });
 
@@ -68,6 +71,11 @@ class ArticuloController extends Controller
         return response()->json([
             'products' => $articulos,
             'categories' => $categorias,
+            'pagination' => [
+                'current_page' => $paginator->currentPage(),
+                'last_page' => $paginator->lastPage(),
+                'total' => $paginator->total(),
+            ]
         ]);
     }
 

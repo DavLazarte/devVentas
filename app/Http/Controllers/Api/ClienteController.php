@@ -43,9 +43,19 @@ class ClienteController extends Controller
             });
         }
 
-        $clientes = $query->orderBy('nombre')->get()->map(fn($c) => $this->formatCliente($c));
+        $perPage = $request->input('per_page', 10);
+        $paginator = $query->orderBy('nombre')->paginate($perPage);
 
-        return response()->json(['clients' => $clientes]);
+        $clientes = collect($paginator->items())->map(fn($c) => $this->formatCliente($c));
+
+        return response()->json([
+            'clients' => $clientes,
+            'pagination' => [
+                'current_page' => $paginator->currentPage(),
+                'last_page' => $paginator->lastPage(),
+                'total' => $paginator->total(),
+            ]
+        ]);
     }
 
     /**
@@ -226,6 +236,53 @@ class ClienteController extends Controller
 
     private function formatCliente(Persona $c): array
     {
+        $user = Auth::user();
+        $isFinanciera = str_starts_with($user->role->name ?? '', 'financiera');
+
+        if ($isFinanciera) {
+            $totalDeuda = \App\Models\Credito::where('idpersona', $c->idpersona)
+                ->where('saldo_pendiente', '>', 0)
+                ->sum('saldo_pendiente');
+
+            $balance = -((float) $totalDeuda);
+
+            $creditos = \App\Models\Credito::with(['plan'])
+                ->where('idpersona', $c->idpersona)
+                ->orderByDesc('created_at')
+                ->get()
+                ->map(fn($cr) => [
+                    'id' => $cr->id,
+                    'monto_aprobado' => (float) $cr->monto_aprobado,
+                    'total_a_pagar' => (float) $cr->total_a_pagar,
+                    'saldo_pendiente' => (float) $cr->saldo_pendiente,
+                    'estado' => $cr->estado,
+                    'fecha_otorgamiento' => $cr->fecha_otorgamiento?->toDateString(),
+                    'plan_nombre' => $cr->plan ? $cr->plan->nombre : '',
+                ]);
+
+            $pagos = Ingreso::where('idpersona', $c->idpersona)
+                ->orderByDesc('created_at')
+                ->take(20)
+                ->get()
+                ->map(fn($i) => [
+                    'id'          => (string) $i->id_ingreso,
+                    'monto'       => (float) $i->monto,
+                    'descripcion' => $i->descripcion,
+                    'createdAt'   => $i->created_at?->toISOString(),
+                ]);
+
+            return [
+                'id'           => (string) $c->idpersona,
+                'name'         => $c->nombre,
+                'phone'        => $c->telefono ?? '',
+                'balance'      => (float) $balance,
+                'ventas'       => [],
+                'creditos'     => $creditos,
+                'pagos'        => $pagos,
+                'transactions' => [],
+            ];
+        }
+
         // Deuda total: suma de saldos pendientes en ventas a cuenta
         $totalDeuda = Venta::where('idcliente', $c->idpersona)
             ->where('saldo', '>', 0)
