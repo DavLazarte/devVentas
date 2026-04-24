@@ -94,7 +94,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/creditos', [CreditoController::class, 'index']);
     Route::post('/creditos', [CreditoController::class, 'store']);
     Route::get('/creditos/{id}', [CreditoController::class, 'show']);
+    Route::put('/creditos/{id}', [CreditoController::class, 'update']);
+    Route::delete('/creditos/{id}', [CreditoController::class, 'destroy']);
+    Route::patch('/creditos/{id}/cancelar', [CreditoController::class, 'cancelar']);
+    Route::patch('/creditos/{id}/refinanciar', [CreditoController::class, 'marcarComoRefinanciado']);
     
+    Route::get('/cobradores-usuarios', [CreditoController::class, 'getCobradores']);
     Route::post('/creditos/{id}/pagos', [PagoCuotaController::class, 'store']);
 
     // ──────────────────────────────────────────────

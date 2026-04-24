@@ -16,6 +16,7 @@ class Credito extends Model
         'id_local',
         'id_cobrador',
         'id_plan_credito',
+        'tipo',
         'monto_aprobado',
         'total_a_pagar',
         'saldo_pendiente',

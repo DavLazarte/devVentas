@@ -31,8 +31,9 @@ class ClienteController extends Controller
             return response()->json(['message' => 'No tenés un local asignado.'], 403);
         }
 
+        $type = $request->input('type', 'cliente');
         $query = Persona::where('id_local', $local->id)
-            ->where('tipo_persona', 'cliente');
+            ->where('tipo_persona', $type);
 
         if ($request->has('search') && $request->search) {
             $s = $request->search;
@@ -75,7 +76,7 @@ class ClienteController extends Controller
         ]);
 
         $cliente = Persona::create([
-            'tipo_persona' => 'cliente',
+            'tipo_persona' => $request->type ?? 'cliente',
             'nombre'       => $request->name,
             'telefono'     => $request->phone,
             'mail'         => $request->email ?? '',

@@ -32,7 +32,7 @@ class PlanCreditoController extends Controller
 
         $validated = $request->validate([
             'nombre' => 'required|string|max:255',
-            'periodicidad' => 'required|in:semanal,quincenal,mensual,unica',
+            'periodicidad' => 'required|in:diaria,semanal,quincenal,mensual,unica',
             'cantidad_cuotas' => 'required|integer|min:1',
             'tasa_interes' => 'required|numeric|min:0',
             'mora_diaria' => 'required|numeric|min:0',
@@ -69,7 +69,7 @@ class PlanCreditoController extends Controller
 
         $validated = $request->validate([
             'nombre' => 'sometimes|string|max:255',
-            'periodicidad' => 'sometimes|in:semanal,quincenal,mensual,unica',
+            'periodicidad' => 'sometimes|in:diaria,semanal,quincenal,mensual,unica',
             'cantidad_cuotas' => 'sometimes|integer|min:1',
             'tasa_interes' => 'sometimes|numeric|min:0',
             'mora_diaria' => 'sometimes|numeric|min:0',

@@ -20,11 +20,8 @@ class PagoCuotaController extends Controller
         $credito = Credito::where('id_local', $id_local)->findOrFail($id_credito);
 
         $validated = $request->validate([
-            'monto_pagado' => 'required|numeric|min:1',
-            'metodo_pago' => 'required|in:efectivo,transferencia,tarjeta,cuenta',
-            'cuotas' => 'required|array|min:1', // IDs de las cuotas que se están pagando
-            'cuotas.*.id' => 'required|exists:cuotas,id',
-            'cuotas.*.monto_aplicado' => 'required|numeric|min:1',
+            'monto_pagado'  => 'required|numeric|min:1',
+            'metodo_pago'   => 'required|in:efectivo,transferencia,tarjeta,cuenta',
             'observaciones' => 'nullable|string'
         ]);
 
@@ -32,39 +29,50 @@ class PagoCuotaController extends Controller
         try {
             // 1. Crear el recibo (PagoCuota)
             $pago = PagoCuota::create([
-                'id_credito' => $credito->id,
-                'idpersona' => $credito->idpersona,
-                'id_cobrador' => $user->id,
+                'id_credito'   => $credito->id,
+                'idpersona'    => $credito->idpersona,
+                'id_cobrador'  => $user->id,
                 'monto_pagado' => $validated['monto_pagado'],
-                'fecha_pago' => now(),
-                'metodo_pago' => $validated['metodo_pago'],
+                'fecha_pago'   => now(),
+                'metodo_pago'  => $validated['metodo_pago'],
                 'observaciones' => $validated['observaciones'] ?? null
             ]);
 
-            // 2. Asociar cuotas y actualizar estado de cada una
-            $total_aplicado = 0;
-            foreach ($validated['cuotas'] as $c) {
-                $cuota = Cuota::where('id_credito', $credito->id)->findOrFail($c['id']);
-                
-                $pago->cuotas()->attach($cuota->id, [
-                    'monto_aplicado' => $c['monto_aplicado']
-                ]);
+            // 2. Distribuir el pago en cuotas pendientes/vencidas (orden por nro_cuota ASC)
+            $cuotasPendientes = Cuota::where('id_credito', $credito->id)
+                ->whereIn('estado', ['pendiente', 'vencida'])
+                ->orderBy('nro_cuota', 'asc')
+                ->get();
 
-                // Asumimos que si se envía un monto aplicado para la cuota, y cubre el monto base (+ mora si tuviese), se marca pagada.
-                // Como somos "permisivos", si el frontend manda que se pagó esta cuota, la marcamos como pagada
-                $cuota->estado = 'pagada';
-                $cuota->fecha_pago = now();
-                $cuota->save();
+            $saldoPago = (float) $validated['monto_pagado'];
+            $totalAplicado = 0;
 
-                $total_aplicado += $c['monto_aplicado'];
+            foreach ($cuotasPendientes as $cuota) {
+                if ($saldoPago <= 0) break;
+
+                $montoCuota = (float) $cuota->monto;
+
+                // Solo marcar como pagada si el saldo cubre la cuota completa (Opción A)
+                if ($saldoPago >= $montoCuota) {
+                    $pago->cuotas()->attach($cuota->id, [
+                        'monto_aplicado' => $montoCuota
+                    ]);
+
+                    $cuota->estado     = 'pagada';
+                    $cuota->fecha_pago = now();
+                    $cuota->save();
+
+                    $saldoPago    -= $montoCuota;
+                    $totalAplicado += $montoCuota;
+                } else {
+                    // El sobrante no alcanza para la siguiente cuota — detenemos
+                    break;
+                }
             }
 
-            // 3. Descontar del saldo del crédito
-            // En caso de que el cobrador haya "perdonado" la mora, igual descontamos del saldo original lo que corresponda a la cuota base
-            // Para simplificar, descontamos del saldo total el monto que originalmente se esperaba de esas cuotas
-            // o descontamos exactamente lo aplicado. Como es permisivo, restemos lo que se pagó realmente.
-            $credito->saldo_pendiente -= $total_aplicado;
-            
+            // 3. Descontar del saldo del crédito lo efectivamente aplicado
+            $credito->saldo_pendiente -= $totalAplicado;
+
             if ($credito->saldo_pendiente <= 0) {
                 $credito->saldo_pendiente = 0;
                 $credito->estado = 'cancelado';
@@ -73,27 +81,29 @@ class PagoCuotaController extends Controller
 
             // 4. Registrar Ingreso en Caja
             Ingreso::create([
-                'idpersona' => $credito->idpersona,
-                'monto' => $validated['monto_pagado'],
-                'tipo_pago' => $validated['metodo_pago'],
+                'idpersona'   => $credito->idpersona,
+                'monto'       => $validated['monto_pagado'],
+                'tipo_pago'   => $validated['metodo_pago'],
                 'descripcion' => "Cobro Cuotas Crédito #{$credito->id}",
-                'saldo' => 0, // No aplica directamente acá si es solo cashflow
-                'estado' => 'activo',
-                'id_local' => $id_local
+                'saldo'       => 0,
+                'estado'      => 'activo',
+                'id_local'    => $id_local
             ]);
 
             DB::commit();
 
             return response()->json([
-                'message' => 'Pago registrado correctamente',
-                'pago' => $pago->load('cuotas')
+                'message'        => 'Pago registrado correctamente',
+                'cuotas_pagadas' => $pago->cuotas()->count(),
+                'pago'           => $pago->load('cuotas'),
+                'credito'        => $credito->load(['cuotas' => fn($q) => $q->orderBy('nro_cuota')])
             ], 201);
 
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json([
                 'message' => 'Error al registrar el pago',
-                'error' => $e->getMessage()
+                'error'   => $e->getMessage()
             ], 500);
         }
     }

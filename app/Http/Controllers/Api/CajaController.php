@@ -35,8 +35,19 @@ class CajaController extends Controller
         $isFinanciera = str_starts_with($user->role->name ?? '', 'financiera');
 
         if ($isFinanciera) {
-            $ingresosQuery = Ingreso::where('id_local', $local->id)->whereDate('created_at', $date)->get();
-            $ingresos = $ingresosQuery->map(fn($i) => [
+            $ingresosQuery = Ingreso::where('id_local', $local->id);
+            $salidasQuery = Salida::where('id_local', $local->id);
+
+            // Si no pide 'all', filtramos por fecha
+            if ($request->input('scope') !== 'all') {
+                $ingresosQuery->whereDate('created_at', $date);
+                $salidasQuery->whereDate('created_at', $date);
+            }
+
+            $ingresosData = $ingresosQuery->get();
+            $salidasData = $salidasQuery->get();
+
+            $ingresos = $ingresosData->map(fn($i) => [
                 'id'            => 'ING-' . $i->id_ingreso,
                 'type'          => 'ingreso',
                 'amount'        => (float) $i->monto,
@@ -47,8 +58,7 @@ class CajaController extends Controller
                 'items'         => [],
             ]);
 
-            $salidasQuery = Salida::where('id_local', $local->id)->whereDate('created_at', $date)->get();
-            $salidas = $salidasQuery->map(fn($s) => [
+            $salidas = $salidasData->map(fn($s) => [
                 'id'            => 'SAL-' . $s->idsalida,
                 'type'          => 'egreso',
                 'amount'        => (float) $s->monto,
@@ -59,11 +69,17 @@ class CajaController extends Controller
                 'items'         => [],
             ]);
 
+            // Resumen acumulado (Caja General)
+            $totalIngresos = Ingreso::where('id_local', $local->id)->sum('monto');
+            $totalSalidas = Salida::where('id_local', $local->id)->sum('monto');
+            $cajaGeneral = (float) $totalIngresos - (float) $totalSalidas;
+
             $resumen = [
-                'efectivo'      => (float) $ingresosQuery->where('tipo_pago', 'efectivo')->sum('monto') + (float) $ingresosQuery->whereNull('tipo_pago')->sum('monto'),
-                'transferencia' => (float) $ingresosQuery->where('tipo_pago', 'transferencia')->sum('monto'),
+                'efectivo'      => (float) $ingresosData->where('tipo_pago', 'efectivo')->sum('monto') + (float) $ingresosData->whereNull('tipo_pago')->sum('monto'),
+                'transferencia' => (float) $ingresosData->where('tipo_pago', 'transferencia')->sum('monto'),
                 'cobros_deuda'  => 0,
-                'egresos'       => (float) $salidasQuery->sum('monto'),
+                'egresos'       => (float) $salidasData->sum('monto'),
+                'caja_general'  => $cajaGeneral
             ];
 
             $all = $ingresos->concat($salidas)->sortByDesc('createdAt')->values();
@@ -162,7 +178,7 @@ class CajaController extends Controller
 
         if ($request->type === 'ingreso') {
             $entry = Ingreso::create([
-                'idpersona'   => null,
+                'idpersona'   => $request->idpersona,
                 'monto'       => $request->amount,
                 'descripcion' => $request->description,
                 'saldo'       => $request->amount,
@@ -172,7 +188,7 @@ class CajaController extends Controller
             $id = 'ING-' . $entry->id_ingreso;
         } else {
             $entry = Salida::create([
-                'idpersona'   => null,
+                'idpersona'   => $request->idpersona,
                 'tipo_salida' => 'gasto',
                 'monto'       => $request->amount,
                 'descripcion' => $request->description,
