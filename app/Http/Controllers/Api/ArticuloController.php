@@ -56,8 +56,8 @@ class ArticuloController extends Controller
             $query->where('tiene_variantes', false)->where('stock', '<=', 5)->where('stock', '>', 0);
         }
 
-        $perPage = $request->input('per_page', 10);
-        $paginator = $query->orderBy('nombre')->paginate($perPage);
+        $perPage = $request->input('per_page', 20);
+        $paginator = $query->orderBy('destacado', 'desc')->orderBy('nombre')->paginate($perPage);
 
         $articulos = collect($paginator->items())->map(function ($art) {
             return $this->formatArticulo($art);

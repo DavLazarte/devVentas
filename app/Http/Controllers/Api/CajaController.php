@@ -189,7 +189,7 @@ class CajaController extends Controller
         } else {
             $entry = Salida::create([
                 'idpersona'   => $request->idpersona,
-                'tipo_salida' => 'gasto',
+                'tipo_salida' => $request->input('tipo_salida', 'gasto'),
                 'monto'       => $request->amount,
                 'descripcion' => $request->description,
                 'saldo'       => $request->amount,
