@@ -31,6 +31,40 @@ class ClienteController extends Controller
             return response()->json(['message' => 'No tenés un local asignado.'], 403);
         }
 
+        // ── Cuentas corrientes: clientes con deuda pendiente ──────────
+        if ($request->boolean('with_debt')) {
+            $deudores = Persona::where('id_local', $local->id)
+                ->where('tipo_persona', 'cliente')
+                ->when($request->search, fn($q) =>
+                    $q->where(fn($q2) =>
+                        $q2->where('nombre', 'like', "%{$request->search}%")
+                           ->orWhere('telefono', 'like', "%{$request->search}%")
+                    )
+                )
+                ->get()
+                ->map(function ($c) {
+                    $saldo = (float) Venta::where('idcliente', $c->idpersona)
+                        ->where('saldo', '>', 0)
+                        ->sum('saldo');
+                    $c->_deuda_total = $saldo;
+                    return $c;
+                })
+                ->filter(fn($c) => $c->_deuda_total > 0)
+                ->sortByDesc('_deuda_total')
+                ->values();
+
+            $clients = $deudores->map(fn($c) => $this->formatCliente($c));
+
+            return response()->json([
+                'clients'    => $clients,
+                'pagination' => [
+                    'current_page' => 1,
+                    'last_page'    => 1,
+                    'total'        => $clients->count(),
+                ],
+            ]);
+        }
+
         $type = $request->input('type', 'cliente');
         $query = Persona::where('id_local', $local->id)
             ->where('tipo_persona', $type);

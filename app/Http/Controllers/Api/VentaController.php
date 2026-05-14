@@ -35,14 +35,45 @@ class VentaController extends Controller
         $query = Venta::with(['detalles.producto'])
             ->where('id_local', $local->id);
 
-        if ($request->has('date')) {
-            $query->whereDate('created_at', $request->date);
-        } else {
-            $query->whereDate('created_at', today());
+        // ── Filtros de fecha ──────────────────────────────────
+        if ($request->has('from') && $request->from) {
+            $query->whereDate('created_at', '>=', $request->from);
+        }
+        if ($request->has('to') && $request->to) {
+            $query->whereDate('created_at', '<=', $request->to);
+        }
+        // Retrocompatibilidad: ?date= (solo un día)
+        if (!$request->has('from') && !$request->has('to')) {
+            if ($request->has('date') && $request->date) {
+                $query->whereDate('created_at', $request->date);
+            } else {
+                $query->whereDate('created_at', today());
+            }
         }
 
-        $ventas = $query->orderByDesc('created_at')->get()->map(fn($v) => $this->formatVenta($v));
+        // ── Filtro forma de pago ──────────────────────────
+        if ($request->has('forma_pago') && $request->forma_pago) {
+            $query->where('forma_de_pago', $request->forma_pago);
+        }
 
+        $query->orderByDesc('created_at');
+
+        // ── Paginación ──────────────────────────────────
+        if ($request->has('page') || $request->has('per_page')) {
+            $perPage = (int) $request->input('per_page', 20);
+            $paginator = $query->paginate($perPage);
+            $ventas = collect($paginator->items())->map(fn($v) => $this->formatVenta($v));
+            return response()->json([
+                'sales'      => $ventas,
+                'pagination' => [
+                    'current_page' => $paginator->currentPage(),
+                    'last_page'    => $paginator->lastPage(),
+                    'total'        => $paginator->total(),
+                ],
+            ]);
+        }
+
+        $ventas = $query->get()->map(fn($v) => $this->formatVenta($v));
         return response()->json(['sales' => $ventas]);
     }
 
@@ -66,6 +97,8 @@ class VentaController extends Controller
             'total'             => 'required|numeric|min:0',
             'clienteId'         => 'nullable|exists:personas,idpersona',
             'montoRecibido'     => 'nullable|numeric|min:0',
+            'discount'          => 'nullable|numeric|min:0|max:100',
+            'surcharge'         => 'nullable|numeric|min:0|max:100',
         ]);
 
         $esCuenta    = $request->paymentMethod === 'cuenta';
@@ -82,7 +115,7 @@ class VentaController extends Controller
                 'tipo_venta'    => 'mostrador',
                 'total_venta'   => $request->total,
                 'descuento'     => $request->discount ?? 0,
-                'recargo'       => 0,
+                'recargo'       => $request->surcharge ?? 0,
                 'pago'          => $pago,
                 'forma_de_pago' => $formaPago,
                 'saldo'         => $saldo,
@@ -204,6 +237,10 @@ class VentaController extends Controller
             })->values()->toArray(),
             'total'         => (float) $v->total_venta,
             'paymentMethod' => $v->forma_de_pago,
+            'descuento'     => (float) $v->descuento,
+            'recargo'       => (float) $v->recargo,
+            'pago'          => (float) $v->pago,
+            'saldo'         => (float) $v->saldo,
             'createdAt'     => $v->created_at->toISOString(),
         ];
     }
