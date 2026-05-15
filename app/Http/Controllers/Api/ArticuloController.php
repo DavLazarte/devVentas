@@ -56,8 +56,23 @@ class ArticuloController extends Controller
             $query->where('tiene_variantes', false)->where('stock', '<=', 5)->where('stock', '>', 0);
         }
 
-        $perPage = $request->input('per_page', 20);
-        $paginator = $query->orderBy('destacado', 'desc')->orderBy('nombre')->paginate($perPage);
+        // Subquery para contar ventas (más vendidos)
+        $query->withCount(['detalles as sales_count']);
+
+        // ── Ordenamiento ────────────────────────────────────
+        // 1. Destacados primero
+        // 2. Más vendidos (si no hay búsqueda)
+        // 3. Últimos cargados (id descendente)
+        $query->orderBy('destacado', 'desc');
+        
+        if (!$request->has('search')) {
+            $query->orderBy('sales_count', 'desc');
+        }
+        
+        $query->orderBy('idarticulo', 'desc');
+
+        $perPage = $request->input('per_page', $request->input('limit', 20));
+        $paginator = $query->paginate($perPage);
 
         $articulos = collect($paginator->items())->map(function ($art) {
             return $this->formatArticulo($art);

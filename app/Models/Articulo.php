@@ -59,6 +59,11 @@ class Articulo extends Model
         return $this->belongsTo(Local::class, 'id_local');
     }
 
+    public function detalles()
+    {
+        return $this->hasMany(DetalleVenta::class, 'idarticulo', 'idarticulo');
+    }
+
     // NUEVAS RELACIONES PARA VARIANTES
     public function variantes()
     {
