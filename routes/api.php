@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\SuperadminController;
 use App\Http\Controllers\Api\PlanCreditoController;
 use App\Http\Controllers\Api\CreditoController;
 use App\Http\Controllers\Api\PagoCuotaController;
+use App\Http\Controllers\Api\OpenFoodFactsController;
 
 /*
 |--------------------------------------------------------------------------
@@ -44,6 +45,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // ──────────────────────────────────────────────
 
     // Artículos / Stock
+    Route::get('/products/barcode/{barcode}', [OpenFoodFactsController::class, 'findByBarcode']);
     Route::get('/articulos', [ArticuloController::class, 'index']);
     Route::get('/articulos/{id}', [ArticuloController::class, 'show']);
     Route::post('/articulos', [ArticuloController::class, 'store']);
