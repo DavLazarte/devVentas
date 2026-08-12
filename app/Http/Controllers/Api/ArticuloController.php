@@ -71,11 +71,39 @@ class ArticuloController extends Controller
         
         $query->orderBy('idarticulo', 'desc');
 
+        $local = Local::with('planInfo')->find($localId);
+        
+        $plan = $local ? $local->planInfo : null;
+        if (!$plan && $local) {
+            $planString = $local->plan ?? 'free';
+            $maxLimit = match($planString) {
+                'free' => 15,
+                'basic' => 2000,
+                'premium' => 999999,
+                default => 15,
+            };
+        } else {
+            $maxLimit = $plan ? $plan->max_productos : null;
+        }
+
+        $allowedIds = null;
+        if ($maxLimit !== null) {
+            $allowedIds = Articulo::where('id_local', $localId)
+                ->orderBy('idarticulo', 'asc') // Los primeros creados son los permitidos
+                ->limit($maxLimit)
+                ->pluck('idarticulo')
+                ->toArray();
+        }
+
         $perPage = $request->input('per_page', $request->input('limit', 20));
         $paginator = $query->paginate($perPage);
 
-        $articulos = collect($paginator->items())->map(function ($art) {
-            return $this->formatArticulo($art);
+        $articulos = collect($paginator->items())->map(function ($art) use ($allowedIds) {
+            $formatted = $this->formatArticulo($art);
+            if ($allowedIds !== null && !in_array($art->idarticulo, $allowedIds)) {
+                $formatted['bloqueado_por_plan'] = true;
+            }
+            return $formatted;
         });
 
         $categorias = Categoria::where('id_local', $localId)
@@ -108,6 +136,14 @@ class ArticuloController extends Controller
     {
         $localId = $this->getLocalId();
         if (!$localId) return response()->json(['message' => 'Sin local activo'], 403);
+
+        $local = \App\Models\Local::with('planInfo')->find($localId);
+        if ($local && !$local->canAddProduct()) {
+            return response()->json([
+                'message' => 'Has alcanzado el límite de productos de tu plan actual. Actualiza tu plan para añadir más productos.',
+                'error_code' => 'PLAN_LIMIT_REACHED'
+            ], 403);
+        }
 
         $request->validate([
             'nombre'          => 'required|string',

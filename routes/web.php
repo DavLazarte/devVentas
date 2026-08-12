@@ -45,6 +45,20 @@ Route::get('/politicas', function () {
     return view('politicas');
 });
 
+// Utilidad para hosting compartido (limpiar cache y recargar clases)
+Route::get('/mantenimiento/optimizar', function () {
+    try {
+        \Illuminate\Support\Facades\Artisan::call('optimize:clear');
+        \Illuminate\Support\Facades\Artisan::call('config:clear');
+        \Illuminate\Support\Facades\Artisan::call('cache:clear');
+        \Illuminate\Support\Facades\Artisan::call('route:clear');
+        \Illuminate\Support\Facades\Artisan::call('view:clear');
+        return "✅ Cache limpiada exitosamente. El sistema ya reconoció todos los controladores y archivos nuevos.";
+    } catch (\Exception $e) {
+        return "❌ Error limpiando cache: " . $e->getMessage();
+    }
+});
+
 Route::get('/checkout', Checkout::class)->name('checkout');
 Route::get('/checkout/confirmation/{pedido}', function ($pedido) {
     $pedido = \App\Models\Pedido::with(['detalles.producto', 'detalles.variantesArticulos', 'local'])->findOrFail($pedido);
