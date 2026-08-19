@@ -45,7 +45,10 @@ class Articulo extends Model
 
     public function getImagenUrlAttribute()
     {
-        return $this->imagen ? asset('storage/' . $this->imagen) : null;
+        if (!$this->imagen) return null;
+        // Limpiamos la ruta por si quedó guardada con /storage/ de pruebas anteriores
+        $cleanPath = str_replace('/storage/', '', $this->imagen);
+        return asset('storage/' . $cleanPath);
     }
 
     // RELACIONES EXISTENTES

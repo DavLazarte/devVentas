@@ -283,8 +283,7 @@ class MarketplaceController extends Controller
                   ->orWhere('descripcion', 'like', $searchTerm);
             });
         }
-            
-        $productos = $query->orderBy('created_at', 'desc')->paginate(10);
+        $productos = $query->orderBy('idarticulo', 'desc')->paginate(10);
             
         return response()->json($productos);
     }

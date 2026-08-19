@@ -10,6 +10,7 @@ use App\Models\Local;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class ArticuloController extends Controller
@@ -155,6 +156,10 @@ class ArticuloController extends Controller
 
         DB::beginTransaction();
         try {
+            // Decode JSON strings from FormData if necessary
+            $variantes = is_string($request->variantes) ? json_decode($request->variantes, true) : $request->variantes;
+            $preciosPorCantidad = is_string($request->precios_por_cantidad) ? json_decode($request->precios_por_cantidad, true) : $request->precios_por_cantidad;
+
             // Find or create category
             $idCategoria = null;
             if ($request->categoria) {
@@ -165,25 +170,34 @@ class ArticuloController extends Controller
                 $idCategoria = $cat->id_categoria;
             }
 
+            // Manejar imagen si viene en el request
+            $imagenPath = null;
+            if ($request->hasFile('imagen')) {
+                $imagenPath = $request->file('imagen')->store('articulos', 'public');
+            }
+
             $articulo = Articulo::create([
                 'id_local'        => $localId,
                 'nombre'          => $request->nombre,
+                'descripcion'     => $request->descripcion,
                 'idcategoria'     => $idCategoria,
-                'estado'          => 'activo',
+                'estado'          => $request->estado ?? 'activo',
+                'mostrar_feed'    => $request->boolean('mostrar_feed', true),
                 'codigo'          => $request->codigo ?? ('ART-' . strtoupper(Str::random(6))),
                 'tipo_venta'      => $request->tipo_venta,
                 'unidad_medida'   => $request->unidad_medida ?? 'u',
                 'tiene_variantes' => $request->tiene_variantes,
                 'precio_unitario' => $request->tiene_variantes ? 0 : $request->precio_unitario,
                 'precio_por_unidad_medida' => $request->tiene_variantes ? 0 : $request->precio_unitario,
-                'precios_por_cantidad' => $request->tiene_variantes ? null : $request->precios_por_cantidad,
+                'precios_por_cantidad' => $request->tiene_variantes ? null : $preciosPorCantidad,
                 'stock'           => ($request->tipo_venta === 'unidad') ? ($request->stock ?? 0) : 0,
                 'stock_decimal'   => ($request->tipo_venta !== 'unidad') ? ($request->stock ?? 0) : 0,
+                'imagen'          => $imagenPath,
             ]);
 
             if ($request->tiene_variantes) {
                 // Variations logic
-                foreach ($request->variantes ?? [] as $varData) {
+                foreach ($variantes ?? [] as $varData) {
                     $variante = ArticuloVariante::create([
                         'idarticulo'      => $articulo->idarticulo,
                         'sku'             => $varData['sku'] ?? ArticuloVariante::generarSku($articulo, $varData['valores_nombres'] ?? []),
@@ -247,6 +261,10 @@ class ArticuloController extends Controller
 
         DB::beginTransaction();
         try {
+            // Decode JSON strings from FormData if necessary
+            $variantes = is_string($request->variantes) ? json_decode($request->variantes, true) : $request->variantes;
+            $preciosPorCantidad = is_string($request->precios_por_cantidad) ? json_decode($request->precios_por_cantidad, true) : $request->precios_por_cantidad;
+
             // Find or create category
             $idCategoria = null;
             if ($request->categoria) {
@@ -257,8 +275,19 @@ class ArticuloController extends Controller
                 $idCategoria = $cat->id_categoria;
             }
 
+            // Manejar imagen si viene en el request
+            if ($request->hasFile('imagen')) {
+                // Borrar imagen anterior si existe
+                if ($articulo->imagen) {
+                    Storage::disk('public')->delete($articulo->imagen);
+                }
+                $imagenPath = $request->file('imagen')->store('articulos', 'public');
+                $articulo->imagen = $imagenPath;
+            }
+
             $articulo->update([
                 'nombre'          => $request->nombre,
+                'descripcion'     => $request->descripcion,
                 'idcategoria'     => $idCategoria,
                 'codigo'          => $request->codigo ?? $articulo->codigo,
                 'tipo_venta'      => $request->tipo_venta,
@@ -266,9 +295,12 @@ class ArticuloController extends Controller
                 'tiene_variantes' => $request->tiene_variantes,
                 'precio_unitario' => $request->tiene_variantes ? 0 : $request->precio_unitario,
                 'precio_por_unidad_medida' => $request->tiene_variantes ? 0 : $request->precio_unitario,
-                'precios_por_cantidad' => $request->tiene_variantes ? null : $request->precios_por_cantidad,
+                'precios_por_cantidad' => $request->tiene_variantes ? null : $preciosPorCantidad,
                 'stock'           => (!$request->tiene_variantes && $request->tipo_venta === 'unidad') ? ($request->stock ?? 0) : 0,
                 'stock_decimal'   => (!$request->tiene_variantes && $request->tipo_venta !== 'unidad') ? ($request->stock ?? 0) : 0,
+                'estado'          => $request->estado ?? $articulo->estado,
+                'mostrar_feed'    => $request->has('mostrar_feed') ? $request->boolean('mostrar_feed') : $articulo->mostrar_feed,
+                'imagen'          => $articulo->imagen,
             ]);
 
             // Clear old variants logic (rename before delete to avoid SKU unique constraints)
@@ -277,7 +309,7 @@ class ArticuloController extends Controller
             ArticuloVariante::where('idarticulo', $articulo->idarticulo)->delete();
 
             if ($request->tiene_variantes) {
-                foreach ($request->variantes ?? [] as $varData) {
+                foreach ($variantes ?? [] as $varData) {
                     $variante = ArticuloVariante::create([
                         'idarticulo'      => $articulo->idarticulo,
                         'sku'             => $varData['sku'] ?? ArticuloVariante::generarSku($articulo, $varData['valores_nombres'] ?? []),
