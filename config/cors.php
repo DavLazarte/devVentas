@@ -24,8 +24,10 @@ return [
         'http://127.0.0.1:3000',
         'https://vertice-front-box.vercel.app',    // Gym (Vértice)
         'https://vertice-front-box-*.vercel.app',  // Gym previews
-        'https://adlpos.vercel.app',               // ADL POS
+        'https://adlpos.vercel.app',               // ADL POS / Qhatu POS
         'https://adlpos-*.vercel.app',             // ADL POS previews
+        'https://qhatu.vercel.app',                // Qhatu (si cambia el dominio)
+        'https://qhatu-*.vercel.app',
     ],
 
     'allowed_origins_patterns' => [],
