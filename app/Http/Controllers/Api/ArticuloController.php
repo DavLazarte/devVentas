@@ -61,12 +61,10 @@ class ArticuloController extends Controller
         $query->withCount(['detalles as sales_count']);
 
         // ── Ordenamiento ────────────────────────────────────
-        // 1. Destacados primero
-        // 2. Más vendidos (si no hay búsqueda)
-        // 3. Últimos cargados (id descendente)
-        $query->orderBy('destacado', 'desc');
-        
-        if (!$request->has('search')) {
+        // - Si piden orden de ventas (POS) -> Destacados primero, luego más vendidos
+        // - Sino (por defecto en Stock) -> Solo por ID descendente (últimos creados)
+        if ($request->query('sort') === 'ventas' || $request->input('sort') === 'ventas') {
+            $query->orderBy('destacado', 'desc');
             $query->orderBy('sales_count', 'desc');
         }
         
@@ -90,7 +88,7 @@ class ArticuloController extends Controller
         $allowedIds = null;
         if ($maxLimit !== null) {
             $allowedIds = Articulo::where('id_local', $localId)
-                ->orderBy('idarticulo', 'asc') // Los primeros creados son los permitidos
+                ->orderBy('idarticulo', 'desc') // Los últimos creados son los permitidos
                 ->limit($maxLimit)
                 ->pluck('idarticulo')
                 ->toArray();
@@ -198,6 +196,9 @@ class ArticuloController extends Controller
             if ($request->tiene_variantes) {
                 // Variations logic
                 foreach ($variantes ?? [] as $varData) {
+                    $valoresIds = $varData['valores_ids'] ?? [];
+                    $hash = ArticuloVariante::generarHash($valoresIds);
+
                     $variante = ArticuloVariante::create([
                         'idarticulo'      => $articulo->idarticulo,
                         'sku'             => $varData['sku'] ?? ArticuloVariante::generarSku($articulo, $varData['valores_nombres'] ?? []),
@@ -210,10 +211,11 @@ class ArticuloController extends Controller
                         'precios_por_cantidad' => $varData['precios_por_cantidad'] ?? null,
                         'es_variante_principal' => false,
                         'descripcion_variante'  => implode(', ', $varData['valores_nombres'] ?? []),
+                        'combination_hash'      => $hash,
                     ]);
 
-                    if (!empty($varData['valores_ids'])) {
-                        $variante->atributoValores()->attach($varData['valores_ids']);
+                    if (!empty($valoresIds)) {
+                        $variante->atributoValores()->attach($valoresIds);
                     }
                 }
             } else {
@@ -230,6 +232,7 @@ class ArticuloController extends Controller
                     'estado'          => 'activo',
                     'es_variante_principal' => true,
                     'descripcion_variante'  => 'Única',
+                    'combination_hash'      => 'primary',
                 ]);
             }
 
@@ -303,46 +306,110 @@ class ArticuloController extends Controller
                 'imagen'          => $articulo->imagen,
             ]);
 
-            // Clear old variants logic (rename before delete to avoid SKU unique constraints)
-            ArticuloVariante::where('idarticulo', $articulo->idarticulo)
-                ->update(['sku' => DB::raw("CONCAT(sku, '-old-', id_variante)")]);
-            ArticuloVariante::where('idarticulo', $articulo->idarticulo)->delete();
+            // 1. Obtener todas las variantes existentes de este artículo (incluso las eliminadas)
+            $variantesExistentes = ArticuloVariante::withTrashed()
+                ->where('idarticulo', $articulo->idarticulo)
+                ->get();
 
             if ($request->tiene_variantes) {
-                foreach ($variantes ?? [] as $varData) {
-                    $variante = ArticuloVariante::create([
-                        'idarticulo'      => $articulo->idarticulo,
-                        'sku'             => $varData['sku'] ?? ArticuloVariante::generarSku($articulo, $varData['valores_nombres'] ?? []),
-                        'precio_unitario' => $varData['precio'],
-                        'stock'           => ($articulo->tipo_venta === 'unidad') ? ($varData['stock'] ?? 0) : 0,
-                        'stock_decimal'   => ($articulo->tipo_venta !== 'unidad') ? ($varData['stock'] ?? 0) : 0,
-                        'tipo_venta'      => $articulo->tipo_venta,
-                        'unidad_medida'   => $articulo->unidad_medida,
-                        'estado'          => 'activo',
-                        'precios_por_cantidad' => $varData['precios_por_cantidad'] ?? null,
-                        'es_variante_principal' => false,
-                        'descripcion_variante'  => implode(', ', $varData['valores_nombres'] ?? []),
-                    ]);
+                $hashDeseados = [];
 
-                    if (!empty($varData['valores_ids'])) {
-                        $variante->atributoValores()->attach($varData['valores_ids']);
+                foreach ($variantes ?? [] as $varData) {
+                    $valoresIds = $varData['valores_ids'] ?? [];
+                    $hash = ArticuloVariante::generarHash($valoresIds);
+                    $hashDeseados[] = $hash;
+
+                    // 2. Buscar si existe una variante con esta firma (hash)
+                    $varianteExistente = $variantesExistentes->firstWhere('combination_hash', $hash);
+
+                    if ($varianteExistente) {
+                        // 2a. Si existe, la restauramos (si estaba eliminada) y actualizamos
+                        if ($varianteExistente->trashed()) {
+                            $varianteExistente->restore();
+                        }
+                        $varianteExistente->update([
+                            'sku'             => $varData['sku'] ?? $varianteExistente->sku,
+                            'precio_unitario' => $varData['precio'],
+                            'stock'           => ($articulo->tipo_venta === 'unidad') ? ($varData['stock'] ?? 0) : 0,
+                            'stock_decimal'   => ($articulo->tipo_venta !== 'unidad') ? ($varData['stock'] ?? 0) : 0,
+                            'precios_por_cantidad' => $varData['precios_por_cantidad'] ?? null,
+                            'descripcion_variante' => implode(', ', $varData['valores_nombres'] ?? []),
+                        ]);
+                        
+                        // Sincronizar atributos por si hubo algún cambio menor, pero la firma garantiza la identidad
+                        if (!empty($valoresIds)) {
+                            $varianteExistente->atributoValores()->sync($valoresIds);
+                        }
+                    } else {
+                        // 2b. Si NO existe, se crea una variante completamente nueva
+                        $variante = ArticuloVariante::create([
+                            'idarticulo'      => $articulo->idarticulo,
+                            'sku'             => $varData['sku'] ?? ArticuloVariante::generarSku($articulo, $varData['valores_nombres'] ?? []),
+                            'precio_unitario' => $varData['precio'],
+                            'stock'           => ($articulo->tipo_venta === 'unidad') ? ($varData['stock'] ?? 0) : 0,
+                            'stock_decimal'   => ($articulo->tipo_venta !== 'unidad') ? ($varData['stock'] ?? 0) : 0,
+                            'tipo_venta'      => $articulo->tipo_venta,
+                            'unidad_medida'   => $articulo->unidad_medida,
+                            'estado'          => 'activo',
+                            'precios_por_cantidad' => $varData['precios_por_cantidad'] ?? null,
+                            'es_variante_principal' => false,
+                            'descripcion_variante'  => implode(', ', $varData['valores_nombres'] ?? []),
+                            'combination_hash'      => $hash,
+                        ]);
+
+                        if (!empty($valoresIds)) {
+                            $variante->atributoValores()->attach($valoresIds);
+                        }
+                    }
+                }
+
+                // 3. Hacer SOFT DELETE de las variantes que ya NO vinieron en el request
+                foreach ($variantesExistentes as $vExistente) {
+                    if (!$vExistente->es_variante_principal && !in_array($vExistente->combination_hash, $hashDeseados)) {
+                        $vExistente->delete(); // Esto setea deleted_at (Soft Delete)
+                    }
+                    if ($vExistente->es_variante_principal) {
+                        $vExistente->delete(); // Eliminar la variante simple si cambiamos a variantes
                     }
                 }
             } else {
-                // If simple product, create one "primary" variant to keep consistency in the list
-                ArticuloVariante::create([
-                    'idarticulo'      => $articulo->idarticulo,
-                    'sku'             => $articulo->codigo,
-                    'precio_unitario' => $articulo->precio_unitario,
-                    'stock'           => $articulo->stock,
-                    'stock_decimal'   => $articulo->stock_decimal,
-                    'tipo_venta'      => $articulo->tipo_venta,
-                    'unidad_medida'   => $articulo->unidad_medida,
-                    'precios_por_cantidad' => $articulo->precios_por_cantidad,
-                    'estado'          => 'activo',
-                    'es_variante_principal' => true,
-                    'descripcion_variante'  => 'Única',
-                ]);
+                // Producto simple: buscamos si ya existía una variante "principal"
+                $variantePrincipal = $variantesExistentes->firstWhere('es_variante_principal', true);
+
+                if ($variantePrincipal) {
+                    if ($variantePrincipal->trashed()) {
+                        $variantePrincipal->restore();
+                    }
+                    $variantePrincipal->update([
+                        'sku'             => $articulo->codigo,
+                        'precio_unitario' => $articulo->precio_unitario,
+                        'stock'           => $articulo->stock,
+                        'stock_decimal'   => $articulo->stock_decimal,
+                        'precios_por_cantidad' => $articulo->precios_por_cantidad,
+                    ]);
+                } else {
+                    ArticuloVariante::create([
+                        'idarticulo'      => $articulo->idarticulo,
+                        'sku'             => $articulo->codigo,
+                        'precio_unitario' => $articulo->precio_unitario,
+                        'stock'           => $articulo->stock,
+                        'stock_decimal'   => $articulo->stock_decimal,
+                        'tipo_venta'      => $articulo->tipo_venta,
+                        'unidad_medida'   => $articulo->unidad_medida,
+                        'precios_por_cantidad' => $articulo->precios_por_cantidad,
+                        'estado'          => 'activo',
+                        'es_variante_principal' => true,
+                        'descripcion_variante'  => 'Única',
+                        'combination_hash'      => 'primary',
+                    ]);
+                }
+
+                // Soft Delete de todas las demás (si pasamos de múltiples a simple)
+                foreach ($variantesExistentes as $vExistente) {
+                    if (!$vExistente->es_variante_principal) {
+                        $vExistente->delete();
+                    }
+                }
             }
 
             DB::commit();
@@ -493,6 +560,7 @@ class ArticuloController extends Controller
         return [
             'id'              => (string) $art->idarticulo,
             'name'            => $art->nombre,
+            'descripcion'     => $art->descripcion,
             'price'           => $price,
             'category'        => $art->categoria?->nombre ?? 'Sin categoría',
             'stock'           => $stock,
@@ -500,7 +568,8 @@ class ArticuloController extends Controller
             'image'           => $art->imagen_url,
             'codigo'          => $art->codigo,
             'estado'          => $art->estado,
-            'tiene_variantes' => (bool)$art->tiene_variantes,
+            'mostrar_feed'    => (bool) $art->mostrar_feed,
+            'tiene_variantes' => (bool) $art->tiene_variantes,
             'max_price'       => $maxPrice ?? $price,
             'tipo_venta'      => $art->tipo_venta ?? 'unidad',
             'unidad_medida'   => $art->unidad_medida ?? 'u',

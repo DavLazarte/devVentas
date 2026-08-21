@@ -4,10 +4,11 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class ArticuloVariante extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected $table = 'articulo_variantes';
     protected $primaryKey = 'id_variante';
@@ -25,7 +26,8 @@ class ArticuloVariante extends Model
         'stock_decimal',
         'tipo_venta',
         'unidad_medida',
-        'precios_por_cantidad'
+        'precios_por_cantidad',
+        'combination_hash'
     ];
 
     protected $casts = [
@@ -140,5 +142,15 @@ class ArticuloVariante extends Model
         }
 
         return $baseSku;
+    }
+
+    // Helper para generar hash canónico basado en los IDs de valores de atributos
+    public static function generarHash($valores_ids = [])
+    {
+        if (empty($valores_ids)) return 'primary';
+        
+        $ids = (array) $valores_ids;
+        sort($ids, SORT_NUMERIC);
+        return implode(',', $ids);
     }
 }

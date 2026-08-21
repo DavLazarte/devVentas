@@ -151,14 +151,28 @@ class Articulo extends Model
     public function scopeConStock($query)
     {
         return $query->where(function ($query) {
-            // Productos sin variantes con stock
+            // Productos sin variantes con stock (unidad)
             $query->where('tiene_variantes', false)
+                ->where('tipo_venta', 'unidad')
                 ->where('stock', '>', 0);
         })->orWhere(function ($query) {
-            // Productos con variantes que tienen stock
+            // Productos sin variantes con stock_decimal (peso/volumen)
+            $query->where('tiene_variantes', false)
+                ->whereIn('tipo_venta', ['peso', 'volumen'])
+                ->where('stock_decimal', '>', 0);
+        })->orWhere(function ($query) {
+            // Productos con variantes (unidad) que tienen stock
             $query->where('tiene_variantes', true)
+                ->where('tipo_venta', 'unidad')
                 ->whereHas('variantesActivas', function ($subQuery) {
                     $subQuery->where('stock', '>', 0);
+                });
+        })->orWhere(function ($query) {
+            // Productos con variantes (peso/volumen) que tienen stock_decimal
+            $query->where('tiene_variantes', true)
+                ->whereIn('tipo_venta', ['peso', 'volumen'])
+                ->whereHas('variantesActivas', function ($subQuery) {
+                    $subQuery->where('stock_decimal', '>', 0);
                 });
         });
     }
@@ -167,9 +181,15 @@ class Articulo extends Model
     public function tieneStock()
     {
         if (!$this->tiene_variantes) {
+            if ($this->tipo_venta === 'peso' || $this->tipo_venta === 'volumen') {
+                return ($this->stock_decimal ?? 0) > 0;
+            }
             return $this->stock > 0;
         }
 
+        if ($this->tipo_venta === 'peso' || $this->tipo_venta === 'volumen') {
+            return $this->variantesActivas->where('stock_decimal', '>', 0)->count() > 0;
+        }
         return $this->variantesActivas->where('stock', '>', 0)->count() > 0;
     }
 

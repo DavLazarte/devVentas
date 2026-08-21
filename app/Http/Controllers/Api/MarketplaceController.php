@@ -264,7 +264,7 @@ class MarketplaceController extends Controller
 
         if ($maxLimit !== null) {
             $allowedIds = Articulo::where('id_local', $local->id)
-                ->orderBy('idarticulo', 'asc')
+                ->orderBy('idarticulo', 'desc')
                 ->limit($maxLimit)
                 ->pluck('idarticulo')
                 ->toArray();
