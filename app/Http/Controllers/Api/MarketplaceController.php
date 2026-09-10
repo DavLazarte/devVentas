@@ -243,7 +243,7 @@ class MarketplaceController extends Controller
             })
             ->firstOrFail();
             
-        $query = Articulo::with(['categoria', 'variantesActivas.atributoValores'])
+        $query = Articulo::with(['categoria', 'variantesActivas.atributoValores.atributo'])
             ->where('id_local', $local->id)
             ->where('estado', 'activo')
             ->where('mostrar_feed', true);
@@ -286,6 +286,30 @@ class MarketplaceController extends Controller
         $productos = $query->orderBy('idarticulo', 'desc')->paginate(10);
             
         return response()->json($productos);
+    }
+    
+    /**
+     * Obtener servicios públicos de un local
+     */
+    public function serviciosLocal($identifier)
+    {
+        $local = Local::where('estado', 'activo')
+            ->where('mostrar_feed', true)
+            ->where(function($q) use ($identifier) {
+                $q->where('slug', $identifier)
+                  ->orWhere('id', $identifier);
+            })
+            ->firstOrFail();
+            
+        $servicios = \App\Models\Servicio::with('recursos')
+            ->where('id_local', $local->id)
+            ->where('estado', true)
+            ->where('mostrar_feed', true)
+            ->where('es_reservable', true)
+            ->orderBy('nombre', 'asc')
+            ->get();
+            
+        return response()->json($servicios);
     }
     
     /**
@@ -338,7 +362,7 @@ class MarketplaceController extends Controller
      */
     public function showProducto($id)
     {
-        $producto = Articulo::with(['local', 'categoria', 'variantesActivas.atributoValores'])
+        $producto = Articulo::with(['local', 'categoria', 'variantesActivas.atributoValores.atributo'])
             ->where('estado', 'activo')
             ->where('mostrar_feed', true)
             ->findOrFail($id);
@@ -357,7 +381,8 @@ class MarketplaceController extends Controller
             'telefono' => 'nullable|string|max:50',
             'email' => 'nullable|email|max:255',
             'items' => 'required|array|min:1',
-            'items.*.idarticulo' => 'required', // could be string or int
+            'items.*.idarticulo' => 'required',
+            'items.*.id_variante' => 'nullable',
             'items.*.cantidad' => 'required|integer|min:1',
             'items.*.precio_unitario' => 'required|numeric|min:0',
             'total' => 'required|numeric|min:0',
@@ -382,12 +407,20 @@ class MarketplaceController extends Controller
 
             foreach ($request->items as $item) {
                 $subtotal = $item['cantidad'] * $item['precio_unitario'];
+                $variante = null;
+                if (!empty($item['id_variante'])) {
+                    $variante = \App\Models\ArticuloVariante::find($item['id_variante']);
+                }
+
                 \App\Models\DetallePedido::create([
                     'pedido_id' => $pedido->id,
                     'idarticulo' => $item['idarticulo'],
+                    'id_variante' => $item['id_variante'] ?? null,
                     'cantidad' => $item['cantidad'],
                     'precio_unitario' => $item['precio_unitario'],
                     'subtotal' => $subtotal,
+                    'sku_vendido' => $variante ? $variante->sku : null,
+                    'descripcion_variante' => $variante ? $variante->descripcion_variante : null,
                 ]);
             }
 

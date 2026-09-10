@@ -13,6 +13,7 @@ class HorarioDisponibilidad extends Model
     protected $fillable = [
         'id_local',
         'idservicio',
+        'recurso_id',
         'dia_semana',
         'hora_inicio',
         'hora_fin',
@@ -22,5 +23,10 @@ class HorarioDisponibilidad extends Model
     public function servicio()
     {
         return $this->belongsTo(Servicio::class, 'idservicio');
+    }
+
+    public function recurso()
+    {
+        return $this->belongsTo(Recurso::class, 'recurso_id');
     }
 }

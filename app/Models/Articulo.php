@@ -19,6 +19,7 @@ class Articulo extends Model
         'descripcion',
         'imagen',
         'precio_unitario',
+        'precio_costo',
         'estado',
         'mostrar_feed',
         'destacado',
@@ -39,6 +40,7 @@ class Articulo extends Model
         'destacado' => 'boolean',
         'mostrar_feed' => 'boolean',
         'precio_por_unidad_medida' => 'decimal:2',
+        'precio_costo' => 'decimal:2',
         'stock_decimal' => 'decimal:3',
         'precios_por_cantidad' => 'array'
     ];

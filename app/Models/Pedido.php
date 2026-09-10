@@ -33,11 +33,18 @@ class Pedido extends Model
         'estado_reserva',       // 'pendiente', 'confirmada', 'cancelada', 'completada'
         'fecha_confirmacion',   // timestamp
         'cancelado_por',        // 'cliente' o 'local'
-        'motivo_cancelacion'    // text
+        'motivo_cancelacion',    // text
+        'posicion_cola',
+        'hora_estimada',
+        'estado_atencion',      // 'en_espera','siendo_atendido','completado','ausente'
+        'notificado',
+        'token_publico'
     ];
 
     protected $casts = [
         'crear_cuenta' => 'boolean',
+        'notificado' => 'boolean',
+        'posicion_cola' => 'integer',
         'subtotal' => 'decimal:2',
         'envio' => 'decimal:2',
         'descuento' => 'decimal:2',

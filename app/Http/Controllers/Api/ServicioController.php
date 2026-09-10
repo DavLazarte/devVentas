@@ -81,11 +81,20 @@ class ServicioController extends Controller
             'duracion_dias' => 'nullable|integer|min:1',
             'creditos' => 'nullable|integer|min:1',
             'estado' => 'boolean',
-            // Add other fields as necessary based on model
+            'duracion' => 'nullable|integer|min:1',
+            'buffer_tiempo' => 'nullable|integer|min:0',
+            'tipo_reserva' => 'nullable|string|in:sin_reserva,coordinacion,turno_fijo,cola_virtual',
+            'es_reservable' => 'nullable|boolean',
+            'mostrar_feed' => 'nullable|boolean',
+            'imagen' => 'nullable|image|max:2048'
         ]);
 
-        // Default visual state via 'estado' boolean
         $estado = $request->input('estado', true);
+        
+        $imagenPath = null;
+        if ($request->hasFile('imagen')) {
+            $imagenPath = $request->file('imagen')->store('servicios', 'public');
+        }
 
         $servicio = Servicio::create([
             'id_local' => $localId,
@@ -95,6 +104,12 @@ class ServicioController extends Controller
             'tipo_servicio' => $validated['tipo_servicio'],
             'duracion_dias' => $validated['duracion_dias'] ?? null,
             'creditos' => $validated['creditos'] ?? null,
+            'duracion' => $validated['duracion'] ?? 30,
+            'buffer_tiempo' => $validated['buffer_tiempo'] ?? 0,
+            'tipo_reserva' => $validated['tipo_reserva'] ?? 'sin_reserva',
+            'es_reservable' => $validated['es_reservable'] ?? true,
+            'mostrar_feed' => $validated['mostrar_feed'] ?? true,
+            'imagen' => $imagenPath,
             'estado' => $estado,
         ]);
 
@@ -134,11 +149,23 @@ class ServicioController extends Controller
             'nombre' => 'sometimes|string|max:255',
             'descripcion' => 'nullable|string',
             'precio' => 'sometimes|numeric|min:0',
-            // tipo_servicio usually shouldn't change, but allowed if needed
             'duracion_dias' => 'nullable|integer|min:1',
             'creditos' => 'nullable|integer|min:1',
             'estado' => 'sometimes|boolean',
+            'duracion' => 'nullable|integer|min:1',
+            'buffer_tiempo' => 'nullable|integer|min:0',
+            'tipo_reserva' => 'nullable|string|in:sin_reserva,coordinacion,turno_fijo,cola_virtual',
+            'es_reservable' => 'nullable|boolean',
+            'mostrar_feed' => 'nullable|boolean',
+            'imagen' => 'nullable|image|max:2048'
         ]);
+
+        if ($request->hasFile('imagen')) {
+            if ($servicio->imagen) {
+                \Illuminate\Support\Facades\Storage::disk('public')->delete($servicio->imagen);
+            }
+            $validated['imagen'] = $request->file('imagen')->store('servicios', 'public');
+        }
 
         $servicio->update($validated);
 

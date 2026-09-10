@@ -28,7 +28,7 @@ class Servicio extends Model
         'anticipacion_minima',   // ej: 24 horas mínimo para reservar
         'anticipacion_maxima',   // ej: 30 días máximo adelante
         'cancelacion_limite',    // horas antes para cancelar
-        'tipo_reserva', // 'sin_reserva', 'coordinacion', 'turno_fijo'
+        'tipo_reserva', // 'sin_reserva', 'coordinacion', 'turno_fijo', 'cola_virtual'
 
         // Campos específicos para gimnasio
         'tipo_servicio',      // 'plan', 'clase', 'servicio_general'
@@ -84,6 +84,12 @@ class Servicio extends Model
     public function empleados()
     {
         return $this->belongsToMany(Persona::class, 'servicio_empleado', 'servicio_id', 'empleado_id');
+    }
+
+    // Recursos físicos asociados a este servicio (canchas, sillones, boxes, etc.)
+    public function recursos()
+    {
+        return $this->belongsToMany(Recurso::class, 'servicio_recurso', 'servicio_id', 'recurso_id');
     }
 
     public function local()

@@ -113,17 +113,16 @@ class CajaController extends Controller
             })->values()->toArray(),
         ]);
 
-        // Ingresos del día (cobros de deuda de clientes)
+        // Ingresos del día (cobros de deuda y cobros de servicios/turnos)
         $ingresos = Ingreso::where('id_local', $local->id)
-            ->whereNotNull('idpersona') // solo cobros de clientes
             ->whereDate('created_at', $date)
             ->get()
             ->map(fn($i) => [
                 'id'            => 'ING-' . $i->id_ingreso,
                 'type'          => 'ingreso',
                 'amount'        => (float) $i->monto,
-                'description'   => $i->descripcion ?? 'Cobro de deuda',
-                'paymentMethod' => 'cobro_deuda',
+                'description'   => $i->descripcion ?? 'Ingreso manual',
+                'paymentMethod' => $i->tipo_pago ?? 'efectivo', // Usamos el tipo_pago real o default a efectivo
                 'createdAt'     => $i->created_at?->toISOString(),
                 'saleId'        => null,
                 'items'         => [],
@@ -144,11 +143,23 @@ class CajaController extends Controller
                 'items'         => [],
             ]);
 
-        // Resumen por forma de pago
+        // Resumen por forma de pago (sumando ventas + ingresos directos)
+        $ingresosData = Ingreso::where('id_local', $local->id)->whereDate('created_at', $date)->get();
+        
+        // Separar ingresos de deudas y otros ingresos
+        $cobrosDeudaData = $ingresosData->whereNotNull('idpersona');
+        $otrosIngresosData = $ingresosData->whereNull('idpersona');
+        
+        $efectivoVentas = (float) $ventas->where('forma_de_pago', 'efectivo')->sum('pago');
+        $efectivoIngresos = (float) $otrosIngresosData->whereIn('tipo_pago', ['efectivo', null])->sum('monto');
+        
+        $transferenciaVentas = (float) $ventas->where('forma_de_pago', 'transferencia')->sum('pago');
+        $transferenciaIngresos = (float) $otrosIngresosData->where('tipo_pago', 'transferencia')->sum('monto');
+        
         $resumen = [
-            'efectivo'      => (float) $ventas->where('forma_de_pago', 'efectivo')->sum('pago'),
-            'transferencia' => (float) $ventas->where('forma_de_pago', 'transferencia')->sum('pago'),
-            'cobros_deuda'  => (float) Ingreso::where('id_local', $local->id)->whereNotNull('idpersona')->whereDate('created_at', $date)->sum('monto'),
+            'efectivo'      => $efectivoVentas + $efectivoIngresos,
+            'transferencia' => $transferenciaVentas + $transferenciaIngresos,
+            'cobros_deuda'  => (float) $cobrosDeudaData->sum('monto'),
             'egresos'       => (float) Salida::where('id_local', $local->id)->whereDate('created_at', $date)->sum('monto'),
         ];
 
@@ -180,6 +191,7 @@ class CajaController extends Controller
             $entry = Ingreso::create([
                 'idpersona'   => $request->idpersona,
                 'monto'       => $request->amount,
+                'tipo_pago'   => $request->tipo_pago ?? 'efectivo',
                 'descripcion' => $request->description,
                 'saldo'       => $request->amount,
                 'estado'      => 'activo',

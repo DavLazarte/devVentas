@@ -17,6 +17,7 @@ class ArticuloVariante extends Model
         'idarticulo',
         'sku',
         'precio_unitario',
+        'precio_costo',
         'stock',
         'imagen',
         'descripcion_variante',
@@ -32,6 +33,7 @@ class ArticuloVariante extends Model
 
     protected $casts = [
         'precio_unitario' => 'decimal:2',
+        'precio_costo'    => 'decimal:2',
         'stock' => 'integer',
         'es_variante_principal' => 'boolean',
         'stock_decimal' => 'decimal:3',

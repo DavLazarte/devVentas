@@ -42,9 +42,15 @@ class LocalConfigController extends Controller
             'plan_id' => \App\Models\Plan::where('slug', 'free')->value('id'),
         ]);
         
-        // Cambiamos el rol a dueño/vendedor si era usuario normal
+        // Cambiamos el rol a vendedor si era usuario normal
         if ($user->role_id == 2) {
-            $user->role_id = 4; // Rol dueño
+            $rolVendedor = \App\Models\Role::where('name', 'vendedor')->first();
+            if ($rolVendedor) {
+                $user->role_id = $rolVendedor->id;
+            } else {
+                // fallback: buscamos el rol 3 (vendedor en la mayoría de los sistemas)
+                $user->role_id = 3;
+            }
             $user->save();
         }
 

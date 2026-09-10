@@ -43,11 +43,18 @@ Route::prefix('tienda')->group(function () {
     Route::get('/locales/nuevos-todos', [\App\Http\Controllers\Api\MarketplaceController::class, 'nuevosTodos']);
     Route::get('/locales/{slug}', [\App\Http\Controllers\Api\MarketplaceController::class, 'showLocal']);
     Route::get('/locales/{slug}/productos', [\App\Http\Controllers\Api\MarketplaceController::class, 'productosLocal']);
+    Route::get('/locales/{slug}/servicios', [\App\Http\Controllers\Api\MarketplaceController::class, 'serviciosLocal']);
     Route::get('/productos/tendencias', [\App\Http\Controllers\Api\MarketplaceController::class, 'tendencias']);
     Route::get('/productos/{id}', [\App\Http\Controllers\Api\MarketplaceController::class, 'showProducto']);
     Route::post('/pedido', [\App\Http\Controllers\Api\MarketplaceController::class, 'createPedido']);
     Route::post('/pedidos/track', [\App\Http\Controllers\Api\MarketplaceController::class, 'trackPedidos']);
     Route::get('/cerca', [\App\Http\Controllers\Api\MarketplaceController::class, 'cercaTuyo']);
+
+    // Turnos Públicos
+    Route::get('/servicios/{id}/disponibilidad', [\App\Http\Controllers\Api\TurnoController::class, 'disponibilidad']);
+    Route::post('/turnos', [\App\Http\Controllers\Api\TurnoController::class, 'store']);
+    Route::get('/turnos/status/{token}', [\App\Http\Controllers\Api\TurnoController::class, 'status']);
+    Route::patch('/turnos/status/{token}/cancelar', [\App\Http\Controllers\Api\TurnoController::class, 'cancelarPublico']);
 });
 
 // Planes públicos (para mostrar en pricing page)
@@ -152,6 +159,14 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::patch('/pedidos/{id}/estado', [PedidoController::class, 'updateEstado']);
     Route::post('/pedidos/{id}/entregar', [PedidoController::class, 'entregar']);
     Route::delete('/pedidos/{id}', [PedidoController::class, 'destroy']);
+
+    // Turnos Admin (Avanzar cola y cancelar)
+    Route::get('/turnos/estado-local', [\App\Http\Controllers\Api\TurnoController::class, 'getEstadoLocal']);
+    Route::post('/turnos/estado-local', [\App\Http\Controllers\Api\TurnoController::class, 'toggleEstadoLocal']);
+    Route::get('/turnos/cola', [\App\Http\Controllers\Api\TurnoController::class, 'adminQueue']);
+    Route::patch('/turnos/{id}/llamar', [\App\Http\Controllers\Api\TurnoController::class, 'llamar']);
+    Route::patch('/turnos/{id}/completar', [\App\Http\Controllers\Api\TurnoController::class, 'completar']);
+    Route::patch('/turnos/{id}/cancelar', [\App\Http\Controllers\Api\TurnoController::class, 'cancelar']);
 
     // Clientes POS (requiere plan con clientes)
     Route::middleware('plan.feature:clientes')->group(function () {

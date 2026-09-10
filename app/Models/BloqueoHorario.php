@@ -14,6 +14,7 @@ class BloqueoHorario extends Model
     protected $fillable = [
         'id_local',
         'idservicio',
+        'recurso_id',
         'fecha',
         'hora_inicio',
         'hora_fin',
@@ -23,5 +24,10 @@ class BloqueoHorario extends Model
     public function servicio()
     {
         return $this->belongsTo(Servicio::class, 'idservicio');
+    }
+
+    public function recurso()
+    {
+        return $this->belongsTo(Recurso::class, 'recurso_id');
     }
 }

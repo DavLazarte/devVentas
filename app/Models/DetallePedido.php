@@ -22,6 +22,7 @@ class DetallePedido extends Model
         'sku_vendido',
         'descripcion_variante',
         'id_empleado',
+        'recurso_id',
         'cantidad_decimal',
         'unidad_medida_pedido',
     ];
@@ -36,6 +37,11 @@ class DetallePedido extends Model
     public function empleado()
     {
         return $this->belongsTo(Persona::class, 'id_empleado', 'idpersona');
+    }
+
+    public function recurso()
+    {
+        return $this->belongsTo(Recurso::class, 'recurso_id');
     }
 
     public function getProductoAttribute()
