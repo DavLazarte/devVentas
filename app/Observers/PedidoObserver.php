@@ -18,26 +18,21 @@ class PedidoObserver
      */
     public function created(Pedido $pedido)
     {
-        try {
-            // Obtener el email del dueño de la tienda
-            $emailDueno = $pedido->local->user->email ?? null;
-
-            if ($emailDueno) {
-                Mail::to($emailDueno)->send(new PedidoCreado($pedido));
-
-                Log::info("Email de pedido #{$pedido->id} enviado a {$emailDueno}");
-            }
-            // Email al cliente
-            $emailCliente = $pedido->email ?? null;
-
-            if ($emailCliente) {
-                Mail::to($emailCliente)->send(new PedidoConfirmacion($pedido));
-
-                Log::info("Email de confirmación de pedido #{$pedido->id} enviado a {$emailCliente}");
-            }
-        } catch (\Exception $e) {
-            Log::error("Error al enviar email de pedido: " . $e->getMessage());
-        }
+        // TODO: reactivar cuando se configure SMTP + QUEUE_CONNECTION != sync
+        // try {
+        //     $emailDueno = $pedido->local->user->email ?? null;
+        //     if ($emailDueno) {
+        //         Mail::to($emailDueno)->queue(new PedidoCreado($pedido));
+        //         Log::info("Email de pedido #{$pedido->id} encolado para {$emailDueno}");
+        //     }
+        //     $emailCliente = $pedido->email ?? null;
+        //     if ($emailCliente) {
+        //         Mail::to($emailCliente)->queue(new PedidoConfirmacion($pedido));
+        //         Log::info("Email de confirmación de pedido #{$pedido->id} encolado para {$emailCliente}");
+        //     }
+        // } catch (\Exception $e) {
+        //     Log::error("Error al encolar email de pedido: " . $e->getMessage());
+        // }
     }
 
     /**

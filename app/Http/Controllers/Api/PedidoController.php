@@ -75,17 +75,28 @@ class PedidoController extends Controller
         }
 
         $request->validate([
-            'customerName'    => 'required|string|max:255',
-            'customerPhone'   => 'nullable|string',
-            'items'           => 'required|array|min:1',
-            'items.*.productId' => 'required',
+            'customerName'       => 'required|string|max:255',
+            'customerPhone'      => 'nullable|string',
+            'items'              => 'required|array|min:1',
+            'items.*.productId'  => 'required',
             'items.*.varianteId' => 'nullable',
-            'items.*.quantity'  => 'required|integer|min:1',
-            'items.*.price'     => 'required|numeric|min:0',
-            'total'           => 'required|numeric|min:0',
-            'fechaRetiro'     => 'nullable|date',
-            'horaRetiro'      => 'nullable|date_format:H:i',
+            'items.*.quantity'   => 'required|integer|min:1',
+            'items.*.price'      => 'required|numeric|min:0',
+            'total'              => 'required|numeric|min:0',
+            'fechaRetiro'        => 'nullable|date',
+            'horaRetiro'         => 'nullable|date_format:H:i',
         ]);
+
+        // ── Pre-fetch en bulk para evitar N+1 ────────────────────────────
+        $productIds  = collect($request->items)->pluck('productId')->unique()->values();
+        $varianteIds = collect($request->items)
+            ->filter(fn($i) => !empty($i['varianteId']))
+            ->pluck('varianteId')->unique()->values();
+
+        $articulos = Articulo::whereIn('idarticulo', $productIds)->get()->keyBy('idarticulo');
+        $variantes = $varianteIds->isNotEmpty()
+            ? ArticuloVariante::whereIn('id_variante', $varianteIds)->get()->keyBy('id_variante')
+            : collect();
 
         DB::beginTransaction();
         try {
@@ -93,8 +104,8 @@ class PedidoController extends Controller
                 'id_local'       => $local->id,
                 'id_user'        => Auth::id(),
                 'nombre_cliente' => $request->customerName,
-                'telefono'       => $request->customerPhone ?? '', // Evita el error "Column 'telefono' cannot be null"
-                'subtotal'       => $request->total, // Guardamos el subtotal igual al total inicialmente
+                'telefono'       => $request->customerPhone ?? '',
+                'subtotal'       => $request->total,
                 'descuento'      => 0,
                 'envio'          => 0,
                 'total'          => $request->total,
@@ -105,31 +116,28 @@ class PedidoController extends Controller
             ]);
 
             foreach ($request->items as $item) {
-                $variante = null;
-                if (!empty($item['varianteId'])) {
-                    $variante = ArticuloVariante::find($item['varianteId']);
-                }
-                $articulo = Articulo::find($item['productId']);
+                $varianteId = $item['varianteId'] ?? null;
+                $variante   = $varianteId ? $variantes->get($varianteId) : null;
+                $articulo   = $articulos->get($item['productId']);
 
                 DetallePedido::create([
-                    'pedido_id'       => $pedido->id,
-                    'idarticulo'      => $item['productId'],
-                    'id_variante'     => $item['varianteId'] ?? null,
-                    'sku_vendido'     => $variante ? $variante->sku : ($articulo?->codigo),
-                    'descripcion_variante' => $variante ? $variante->descripcion_variante : null,
-                    'cantidad'        => $item['quantity'],
-                    'precio_unitario' => $item['price'],
-                    'subtotal'        => $item['price'] * $item['quantity'],
+                    'pedido_id'            => $pedido->id,
+                    'idarticulo'           => $item['productId'],
+                    'id_variante'          => $varianteId,
+                    'sku_vendido'          => $variante?->sku ?? $articulo?->codigo,
+                    'descripcion_variante' => $variante?->descripcion_variante,
+                    'cantidad'             => $item['quantity'],
+                    'precio_unitario'      => $item['price'],
+                    'subtotal'             => $item['price'] * $item['quantity'],
                 ]);
             }
 
             DB::commit();
 
-            $pedido->load(['detalles.producto', 'detalles.variantesArticulos']);
-
+            // Respuesta mínima: el frontend no necesita el objeto completo
             return response()->json([
                 'message' => 'Pedido creado exitosamente',
-                'order'   => $this->formatPedido($pedido),
+                'order'   => ['id' => (string) $pedido->id, 'total' => (float) $pedido->total],
             ], 201);
 
         } catch (\Exception $e) {
@@ -310,12 +318,10 @@ class PedidoController extends Controller
             'customerName'  => $p->nombre_cliente,
             'customerPhone' => $p->telefono,
             'items'         => $p->detalles->map(function($d) {
-                // Primero usa la descripción persistida; si no, busca la variante por id
-                $variantName = $d->descripcion_variante;
-                if (!$variantName && $d->id_variante) {
-                    $variante = \App\Models\ArticuloVariante::find($d->id_variante);
-                    $variantName = $variante?->descripcion_variante ?? '';
-                }
+                // Usa descripcion_variante persistida; si no hay, usa la relación ya eager-loaded
+                $variantName = $d->descripcion_variante
+                    ?? $d->variantesArticulos?->descripcion_variante
+                    ?? '';
                 return [
                     'productId'   => (string) $d->idarticulo,
                     'productName' => ($d->producto?->nombre ?? 'Producto eliminado') . ($variantName ? ' - ' . $variantName : ''),

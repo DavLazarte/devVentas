@@ -53,7 +53,7 @@ class Persona extends Model
 
     public function servicios()
     {
-        return $this->belongsToMany(Servicio::class, 'servicio_empleado', 'empleado_id', 'servicio_id');
+        return $this->belongsToMany(Servicio::class, 'servicio_empleado', 'empleado_id', 'servicio_id', 'idpersona', 'idservicio');
     }
 
     public function clasesCoach()

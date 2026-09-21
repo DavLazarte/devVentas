@@ -243,7 +243,7 @@ class MarketplaceController extends Controller
             })
             ->firstOrFail();
             
-        $query = Articulo::with(['categoria', 'variantesActivas.atributoValores.atributo'])
+        $query = Articulo::with(['categoria', 'imagenes', 'variantesActivas.atributoValores.atributo', 'variantesActivas.imagenes'])
             ->where('id_local', $local->id)
             ->where('estado', 'activo')
             ->where('mostrar_feed', true);
@@ -301,7 +301,7 @@ class MarketplaceController extends Controller
             })
             ->firstOrFail();
             
-        $servicios = \App\Models\Servicio::with('recursos')
+        $servicios = \App\Models\Servicio::with(['recursos', 'empleados:idpersona,nombre,telefono'])
             ->where('id_local', $local->id)
             ->where('estado', true)
             ->where('mostrar_feed', true)
@@ -362,7 +362,7 @@ class MarketplaceController extends Controller
      */
     public function showProducto($id)
     {
-        $producto = Articulo::with(['local', 'categoria', 'variantesActivas.atributoValores.atributo'])
+        $producto = Articulo::with(['local', 'categoria', 'imagenes', 'variantesActivas.atributoValores.atributo', 'variantesActivas.imagenes'])
             ->where('estado', 'activo')
             ->where('mostrar_feed', true)
             ->findOrFail($id);

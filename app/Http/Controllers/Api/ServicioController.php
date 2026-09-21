@@ -31,6 +31,45 @@ class ServicioController extends Controller
         return $user->id_local ?? $user->local_id ?? null;
     }
 
+    public function getEmpleados()
+    {
+        $localId = $this->getLocalId();
+        if (!$localId) return response()->json(['message' => 'Sin local activo'], 403);
+
+        $empleados = Persona::where('id_local', $localId)
+            ->whereIn('tipo_persona', ['empleado', 'instructor', 'staff'])
+            ->orderBy('nombre')
+            ->get();
+
+        return response()->json(['empleados' => $empleados]);
+    }
+
+    public function storeEmpleado(Request $request)
+    {
+        $localId = $this->getLocalId();
+        if (!$localId) return response()->json(['message' => 'Sin local activo'], 403);
+
+        $validated = $request->validate([
+            'nombre'   => 'required|string|max:255',
+            'telefono' => 'nullable|string|max:50',
+            'mail'     => 'nullable|email|max:100',
+        ]);
+
+        $empleado = Persona::create([
+            'id_local'     => $localId,
+            'nombre'       => $validated['nombre'],
+            'telefono'     => $validated['telefono'] ?? '',
+            'mail'         => $validated['mail'] ?? '',
+            'tipo_persona' => 'empleado',
+            'estado'       => 'Activo',
+        ]);
+
+        return response()->json([
+            'message'  => 'Empleado creado exitosamente',
+            'empleado' => $empleado,
+        ], 201);
+    }
+
     public function index(Request $request)
     {
         $user = Auth::user();
@@ -39,7 +78,7 @@ class ServicioController extends Controller
         // Default to 'plan' if not specified, or allow filtering
         $tipoServicio = $request->query('tipo_servicio', 'plan');
 
-        $query = Servicio::where('id_local', $localId)
+        $query = Servicio::with('empleados')->where('id_local', $localId)
             ->where('tipo_servicio', $tipoServicio);
 
         if ($request->has('estado')) {
@@ -86,7 +125,8 @@ class ServicioController extends Controller
             'tipo_reserva' => 'nullable|string|in:sin_reserva,coordinacion,turno_fijo,cola_virtual',
             'es_reservable' => 'nullable|boolean',
             'mostrar_feed' => 'nullable|boolean',
-            'imagen' => 'nullable|image|max:2048'
+            'imagen' => 'nullable|image|max:2048',
+            'empleado_ids' => 'nullable',
         ]);
 
         $estado = $request->input('estado', true);
@@ -113,6 +153,15 @@ class ServicioController extends Controller
             'estado' => $estado,
         ]);
 
+        if ($request->has('empleado_ids')) {
+            $empleados = is_string($request->empleado_ids) ? json_decode($request->empleado_ids, true) : $request->empleado_ids;
+            if (is_array($empleados)) {
+                $servicio->empleados()->sync($empleados);
+            }
+        }
+
+        $servicio->load('empleados');
+
         return response()->json([
             'message' => 'Servicio creado exitosamente',
             'servicio' => $servicio
@@ -128,7 +177,7 @@ class ServicioController extends Controller
     public function show($id)
     {
         $localId = $this->getLocalId();
-        $servicio = Servicio::where('id_local', $localId)->findOrFail($id);
+        $servicio = Servicio::with('empleados')->where('id_local', $localId)->findOrFail($id);
 
         return response()->json(['servicio' => $servicio]);
     }
@@ -157,7 +206,8 @@ class ServicioController extends Controller
             'tipo_reserva' => 'nullable|string|in:sin_reserva,coordinacion,turno_fijo,cola_virtual',
             'es_reservable' => 'nullable|boolean',
             'mostrar_feed' => 'nullable|boolean',
-            'imagen' => 'nullable|image|max:2048'
+            'imagen' => 'nullable|image|max:2048',
+            'empleado_ids' => 'nullable',
         ]);
 
         if ($request->hasFile('imagen')) {
@@ -168,6 +218,15 @@ class ServicioController extends Controller
         }
 
         $servicio->update($validated);
+
+        if ($request->has('empleado_ids')) {
+            $empleados = is_string($request->empleado_ids) ? json_decode($request->empleado_ids, true) : $request->empleado_ids;
+            if (is_array($empleados)) {
+                $servicio->empleados()->sync($empleados);
+            }
+        }
+
+        $servicio->load('empleados');
 
         return response()->json([
             'message' => 'Servicio actualizado exitosamente',

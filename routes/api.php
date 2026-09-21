@@ -173,6 +173,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/clientes-pos', [ClienteController::class, 'index']);
         Route::post('/clientes-pos', [ClienteController::class, 'store']);
         Route::put('/clientes-pos/{id}', [ClienteController::class, 'update']);
+        Route::delete('/clientes-pos/{id}', [ClienteController::class, 'destroy']);
         Route::post('/clientes-pos/{id}/transacciones', [ClienteController::class, 'createTransaction']);
         Route::post('/clientes-pos/{id}/pago', [ClienteController::class, 'registrarPago']);
     });
@@ -214,7 +215,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/perfil', [SocioController::class, 'getProfile']);
     Route::post('/perfil', [SocioController::class, 'updateProfile']);
 
-    // Servicios (Planes, Clases)
+    // Servicios (Planes, Clases) y Empleados vinculados
+    Route::get('/servicios/empleados', [\App\Http\Controllers\Api\ServicioController::class, 'getEmpleados']);
+    Route::post('/servicios/empleados', [\App\Http\Controllers\Api\ServicioController::class, 'storeEmpleado']);
     Route::apiResource('servicios', \App\Http\Controllers\Api\ServicioController::class);
 
     // Clases (Horarios/Templates)

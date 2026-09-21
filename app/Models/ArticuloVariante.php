@@ -59,20 +59,31 @@ class ArticuloVariante extends Model
         )->with('atributo');
     }
 
-    // Accessor para URL de imagen
-    public function getImagenUrlAttribute()
+    /**
+     * Imágenes de esta variante específica.
+     * Máximo 2 imágenes (orden 0, 1).
+     */
+    public function imagenes()
     {
+        return $this->hasMany(ArticuloImagen::class, 'variante_id', 'id_variante')
+            ->orderBy('orden');
+    }
+
+    // Accessor para URL de imagen
+    public function getImagenUrlAttribute(): ?string
+    {
+        // 1. Imagen desde la relación articulo_imagenes
+        if ($this->relationLoaded('imagenes') && $this->imagenes->isNotEmpty()) {
+            return $this->imagenes->first()->url;
+        }
+
+        // 2. Columna imagen directa en articulo_variantes
         if ($this->imagen) {
-            return asset('storage/' . $this->imagen);
+            $cleanPath = str_replace('/storage/', '', $this->imagen);
+            return asset('storage/' . $cleanPath);
         }
 
-        // Verifica si la relación 'articulo' ha sido cargada
-        if ($this->relationLoaded('articulo') && $this->articulo) {
-            // Accede directamente a la propiedad 'imagen' del modelo padre, no al accesorio 'imagen_url'
-            return $this->articulo->imagen ? asset('storage/' . $this->articulo->imagen) : asset('images/default-product.jpg');
-        }
-
-        return asset('images/default-product.jpg');
+        return null;
     }
 
     // Accessor para verificar stock

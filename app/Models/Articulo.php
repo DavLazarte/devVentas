@@ -88,6 +88,17 @@ class Articulo extends Model
             ->where('estado', 'activo');
     }
 
+    /**
+     * Imágenes adicionales del artículo base (sin variante).
+     * Máximo 3 imágenes (orden 0, 1, 2).
+     */
+    public function imagenes()
+    {
+        return $this->hasMany(ArticuloImagen::class, 'idarticulo', 'idarticulo')
+            ->whereNull('variante_id')
+            ->orderBy('orden');
+    }
+
     // ACCESSORS PARA MANEJAR PRECIOS Y STOCK CON VARIANTES
     public function getPrecioMinimoAttribute()
     {

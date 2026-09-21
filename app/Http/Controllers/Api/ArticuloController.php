@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Articulo;
 use App\Models\ArticuloVariante;
+use App\Models\ArticuloImagen;
 use App\Models\Categoria;
 use App\Models\Local;
 use Illuminate\Http\Request;
@@ -32,7 +33,7 @@ class ArticuloController extends Controller
             return response()->json(['message' => 'No tenés un local asignado.'], 403);
         }
 
-        $query = Articulo::with(['categoria', 'variantesActivas.atributoValores.atributo'])
+        $query = Articulo::with(['categoria', 'variantesActivas.atributoValores.atributo', 'imagenes', 'variantesActivas.imagenes'])
             ->where('id_local', $localId);
 
         if ($request->has('search') && $request->search) {
@@ -124,7 +125,7 @@ class ArticuloController extends Controller
     public function show($id)
     {
         $localId = $this->getLocalId();
-        $art = Articulo::with(['categoria', 'variantesActivas.atributoValores.atributo'])
+        $art = Articulo::with(['categoria', 'variantesActivas.atributoValores.atributo', 'imagenes', 'variantesActivas.imagenes'])
             ->where('id_local', $localId)
             ->findOrFail($id);
 
@@ -168,7 +169,7 @@ class ArticuloController extends Controller
                 $idCategoria = $cat->id_categoria;
             }
 
-            // Manejar imagen si viene en el request
+            // Manejar imagen si viene en el request (legacy campo único)
             $imagenPath = null;
             if ($request->hasFile('imagen')) {
                 $imagenPath = $request->file('imagen')->store('articulos', 'public');
@@ -194,9 +195,29 @@ class ArticuloController extends Controller
                 'imagen'          => $imagenPath,
             ]);
 
+            // Guardar múltiples imágenes del artículo base (hasta 3: imagen_0, imagen_1, imagen_2)
+            for ($i = 0; $i <= 2; $i++) {
+                $campo = "imagen_{$i}";
+                if ($request->hasFile($campo)) {
+                    $ruta = $request->file($campo)->store('articulos', 'public');
+                    ArticuloImagen::create([
+                        'idarticulo'  => $articulo->idarticulo,
+                        'variante_id' => null,
+                        'ruta'        => $ruta,
+                        'orden'       => $i,
+                    ]);
+                    // Si es la primera imagen y no hay imagen legacy, usar como imagen principal
+                    if ($i === 0 && !$imagenPath) {
+                        $articulo->imagen = $ruta;
+                        $articulo->save();
+                        $imagenPath = $ruta;
+                    }
+                }
+            }
+
             if ($request->tiene_variantes) {
                 // Variations logic
-                foreach ($variantes ?? [] as $varData) {
+                foreach ($variantes ?? [] as $index => $varData) {
                     $valoresIds = $varData['valores_ids'] ?? [];
                     $hash = ArticuloVariante::generarHash($valoresIds);
 
@@ -218,6 +239,20 @@ class ArticuloController extends Controller
 
                     if (!empty($valoresIds)) {
                         $variante->atributoValores()->attach($valoresIds);
+                    }
+
+                    // Guardar imagen de variante si fue subida
+                    $campo = "variante_{$index}_imagen_0";
+                    if ($request->hasFile($campo)) {
+                        $ruta = $request->file($campo)->store('articulos', 'public');
+                        ArticuloImagen::create([
+                            'idarticulo'  => $articulo->idarticulo,
+                            'variante_id' => $variante->id_variante,
+                            'ruta'        => $ruta,
+                            'orden'       => 0,
+                        ]);
+                        $variante->imagen = $ruta;
+                        $variante->save();
                     }
                 }
             } else {
@@ -241,7 +276,7 @@ class ArticuloController extends Controller
             DB::commit();
             return response()->json([
                 'message' => 'Producto creado',
-                'product' => $this->formatArticulo($articulo->load(['categoria', 'variantesActivas.atributoValores.atributo'])),
+                'product' => $this->formatArticulo($articulo->load(['categoria', 'variantesActivas.atributoValores.atributo', 'imagenes', 'variantesActivas.imagenes'])),
             ], 201);
         } catch (\Exception $e) {
             DB::rollBack();
@@ -280,7 +315,7 @@ class ArticuloController extends Controller
                 $idCategoria = $cat->id_categoria;
             }
 
-            // Manejar imagen si viene en el request
+            // Manejar imagen si viene en el request (legacy campo único)
             if ($request->hasFile('imagen')) {
                 // Borrar imagen anterior si existe
                 if ($articulo->imagen) {
@@ -288,6 +323,51 @@ class ArticuloController extends Controller
                 }
                 $imagenPath = $request->file('imagen')->store('articulos', 'public');
                 $articulo->imagen = $imagenPath;
+            }
+
+            // Manejar múltiples imágenes del artículo (imagen_0, imagen_1, imagen_2)
+            // Si se envía imagen_delete_N=1, borramos esa posición específica
+            for ($i = 0; $i <= 2; $i++) {
+                $campo       = "imagen_{$i}";
+                $campoDelete = "imagen_delete_{$i}";
+
+                // Borrar esta posición si se indica explícitamente
+                if ($request->input($campoDelete) == '1') {
+                    $existente = ArticuloImagen::where('idarticulo', $articulo->idarticulo)
+                        ->whereNull('variante_id')
+                        ->where('orden', $i)
+                        ->first();
+                    if ($existente) {
+                        Storage::disk('public')->delete($existente->ruta);
+                        $existente->delete();
+                    }
+                }
+
+                // Reemplazar/agregar si viene un archivo nuevo para esta posición
+                if ($request->hasFile($campo)) {
+                    // Borrar la anterior en esa posición si existe
+                    $existente = ArticuloImagen::where('idarticulo', $articulo->idarticulo)
+                        ->whereNull('variante_id')
+                        ->where('orden', $i)
+                        ->first();
+                    if ($existente) {
+                        Storage::disk('public')->delete($existente->ruta);
+                        $existente->delete();
+                    }
+
+                    $ruta = $request->file($campo)->store('articulos', 'public');
+                    ArticuloImagen::create([
+                        'idarticulo'  => $articulo->idarticulo,
+                        'variante_id' => null,
+                        'ruta'        => $ruta,
+                        'orden'       => $i,
+                    ]);
+
+                    // Si es posición 0 y no hay imagen legacy, sincronizarla como imagen principal
+                    if ($i === 0 && !$articulo->imagen) {
+                        $articulo->imagen = $ruta;
+                    }
+                }
             }
 
             $articulo->update([
@@ -317,13 +397,15 @@ class ArticuloController extends Controller
             if ($request->tiene_variantes) {
                 $hashDeseados = [];
 
-                foreach ($variantes ?? [] as $varData) {
+                foreach ($variantes ?? [] as $index => $varData) {
                     $valoresIds = $varData['valores_ids'] ?? [];
                     $hash = ArticuloVariante::generarHash($valoresIds);
                     $hashDeseados[] = $hash;
 
                     // 2. Buscar si existe una variante con esta firma (hash)
                     $varianteExistente = $variantesExistentes->firstWhere('combination_hash', $hash);
+                    
+                    $varianteAfectada = null;
 
                     if ($varianteExistente) {
                         // 2a. Si existe, la restauramos (si estaba eliminada) y actualizamos
@@ -344,6 +426,7 @@ class ArticuloController extends Controller
                         if (!empty($valoresIds)) {
                             $varianteExistente->atributoValores()->sync($valoresIds);
                         }
+                        $varianteAfectada = $varianteExistente;
                     } else {
                         // 2b. Si NO existe, se crea una variante completamente nueva
                         $variante = ArticuloVariante::create([
@@ -364,6 +447,40 @@ class ArticuloController extends Controller
 
                         if (!empty($valoresIds)) {
                             $variante->atributoValores()->attach($valoresIds);
+                        }
+                        $varianteAfectada = $variante;
+                    }
+
+                    // Manejo de imagen de la variante
+                    if ($varianteAfectada) {
+                        $delCampo = "variante_{$index}_imagen_delete_0";
+                        $fileCampo = "variante_{$index}_imagen_0";
+
+                        if ($request->has($delCampo) && $request->get($delCampo) == '1') {
+                            $img = ArticuloImagen::where('idarticulo', $articulo->idarticulo)
+                                ->where('variante_id', $varianteAfectada->id_variante)
+                                ->where('orden', 0)
+                                ->first();
+                            if ($img) {
+                                \Illuminate\Support\Facades\Storage::disk('public')->delete($img->ruta);
+                                $img->delete();
+                            }
+                            $varianteAfectada->imagen = null;
+                            $varianteAfectada->save();
+                        }
+
+                        if ($request->hasFile($fileCampo)) {
+                            $ruta = $request->file($fileCampo)->store('articulos', 'public');
+                            ArticuloImagen::updateOrCreate(
+                                [
+                                    'idarticulo' => $articulo->idarticulo,
+                                    'variante_id' => $varianteAfectada->id_variante,
+                                    'orden' => 0
+                                ],
+                                ['ruta' => $ruta]
+                            );
+                            $varianteAfectada->imagen = $ruta;
+                            $varianteAfectada->save();
                         }
                     }
                 }
@@ -420,7 +537,7 @@ class ArticuloController extends Controller
             DB::commit();
             return response()->json([
                 'message' => 'Producto actualizado',
-                'product' => $this->formatArticulo($articulo->load(['categoria', 'variantesActivas.atributoValores.atributo'])),
+                'product' => $this->formatArticulo($articulo->load(['categoria', 'variantesActivas.atributoValores.atributo', 'imagenes', 'variantesActivas.imagenes'])),
             ], 200);
         } catch (\Exception $e) {
             DB::rollBack();
@@ -536,6 +653,16 @@ class ArticuloController extends Controller
                     $maxPrice = $price;
                 }
 
+                // Imágenes de la variante (si la relación está cargada)
+                $imagenesVariante = [];
+                if ($v->relationLoaded('imagenes')) {
+                    $imagenesVariante = $v->imagenes->map(fn($img) => [
+                        'id'    => $img->id,
+                        'url'   => $img->url,
+                        'orden' => $img->orden,
+                    ])->toArray();
+                }
+
                 return [
                     'id'      => (string) $v->id_variante,
                     'sku'     => $v->sku,
@@ -544,6 +671,8 @@ class ArticuloController extends Controller
                     'stock'   => $stock,
                     'name'    => $v->descripcion_variante,
                     'precios_por_cantidad' => $v->precios_por_cantidad,
+                    'imagen_url' => $v->imagen_url,
+                    'imagenes'   => $imagenesVariante,
                     'valores' => $v->relationLoaded('atributoValores') ? $v->atributoValores->map(fn($av) => [
                         'id_valor' => $av->id_valor,
                         'id_atributo' => $av->id_atributo,
@@ -563,6 +692,16 @@ class ArticuloController extends Controller
             $stock = $totalStock;
         }
 
+        // Imágenes adicionales del artículo base (sin variante)
+        $imagenesBase = [];
+        if ($art->relationLoaded('imagenes')) {
+            $imagenesBase = $art->imagenes->map(fn($img) => [
+                'id'    => $img->id,
+                'url'   => $img->url,
+                'orden' => $img->orden,
+            ])->toArray();
+        }
+
         return [
             'id'              => (string) $art->idarticulo,
             'name'            => $art->nombre,
@@ -572,6 +711,7 @@ class ArticuloController extends Controller
             'stock'           => $stock,
             'precios_por_cantidad' => $art->precios_por_cantidad,
             'image'           => $art->imagen_url,
+            'imagenes'        => $imagenesBase,
             'codigo'          => $art->codigo,
             'estado'          => $art->estado,
             'mostrar_feed'    => (bool) $art->mostrar_feed,

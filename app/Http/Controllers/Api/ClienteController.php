@@ -151,6 +151,31 @@ class ClienteController extends Controller
     }
 
     /**
+     * DELETE /api/clientes-pos/{id}
+     */
+    public function destroy($id)
+    {
+        $local   = $this->getLocal();
+        $cliente = Persona::where('id_local', $local?->id)->findOrFail($id);
+
+        $tieneDeuda = Venta::where('idcliente', $cliente->idpersona)
+            ->where('saldo', '>', 0)
+            ->exists();
+
+        if ($tieneDeuda) {
+            return response()->json([
+                'message' => 'No se puede eliminar porque tiene una deuda o saldo pendiente registrado.',
+            ], 422);
+        }
+
+        $cliente->delete();
+
+        return response()->json([
+            'message' => 'Persona eliminada exitosamente',
+        ]);
+    }
+
+    /**
      * POST /api/clientes-pos/{id}/pago
      * Registra un pago distribuido entre las ventas pendientes del cliente
      */
@@ -274,6 +299,49 @@ class ClienteController extends Controller
         $user = Auth::user();
         $isFinanciera = str_starts_with($user->role->name ?? '', 'financiera');
 
+        // ── Si es empleado/personal: mostrar actividad profesional, cortes y servicios ──
+        if ($c->tipo_persona === 'empleado') {
+            $serviciosAsignados = $c->servicios()
+                ->get(['servicios.idservicio', 'servicios.nombre', 'servicios.precio', 'servicios.duracion']);
+
+            $detallesHoy = \App\Models\DetallePedido::with(['pedido', 'servicio'])
+                ->where('id_empleado', $c->idpersona)
+                ->whereDate('created_at', \Carbon\Carbon::today())
+                ->get();
+
+            $cortesHoy = $detallesHoy->count();
+            $recaudadoHoy = (float) $detallesHoy->sum('subtotal');
+
+            $historialServicios = \App\Models\DetallePedido::with(['pedido', 'servicio'])
+                ->where('id_empleado', $c->idpersona)
+                ->orderByDesc('created_at')
+                ->take(30)
+                ->get()
+                ->map(fn($d) => [
+                    'id'             => (string) $d->id,
+                    'servicioNombre' => $d->servicio?->nombre ?? 'Servicio',
+                    'clienteNombre'  => $d->pedido?->nombre_cliente ?? 'Cliente mostrador',
+                    'monto'          => (float) ($d->subtotal ?? $d->precio_unitario),
+                    'estado'         => $d->pedido?->estado_atencion ?? $d->pedido?->estado ?? 'completado',
+                    'createdAt'      => $d->created_at?->toISOString(),
+                ]);
+
+            return [
+                'id'                  => (string) $c->idpersona,
+                'name'                => $c->nombre,
+                'phone'               => $c->telefono ?? '',
+                'type'                => 'empleado',
+                'balance'             => 0,
+                'cortes_hoy'          => $cortesHoy,
+                'recaudado_hoy'       => $recaudadoHoy,
+                'servicios_asignados' => $serviciosAsignados,
+                'historial_servicios' => $historialServicios,
+                'ventas'              => [],
+                'pagos'               => [],
+                'transactions'        => [],
+            ];
+        }
+
         if ($isFinanciera) {
             $totalDeuda = \App\Models\Credito::where('idpersona', $c->idpersona)
                 ->where('saldo_pendiente', '>', 0)
@@ -365,6 +433,7 @@ class ClienteController extends Controller
             'id'           => (string) $c->idpersona,
             'name'         => $c->nombre,
             'phone'        => $c->telefono ?? '',
+            'type'         => $c->tipo_persona ?? 'cliente',
             'balance'      => (float) $balance,
             'ventas'       => $ventas,
             'pagos'        => $pagos,

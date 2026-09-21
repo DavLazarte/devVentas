@@ -108,6 +108,21 @@ class VentaController extends Controller
         $saldo       = $esCuenta ? max(0, $request->total - $montoAhora) : 0;
         $formaPago   = $esCuenta ? 'cuenta_corriente' : $request->paymentMethod;
 
+        // ── Pre-fetch artículos y variantes en bulk (evita N+1) ──────────
+        $productIds  = collect($request->items)->pluck('productId')->unique()->values();
+        $varianteIds = collect($request->items)
+            ->filter(fn($i) => !empty($i['varianteId']))
+            ->pluck('varianteId')->unique()->values();
+
+        $articulos = Articulo::where('id_local', $local->id)
+            ->whereIn('idarticulo', $productIds)
+            ->get()
+            ->keyBy('idarticulo');
+
+        $variantes = $varianteIds->isNotEmpty()
+            ? ArticuloVariante::whereIn('id_variante', $varianteIds)->get()->keyBy('id_variante')
+            : collect();
+
         DB::beginTransaction();
         try {
             $venta = Venta::create([
@@ -128,53 +143,45 @@ class VentaController extends Controller
                 $cantidad   = $item['quantity'];
                 $varianteId = $item['varianteId'] ?? null;
 
-                // Descontar stock
-                $articulo = Articulo::where('id_local', $local->id)->find($articuloId);
-                $variante = null;
+                // Usar los objetos ya cargados en memoria, sin query extra
+                $articulo = $articulos->get($articuloId);
+                $variante = $varianteId ? $variantes->get($varianteId) : null;
 
-                if ($articulo) {
-                    if ($varianteId) {
-                        $variante = ArticuloVariante::find($varianteId);
-                        if ($variante) {
-                            if ($articulo->tipo_venta === 'peso' || $articulo->tipo_venta === 'volumen') {
-                                $variante->stock_decimal = max(0, (float)$variante->stock_decimal - (float)$cantidad);
-                            } else {
-                                $variante->stock = max(0, $variante->stock - (int)$cantidad);
-                            }
-                            $variante->save();
-                        }
-                    } elseif ($articulo->tipo_venta === 'peso' || $articulo->tipo_venta === 'volumen') {
+                if ($variante) {
+                    if ($articulo && ($articulo->tipo_venta === 'peso' || $articulo->tipo_venta === 'volumen')) {
+                        $variante->stock_decimal = max(0, (float)$variante->stock_decimal - (float)$cantidad);
+                    } else {
+                        $variante->stock = max(0, $variante->stock - (int)$cantidad);
+                    }
+                    $variante->save();
+                } elseif ($articulo) {
+                    if ($articulo->tipo_venta === 'peso' || $articulo->tipo_venta === 'volumen') {
                         $articulo->stock_decimal = max(0, (float)$articulo->stock_decimal - (float)$cantidad);
-                        $articulo->save();
                     } else {
                         $articulo->stock = max(0, $articulo->stock - (int)$cantidad);
-                        $articulo->save();
                     }
+                    $articulo->save();
                 }
 
                 DetalleVenta::create([
-                    'idventa'          => $venta->id,
-                    'idarticulo'       => $articuloId,
-                    'id_variante'      => $varianteId,
-                    'sku_vendido'      => $variante ? $variante->sku : ($articulo?->codigo),
-                    'descripcion_variante' => $variante ? $variante->descripcion_variante : null,
-                    'cantidad'         => is_int($cantidad) ? $cantidad : 0,
-                    'cantidad_decimal' => !is_int($cantidad) ? $cantidad : null,
-                    'precio_venta'     => $item['price'],
-                    'estado'           => 'activo',
+                    'idventa'              => $venta->id,
+                    'idarticulo'           => $articuloId,
+                    'id_variante'          => $varianteId,
+                    'sku_vendido'          => $variante?->sku ?? $articulo?->codigo,
+                    'descripcion_variante' => $variante?->descripcion_variante,
+                    'cantidad'             => is_int($cantidad) ? $cantidad : 0,
+                    'cantidad_decimal'     => !is_int($cantidad) ? $cantidad : null,
+                    'precio_venta'         => $item['price'],
+                    'estado'               => 'activo',
                 ]);
             }
 
-            // La deuda queda registrada en ventas.saldo
-            // Cuando el cliente venga a pagar, se registrará un Ingreso desde el módulo de Clientes
-
             DB::commit();
 
-            $venta->load('detalles.producto');
-
+            // Respuesta mínima: el frontend no necesita el objeto completo
             return response()->json([
                 'message' => 'Venta registrada exitosamente',
-                'sale'    => $this->formatVenta($venta),
+                'sale'    => ['id' => (string) $venta->id, 'total' => (float) $venta->total_venta],
             ], 201);
 
         } catch (\Exception $e) {

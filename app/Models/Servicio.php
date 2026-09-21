@@ -83,7 +83,7 @@ class Servicio extends Model
 
     public function empleados()
     {
-        return $this->belongsToMany(Persona::class, 'servicio_empleado', 'servicio_id', 'empleado_id');
+        return $this->belongsToMany(Persona::class, 'servicio_empleado', 'servicio_id', 'empleado_id', 'idservicio', 'idpersona');
     }
 
     // Recursos físicos asociados a este servicio (canchas, sillones, boxes, etc.)
