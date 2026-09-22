@@ -44,16 +44,19 @@ class Local extends Model
     public function getFotoPortadaUrlAttribute()
     {
         if (!$this->foto_portada) return null;
-        // Si ya es una URL externa, retornarla
         if (filter_var($this->foto_portada, FILTER_VALIDATE_URL)) return $this->foto_portada;
-        return asset('storage/' . $this->foto_portada);
+        
+        $path = str_replace('\\', '/', $this->foto_portada);
+        return asset('storage/' . $path);
     }
 
     public function getFotoLogoUrlAttribute()
     {
         if (!$this->foto_logo) return null;
         if (filter_var($this->foto_logo, FILTER_VALIDATE_URL)) return $this->foto_logo;
-        return asset('storage/' . $this->foto_logo);
+        
+        $path = str_replace('\\', '/', $this->foto_logo);
+        return asset('storage/' . $path);
     }
 
     public function user()

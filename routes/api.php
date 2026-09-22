@@ -164,9 +164,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/turnos/estado-local', [\App\Http\Controllers\Api\TurnoController::class, 'getEstadoLocal']);
     Route::post('/turnos/estado-local', [\App\Http\Controllers\Api\TurnoController::class, 'toggleEstadoLocal']);
     Route::get('/turnos/cola', [\App\Http\Controllers\Api\TurnoController::class, 'adminQueue']);
+    Route::post('/turnos/admin', [\App\Http\Controllers\Api\TurnoController::class, 'storeAdmin']);
     Route::patch('/turnos/{id}/llamar', [\App\Http\Controllers\Api\TurnoController::class, 'llamar']);
     Route::patch('/turnos/{id}/completar', [\App\Http\Controllers\Api\TurnoController::class, 'completar']);
     Route::patch('/turnos/{id}/cancelar', [\App\Http\Controllers\Api\TurnoController::class, 'cancelar']);
+    Route::get('/turnos/bloqueos', [\App\Http\Controllers\Api\TurnoController::class, 'getBloqueos']);
+    Route::post('/turnos/bloqueos', [\App\Http\Controllers\Api\TurnoController::class, 'crearBloqueo']);
+    Route::delete('/turnos/bloqueos/{id}', [\App\Http\Controllers\Api\TurnoController::class, 'eliminarBloqueo']);
 
     // Clientes POS (requiere plan con clientes)
     Route::middleware('plan.feature:clientes')->group(function () {
@@ -176,6 +180,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('/clientes-pos/{id}', [ClienteController::class, 'destroy']);
         Route::post('/clientes-pos/{id}/transacciones', [ClienteController::class, 'createTransaction']);
         Route::post('/clientes-pos/{id}/pago', [ClienteController::class, 'registrarPago']);
+        Route::post('/clientes-pos/{id}/pagar-comision', [ClienteController::class, 'pagarComision']);
     });
 
     // Caja (requiere plan con caja)

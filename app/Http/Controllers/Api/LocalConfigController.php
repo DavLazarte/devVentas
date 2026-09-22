@@ -137,7 +137,7 @@ class LocalConfigController extends Controller
         if ($request->hasFile('logo')) {
             $file = $request->file('logo');
             $filename = time() . '_' . Str::random(10) . '.' . $file->getClientOriginalExtension();
-            $path = $file->storeAs('public/locales/logos', $filename);
+            $path = $file->storeAs('locales/logos', $filename, 'public');
 
             $local->foto_logo = 'locales/logos/' . $filename;
             $local->save();
@@ -163,7 +163,7 @@ class LocalConfigController extends Controller
         if ($request->hasFile('portada')) {
             $file = $request->file('portada');
             $filename = time() . '_' . Str::random(10) . '.' . $file->getClientOriginalExtension();
-            $path = $file->storeAs('public/locales/portadas', $filename);
+            $path = $file->storeAs('locales/portadas', $filename, 'public');
 
             $local->foto_portada = 'locales/portadas/' . $filename;
             $local->save();

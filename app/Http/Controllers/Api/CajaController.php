@@ -87,46 +87,63 @@ class CajaController extends Controller
         }
 
         // Ventas del día como ingresos automáticos (Para Pos Normal)
-        $ventas = Venta::with(['detalles.producto', 'detalles.variantesArticulos'])
+        $ventas = Venta::with(['detalles.producto', 'detalles.variantesArticulos', 'persona'])
             ->where('id_local', $local->id)
             ->whereDate('created_at', $date)
             ->get();
 
-        $ventasEntries = $ventas->map(fn($v) => [
-            'id'            => 'VENTA-' . $v->id,
-            'type'          => 'ingreso',
-            'amount'        => (float) $v->pago,       // lo que se cobró (para el balance de caja)
-            'totalVenta'    => (float) $v->total_venta, // total real de la venta
-            'pago'          => (float) $v->pago,
-            'saldo'         => (float) $v->saldo,
-            'description'   => 'Venta #' . $v->id,
-            'paymentMethod' => $v->forma_de_pago,
-            'createdAt'     => $v->created_at->toISOString(),
-            'saleId'        => (string) $v->id,
-            'items'         => $v->detalles->map(function($d) {
-                $variantName = $d->descripcion_variante ?? ($d->variantesArticulos?->descripcion_variante ?? '');
-                return [
-                    'productName' => ($d->producto?->nombre ?? 'Producto eliminado') . ($variantName ? ' - ' . $variantName : ''),
-                    'quantity'    => $d->cantidad_decimal ?? $d->cantidad,
-                    'price'       => (float) $d->precio_venta,
-                ];
-            })->values()->toArray(),
-        ]);
+        $ventasEntries = $ventas->map(function($v) {
+            $clienteNombre = $v->persona?->nombre;
+            $desc = 'Venta #' . $v->id;
+            if ($clienteNombre) {
+                $desc .= ' - ' . $clienteNombre;
+            }
+            if ($v->forma_de_pago === 'cuenta_corriente') {
+                $desc .= ' (A cuenta)';
+            }
 
-        // Ingresos del día (cobros de deuda y cobros de servicios/turnos)
-        $ingresos = Ingreso::where('id_local', $local->id)
+            return [
+                'id'            => 'VENTA-' . $v->id,
+                'type'          => 'ingreso',
+                'amount'        => (float) $v->pago,       // lo que se cobró (para el balance de caja)
+                'totalVenta'    => (float) $v->total_venta, // total real de la venta
+                'pago'          => (float) $v->pago,
+                'saldo'         => (float) $v->saldo,
+                'description'   => $desc,
+                'paymentMethod' => $v->forma_de_pago,
+                'createdAt'     => $v->created_at->toISOString(),
+                'saleId'        => (string) $v->id,
+                'items'         => $v->detalles->map(function($d) {
+                    $variantName = $d->descripcion_variante ?? ($d->variantesArticulos?->descripcion_variante ?? '');
+                    return [
+                        'productName' => ($d->producto?->nombre ?? 'Servicio / Producto') . ($variantName ? ' - ' . $variantName : ''),
+                        'quantity'    => $d->cantidad_decimal ?? $d->cantidad ?? 1,
+                        'price'       => (float) $d->precio_venta,
+                    ];
+                })->values()->toArray(),
+            ];
+        });
+
+        // Ingresos del día (cobros de deuda, cobros de turnos inmediatos, y servicios a cuenta)
+        $ingresosData = Ingreso::where('id_local', $local->id)
             ->whereDate('created_at', $date)
-            ->get()
-            ->map(fn($i) => [
+            ->get();
+
+        $ingresos = $ingresosData->map(function($i) {
+            $isCuentaCorriente = $i->tipo_pago === 'cuenta_corriente';
+            return [
                 'id'            => 'ING-' . $i->id_ingreso,
                 'type'          => 'ingreso',
-                'amount'        => (float) $i->monto,
-                'description'   => $i->descripcion ?? 'Ingreso manual',
-                'paymentMethod' => $i->tipo_pago ?? 'efectivo', // Usamos el tipo_pago real o default a efectivo
+                'amount'        => $isCuentaCorriente ? 0 : (float) $i->monto,
+                'totalVenta'    => (float) $i->monto,
+                'saldo'         => (float) $i->saldo,
+                'description'   => $i->descripcion ?? ($isCuentaCorriente ? 'Servicio a cuenta' : 'Ingreso manual'),
+                'paymentMethod' => $i->tipo_pago ?? 'efectivo',
                 'createdAt'     => $i->created_at?->toISOString(),
                 'saleId'        => null,
                 'items'         => [],
-            ]);
+            ];
+        });
 
         // Egresos del día
         $salidas = Salida::where('id_local', $local->id)
@@ -144,22 +161,27 @@ class CajaController extends Controller
             ]);
 
         // Resumen por forma de pago (sumando ventas + ingresos directos)
-        $ingresosData = Ingreso::where('id_local', $local->id)->whereDate('created_at', $date)->get();
-        
-        // Separar ingresos de deudas y otros ingresos
-        $cobrosDeudaData = $ingresosData->whereNotNull('idpersona');
-        $otrosIngresosData = $ingresosData->whereNull('idpersona');
+        $ingresosCobrados = $ingresosData->where('tipo_pago', '!=', 'cuenta_corriente');
         
         $efectivoVentas = (float) $ventas->where('forma_de_pago', 'efectivo')->sum('pago');
-        $efectivoIngresos = (float) $otrosIngresosData->whereIn('tipo_pago', ['efectivo', null])->sum('monto');
+        $efectivoIngresos = (float) $ingresosCobrados->whereIn('tipo_pago', ['efectivo', null])->sum('monto');
         
         $transferenciaVentas = (float) $ventas->where('forma_de_pago', 'transferencia')->sum('pago');
-        $transferenciaIngresos = (float) $otrosIngresosData->where('tipo_pago', 'transferencia')->sum('monto');
+        $transferenciaIngresos = (float) $ingresosCobrados->where('tipo_pago', 'transferencia')->sum('monto');
         
+        $cobrosDeuda = (float) $ingresosCobrados->filter(function($i) {
+            $desc = strtolower($i->descripcion ?? '');
+            return str_contains($desc, 'pago de deuda') || str_contains($desc, 'cobro de deuda');
+        })->sum('monto');
+
+        $ventasCuenta = (float) $ventas->where('forma_de_pago', 'cuenta_corriente')->sum('saldo');
+        $serviciosCuenta = (float) $ingresosData->where('tipo_pago', 'cuenta_corriente')->sum('saldo');
+
         $resumen = [
             'efectivo'      => $efectivoVentas + $efectivoIngresos,
             'transferencia' => $transferenciaVentas + $transferenciaIngresos,
-            'cobros_deuda'  => (float) $cobrosDeudaData->sum('monto'),
+            'cobros_deuda'  => $cobrosDeuda,
+            'ventas_cuenta' => $ventasCuenta + $serviciosCuenta,
             'egresos'       => (float) Salida::where('id_local', $local->id)->whereDate('created_at', $date)->sum('monto'),
         ];
 
@@ -188,12 +210,13 @@ class CajaController extends Controller
         ]);
 
         if ($request->type === 'ingreso') {
+            $isCuentaCorriente = ($request->tipo_pago === 'cuenta_corriente');
             $entry = Ingreso::create([
                 'idpersona'   => $request->idpersona,
                 'monto'       => $request->amount,
                 'tipo_pago'   => $request->tipo_pago ?? 'efectivo',
                 'descripcion' => $request->description,
-                'saldo'       => $request->amount,
+                'saldo'       => $isCuentaCorriente ? $request->amount : 0,
                 'estado'      => 'activo',
                 'id_local'    => $local->id,
             ]);

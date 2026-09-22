@@ -43,10 +43,14 @@ class ClienteController extends Controller
                 )
                 ->get()
                 ->map(function ($c) {
-                    $saldo = (float) Venta::where('idcliente', $c->idpersona)
+                    $saldoVentas = (float) Venta::where('idcliente', $c->idpersona)
                         ->where('saldo', '>', 0)
                         ->sum('saldo');
-                    $c->_deuda_total = $saldo;
+                    $saldoServicios = (float) Ingreso::where('idpersona', $c->idpersona)
+                        ->where('tipo_pago', 'cuenta_corriente')
+                        ->where('saldo', '>', 0)
+                        ->sum('saldo');
+                    $c->_deuda_total = $saldoVentas + $saldoServicios;
                     return $c;
                 })
                 ->filter(fn($c) => $c->_deuda_total > 0)
@@ -105,7 +109,7 @@ class ClienteController extends Controller
 
         $request->validate([
             'name'  => 'required|string|max:255',
-            'phone' => 'required|string|max:50',
+            'phone' => 'nullable|string|max:50',
             'email' => 'nullable|email',
         ]);
 
@@ -189,43 +193,81 @@ class ClienteController extends Controller
             'descripcion' => 'nullable|string|max:255',
         ]);
 
-        // Ventas con saldo pendiente, las más viejas primero
+        // Ventas y Servicios a cuenta con saldo pendiente
         $ventasPendientes = Venta::where('idcliente', $cliente->idpersona)
             ->where('saldo', '>', 0)
-            ->orderBy('created_at', 'asc')
             ->get();
 
-        if ($ventasPendientes->isEmpty()) {
+        $serviciosPendientes = Ingreso::where('idpersona', $cliente->idpersona)
+            ->where('tipo_pago', 'cuenta_corriente')
+            ->where('saldo', '>', 0)
+            ->get();
+
+        if ($ventasPendientes->isEmpty() && $serviciosPendientes->isEmpty()) {
             return response()->json(['message' => 'No hay deudas pendientes para este cliente'], 422);
         }
 
         DB::beginTransaction();
         try {
-            $montoRestante   = (float) $request->monto;
-            $ventasAfectadas = [];
+            $montoRestante  = (float) $request->monto;
+            $itemsAfectados = [];
 
-            foreach ($ventasPendientes as $venta) {
+            // Unir deudas ordenadas por fecha más antigua primero
+            $deudas = collect();
+            foreach ($ventasPendientes as $v) {
+                $deudas->push((object)[
+                    'tipo'       => 'venta',
+                    'model'      => $v,
+                    'created_at' => $v->created_at,
+                    'saldo'      => (float) $v->saldo,
+                ]);
+            }
+            foreach ($serviciosPendientes as $s) {
+                $deudas->push((object)[
+                    'tipo'       => 'servicio',
+                    'model'      => $s,
+                    'created_at' => $s->created_at,
+                    'saldo'      => (float) $s->saldo,
+                ]);
+            }
+            $deudas = $deudas->sortBy('created_at')->values();
+
+            foreach ($deudas as $item) {
                 if ($montoRestante <= 0) break;
 
-                $aAplicar         = min($montoRestante, (float) $venta->saldo);
-                $venta->saldo     = round($venta->saldo - $aAplicar, 2);
-                $venta->pago      = round($venta->pago + $aAplicar, 2);
-                $venta->save();
-                $montoRestante   -= $aAplicar;
-
-                $ventasAfectadas[] = [
-                    'ventaId'       => $venta->id,
-                    'aplicado'      => $aAplicar,
-                    'saldoRestante' => $venta->saldo,
-                ];
+                $aAplicar = min($montoRestante, $item->saldo);
+                if ($item->tipo === 'venta') {
+                    $venta = $item->model;
+                    $venta->saldo = round($venta->saldo - $aAplicar, 2);
+                    $venta->pago  = round($venta->pago + $aAplicar, 2);
+                    $venta->save();
+                    $itemsAfectados[] = [
+                        'tipo'          => 'venta',
+                        'id'            => $venta->id,
+                        'aplicado'      => $aAplicar,
+                        'saldoRestante' => $venta->saldo,
+                    ];
+                } else {
+                    $servicio = $item->model;
+                    $servicio->saldo = round($servicio->saldo - $aAplicar, 2);
+                    $servicio->save();
+                    $itemsAfectados[] = [
+                        'tipo'          => 'servicio',
+                        'id'            => $servicio->id_ingreso,
+                        'aplicado'      => $aAplicar,
+                        'saldoRestante' => $servicio->saldo,
+                    ];
+                }
+                $montoRestante -= $aAplicar;
             }
 
-            // Registrar el ingreso (pago recibido)
+            // Registrar el ingreso (pago recibido en efectivo/transferencia)
             Ingreso::create([
                 'idpersona'   => $cliente->idpersona,
                 'monto'       => $request->monto,
+                'tipo_pago'   => $request->input('paymentMethod') ?? $request->input('tipo_pago') ?? 'efectivo',
                 'descripcion' => $request->descripcion ?? 'Pago de deuda',
-                'saldo'       => $request->monto,
+                'saldo'       => 0,
                 'estado'      => 'activo',
                 'id_local'    => $local->id,
             ]);
@@ -235,7 +277,7 @@ class ClienteController extends Controller
             return response()->json([
                 'message'         => 'Pago registrado exitosamente',
                 'client'          => $this->formatCliente($cliente->refresh()),
-                'ventasAfectadas' => $ventasAfectadas,
+                'ventasAfectadas' => $itemsAfectados,
             ], 201);
 
         } catch (\Exception $e) {
@@ -273,13 +315,22 @@ class ClienteController extends Controller
             ]);
 
             // Creamos un detalle ficticio con el monto total para que se muestre en el historial
-            \App\Models\DetalleVenta::create([
-                'idventa'          => $venta->id,
-                'cantidad'         => 1,
-                'precio_venta'     => $request->amount,
-                'estado'           => 'Activo',
-                // Dejamos idarticulo null o sin definir si la bd lo permite
-            ]);
+            try {
+                $articuloId = \App\Models\Articulo::where('id_local', $local->id)->value('idarticulo');
+                $detalleData = [
+                    'idventa'              => $venta->id,
+                    'cantidad'             => 1,
+                    'precio_venta'         => $request->amount,
+                    'estado'               => 'Activo',
+                    'descripcion_variante' => $request->description ?? 'Servicio / Deuda a cuenta',
+                ];
+                if ($articuloId) {
+                    $detalleData['idarticulo'] = $articuloId;
+                }
+                \App\Models\DetalleVenta::create($detalleData);
+            } catch (\Exception $eDet) {
+                \Illuminate\Support\Facades\Log::warning('DetalleVenta manual omitido: ' . $eDet->getMessage());
+            }
 
             DB::commit();
 
@@ -291,6 +342,57 @@ class ClienteController extends Controller
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json(['message' => 'Error', 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * POST /api/clientes-pos/{id}/pagar-comision
+     * Registra el pago de comisión / liquidación a un empleado y crea la Salida en Caja
+     */
+    public function pagarComision(Request $request, $id)
+    {
+        $local = $this->getLocal();
+        $empleado = Persona::where('id_local', $local?->id)
+            ->where('tipo_persona', 'empleado')
+            ->findOrFail($id);
+
+        $request->validate([
+            'monto'       => 'required|numeric|min:0.01',
+            'porcentaje'  => 'nullable|numeric|min:0|max:100',
+            'tipo_pago'   => 'nullable|string',
+            'descripcion' => 'nullable|string|max:255',
+        ]);
+
+        $monto = (float) $request->monto;
+        $descripcion = $request->descripcion;
+        if (empty($descripcion)) {
+            $porcentajeStr = $request->porcentaje ? " ({$request->porcentaje}%)" : "";
+            $descripcion = "Liquidación comisión{$porcentajeStr} - {$empleado->nombre}";
+        }
+
+        DB::beginTransaction();
+        try {
+            $salida = \App\Models\Salida::create([
+                'idpersona'   => $empleado->idpersona,
+                'tipo_salida' => 'comision',
+                'monto'       => $monto,
+                'descripcion' => $descripcion,
+                'saldo'       => 0,
+                'estado'      => 'activo',
+                'id_local'    => $local->id,
+            ]);
+
+            DB::commit();
+
+            return response()->json([
+                'message' => 'Comisión liquidada y salida registrada en caja exitosamente',
+                'client'  => $this->formatCliente($empleado->refresh()),
+                'salida'  => $salida,
+            ], 201);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['message' => 'Error al registrar salida', 'error' => $e->getMessage()], 500);
         }
     }
 
@@ -326,6 +428,17 @@ class ClienteController extends Controller
                     'createdAt'      => $d->created_at?->toISOString(),
                 ]);
 
+            $liquidaciones = \App\Models\Salida::where('idpersona', $c->idpersona)
+                ->orderByDesc('created_at')
+                ->take(30)
+                ->get()
+                ->map(fn($s) => [
+                    'id'          => (string) $s->idsalida,
+                    'monto'       => (float) $s->monto,
+                    'descripcion' => $s->descripcion,
+                    'createdAt'   => $s->created_at?->toISOString(),
+                ]);
+
             return [
                 'id'                  => (string) $c->idpersona,
                 'name'                => $c->nombre,
@@ -337,7 +450,7 @@ class ClienteController extends Controller
                 'servicios_asignados' => $serviciosAsignados,
                 'historial_servicios' => $historialServicios,
                 'ventas'              => [],
-                'pagos'               => [],
+                'pagos'               => $liquidaciones,
                 'transactions'        => [],
             ];
         }
@@ -386,15 +499,20 @@ class ClienteController extends Controller
             ];
         }
 
-        // Deuda total: suma de saldos pendientes en ventas a cuenta
-        $totalDeuda = Venta::where('idcliente', $c->idpersona)
+        // Deuda total: suma de saldos pendientes en ventas a cuenta + servicios a cuenta
+        $deudaVentas = (float) Venta::where('idcliente', $c->idpersona)
             ->where('saldo', '>', 0)
             ->sum('saldo');
+        $deudaServicios = (float) Ingreso::where('idpersona', $c->idpersona)
+            ->where('tipo_pago', 'cuenta_corriente')
+            ->where('saldo', '>', 0)
+            ->sum('saldo');
+        $totalDeuda = $deudaVentas + $deudaServicios;
 
         // Balance: siempre negativo indicando lo que debe. 
         $balance = -((float) $totalDeuda);
 
-        // Todas las ventas del cliente (historial completo)
+        // Todas las ventas del cliente (historial de ventas de productos)
         $ventas = Venta::with(['detalles.producto', 'detalles.variantesArticulos'])
             ->where('idcliente', $c->idpersona)
             ->orderByDesc('created_at')
@@ -409,16 +527,47 @@ class ClienteController extends Controller
                 'createdAt'   => $v->created_at?->toISOString(),
                 'items'       => $v->detalles->map(function($d) {
                     $variantName = $d->descripcion_variante ?? ($d->variantesArticulos?->descripcion_variante ?? '');
+                    $nombre = $d->producto 
+                        ? ($d->producto->nombre . ($variantName ? ' - ' . $variantName : '')) 
+                        : ($variantName ?: 'Servicio / Venta');
                     return [
-                        'productName' => ($d->producto?->nombre ?? 'Producto eliminado') . ($variantName ? ' - ' . $variantName : ''),
-                        'quantity'    => $d->cantidad_decimal ?? $d->cantidad,
+                        'productName' => $nombre,
+                        'quantity'    => $d->cantidad_decimal ?? $d->cantidad ?? 1,
                         'price'       => (float) $d->precio_venta,
                     ];
                 })->values()->toArray(),
             ]);
 
-        // Pagos registrados (ingresos)
+        // Servicios a cuenta (deudas de turnos/servicios)
+        $serviciosCuenta = Ingreso::where('idpersona', $c->idpersona)
+            ->where('tipo_pago', 'cuenta_corriente')
+            ->orderByDesc('created_at')
+            ->take(30)
+            ->get()
+            ->map(fn($ing) => [
+                'id'          => 'SRV-' . $ing->id_ingreso,
+                'total'       => (float) $ing->monto,
+                'pago'        => (float) max(0, round($ing->monto - $ing->saldo, 2)),
+                'saldo'       => (float) $ing->saldo,
+                'formaDePago' => 'cuenta_corriente',
+                'createdAt'   => $ing->created_at?->toISOString(),
+                'items'       => [
+                    [
+                        'productName' => $ing->descripcion ?: 'Servicio a cuenta',
+                        'quantity'    => 1,
+                        'price'       => (float) $ing->monto,
+                    ]
+                ],
+            ]);
+
+        $todasLasVentas = $ventas->concat($serviciosCuenta)->sortByDesc('createdAt')->values();
+
+        // Pagos recibidos registrados (ingresos cobrados, excluyendo deudas pendientes 'cuenta_corriente')
         $pagos = Ingreso::where('idpersona', $c->idpersona)
+            ->where(function($q) {
+                $q->where('tipo_pago', '!=', 'cuenta_corriente')
+                  ->orWhereNull('tipo_pago');
+            })
             ->orderByDesc('created_at')
             ->take(20)
             ->get()
@@ -435,7 +584,7 @@ class ClienteController extends Controller
             'phone'        => $c->telefono ?? '',
             'type'         => $c->tipo_persona ?? 'cliente',
             'balance'      => (float) $balance,
-            'ventas'       => $ventas,
+            'ventas'       => $todasLasVentas,
             'pagos'        => $pagos,
             // legacy: transactions vacío para no romper nada
             'transactions' => [],

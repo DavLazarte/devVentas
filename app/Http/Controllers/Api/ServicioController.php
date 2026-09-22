@@ -75,11 +75,14 @@ class ServicioController extends Controller
         $user = Auth::user();
         $localId = $this->getLocalId();
 
-        // Default to 'plan' if not specified, or allow filtering
+        // Default to 'plan' if not specified, or allow filtering (todos/all for all)
         $tipoServicio = $request->query('tipo_servicio', 'plan');
 
-        $query = Servicio::with('empleados')->where('id_local', $localId)
-            ->where('tipo_servicio', $tipoServicio);
+        $query = Servicio::with('empleados')->where('id_local', $localId);
+
+        if ($tipoServicio !== 'todos' && $tipoServicio !== 'all') {
+            $query->where('tipo_servicio', $tipoServicio);
+        }
 
         if ($request->has('estado')) {
             if ($request->estado === 'activo') {

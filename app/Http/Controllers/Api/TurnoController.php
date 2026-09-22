@@ -103,8 +103,9 @@ class TurnoController extends Controller
                 }
             }
 
-            // Reservas existentes
-            $reservas = Pedido::where('tipo_pedido', 'servicio')
+            // Reservas existentes con su rango de duración
+            $reservas = Pedido::with('detalles.servicio')
+                ->where('tipo_pedido', 'servicio')
                 ->whereDate('fecha_servicio', $fecha)
                 ->whereIn('estado_atencion', ['en_espera', 'siendo_atendido', 'atendido'])
                 ->whereHas('detalles', function ($q) use ($servicioId, $recursoId) {
@@ -113,11 +114,45 @@ class TurnoController extends Controller
                         $q->where('recurso_id', $recursoId);
                     }
                 })
-                ->pluck('hora_inicio')
-                ->filter()
-                ->toArray();
-                
-            $horasOcupadas = array_map(function($h) { return Carbon::parse($h)->format('H:i'); }, $reservas);
+                ->whereNotNull('hora_inicio')
+                ->get();
+
+            $rangosOcupados = [];
+            foreach ($reservas as $reserva) {
+                if (!$reserva->hora_inicio) continue;
+                $ini = Carbon::parse($fecha . ' ' . $reserva->hora_inicio, 'America/Argentina/Buenos_Aires');
+                $det = $reserva->detalles->first();
+                $durReserva = $duracion;
+                if ($det && $det->servicio) {
+                    $durReserva = ($det->servicio->duracion ?? 30) + ($det->servicio->buffer_tiempo ?? 0);
+                    if ($durReserva <= 0) $durReserva = 30;
+                }
+                $fin = $ini->copy()->addMinutes($durReserva);
+                $rangosOcupados[] = [
+                    'inicio' => $ini,
+                    'fin'    => $fin,
+                ];
+            }
+
+            // Bloqueos de horarios inhabilitados por el administrador
+            $bloqueos = \App\Models\BloqueoHorario::where('id_local', $servicio->id_local)
+                ->whereDate('fecha', $fecha)
+                ->where(function ($q) use ($servicioId) {
+                    $q->whereNull('idservicio')->orWhere('idservicio', $servicioId);
+                })
+                ->get();
+
+            $rangosBloqueados = [];
+            foreach ($bloqueos as $b) {
+                $bIni = Carbon::parse($fecha . ' ' . $b->hora_inicio, 'America/Argentina/Buenos_Aires');
+                $bFin = Carbon::parse($fecha . ' ' . $b->hora_fin, 'America/Argentina/Buenos_Aires');
+                $rangosBloqueados[] = [
+                    'id'     => $b->id,
+                    'inicio' => $bIni,
+                    'fin'    => $bFin,
+                    'motivo' => $b->motivo ?? 'Inhabilitado',
+                ];
+            }
 
             $ahora = Carbon::now('America/Argentina/Buenos_Aires');
             $esHoy = Carbon::parse($fecha, 'America/Argentina/Buenos_Aires')->isToday();
@@ -130,13 +165,36 @@ class TurnoController extends Controller
                 $currentSlot = clone $inicioTurno;
 
                 while ($currentSlot->copy()->addMinutes($duracion)->lte($finTurno)) {
-                    $horaStr = $currentSlot->format('H:i');
-                    $esFuturo = !$esHoy || $currentSlot->gt($ahora);
+                    $slotInicio = $currentSlot->copy();
+                    $slotFin = $currentSlot->copy()->addMinutes($duracion);
+                    $horaStr = $slotInicio->format('H:i');
+                    $esFuturo = !$esHoy || $slotInicio->gt($ahora);
                     
-                    if ($esFuturo && !in_array($horaStr, $horasOcupadas)) {
+                    // Comprobar si solapa con turnos tomados
+                    $solapado = false;
+                    foreach ($rangosOcupados as $ocupado) {
+                        if ($slotInicio->lt($ocupado['fin']) && $slotFin->gt($ocupado['inicio'])) {
+                            $solapado = true;
+                            break;
+                        }
+                    }
+
+                    // Comprobar si solapa con algún horario inhabilitado/bloqueado
+                    $bloqueoEncontrado = null;
+                    foreach ($rangosBloqueados as $bloq) {
+                        if ($slotInicio->lt($bloq['fin']) && $slotFin->gt($bloq['inicio'])) {
+                            $bloqueoEncontrado = $bloq;
+                            break;
+                        }
+                    }
+
+                    if ($esFuturo) {
                         $slots[] = [
-                            'hora' => $horaStr,
-                            'disponible' => true
+                            'hora'       => $horaStr,
+                            'disponible' => !$solapado && is_null($bloqueoEncontrado),
+                            'bloqueado'  => !is_null($bloqueoEncontrado),
+                            'motivo'     => $bloqueoEncontrado ? $bloqueoEncontrado['motivo'] : null,
+                            'bloqueo_id' => $bloqueoEncontrado ? $bloqueoEncontrado['id'] : null,
                         ];
                     }
                     $currentSlot->addMinutes($duracion);
@@ -152,16 +210,19 @@ class TurnoController extends Controller
             'esHoy' => $esHoy ?? false,
             'ahora' => isset($ahora) ? $ahora->format('H:i') : null,
             'duracion' => $duracion ?? null,
-            'horasOcupadas' => $horasOcupadas ?? [],
+            'rangosOcupados' => array_map(function($r) {
+                return $r['inicio']->format('H:i') . ' - ' . $r['fin']->format('H:i');
+            }, $rangosOcupados),
         ];
 
         \Illuminate\Support\Facades\Log::info('Turno fijo debug:', $debug);
 
         return response()->json([
-            'tipo' => 'turno_fijo',
-            'slots' => $slots,
-            'cerrado' => $cerrado,
-            'debug' => $debug
+            'tipo'     => 'turno_fijo',
+            'slots'    => $slots,
+            'bloqueos' => $bloqueos ?? [],
+            'cerrado'  => $cerrado,
+            'debug'    => $debug
         ]);
     }
 
@@ -192,6 +253,58 @@ class TurnoController extends Controller
             $esFijo = $servicio->tipo_reserva === 'turno_fijo';
             $miPosicion = 0;
             $horaEstimada = null;
+            $minutosPorTurno = ($servicio->duracion ?? 30) + ($servicio->buffer_tiempo ?? 0);
+            if ($minutosPorTurno <= 0) $minutosPorTurno = 30;
+
+            if ($esFijo && $request->slot_hora) {
+                $nuevoInicio = Carbon::parse($request->fecha_servicio . ' ' . $request->slot_hora, 'America/Argentina/Buenos_Aires');
+                $nuevoFin = $nuevoInicio->copy()->addMinutes($minutosPorTurno);
+
+                $hayChoque = Pedido::where('tipo_pedido', 'servicio')
+                    ->whereDate('fecha_servicio', $request->fecha_servicio)
+                    ->whereIn('estado_atencion', ['en_espera', 'siendo_atendido', 'atendido'])
+                    ->whereHas('detalles', function ($q) use ($servicio, $request) {
+                        $q->where('idservicio', $servicio->idservicio);
+                        if ($request->recurso_id) {
+                            $q->where('recurso_id', $request->recurso_id);
+                        }
+                    })
+                    ->whereNotNull('hora_inicio')
+                    ->get()
+                    ->some(function ($p) use ($nuevoInicio, $nuevoFin, $minutosPorTurno) {
+                        $ini = Carbon::parse($p->fecha_servicio . ' ' . $p->hora_inicio, 'America/Argentina/Buenos_Aires');
+                        $fin = $ini->copy()->addMinutes($minutosPorTurno);
+                        return $nuevoInicio->lt($fin) && $nuevoFin->gt($ini);
+                    });
+
+                if ($hayChoque) {
+                    DB::rollBack();
+                    return response()->json([
+                        'success' => false,
+                        'error'   => 'El horario seleccionado ya no está disponible (se solapa con otro turno).'
+                    ], 422);
+                }
+
+                $hayBloqueo = \App\Models\BloqueoHorario::where('id_local', $request->id_local)
+                    ->whereDate('fecha', $request->fecha_servicio)
+                    ->where(function ($q) use ($servicio) {
+                        $q->whereNull('idservicio')->orWhere('idservicio', $servicio->idservicio);
+                    })
+                    ->get()
+                    ->some(function ($b) use ($nuevoInicio, $nuevoFin) {
+                        $bIni = Carbon::parse($b->fecha . ' ' . $b->hora_inicio, 'America/Argentina/Buenos_Aires');
+                        $bFin = Carbon::parse($b->fecha . ' ' . $b->hora_fin, 'America/Argentina/Buenos_Aires');
+                        return $nuevoInicio->lt($bFin) && $nuevoFin->gt($bIni);
+                    });
+
+                if ($hayBloqueo) {
+                    DB::rollBack();
+                    return response()->json([
+                        'success' => false,
+                        'error'   => 'El horario seleccionado está inhabilitado por el administrador.'
+                    ], 422);
+                }
+            }
 
             if (!$esFijo) {
                 // 1. Calcular posición en cola (MAX + 1)
@@ -242,6 +355,37 @@ class TurnoController extends Controller
                 'subtotal' => $servicio->precio,
             ]);
 
+            // Registrar automáticamente el cliente en "Mis Clientes" si no existe
+            $nombreCliente = trim($request->nombre_cliente ?? '');
+            $telefonoCliente = trim($request->telefono ?? '');
+
+            if (!empty($nombreCliente)) {
+                $clienteExistente = null;
+                if (!empty($telefonoCliente) && $telefonoCliente !== '0') {
+                    $clienteExistente = \App\Models\Persona::where('id_local', $request->id_local)
+                        ->where('tipo_persona', 'cliente')
+                        ->where('telefono', $telefonoCliente)
+                        ->first();
+                }
+                if (!$clienteExistente) {
+                    $clienteExistente = \App\Models\Persona::where('id_local', $request->id_local)
+                        ->where('tipo_persona', 'cliente')
+                        ->where('nombre', $nombreCliente)
+                        ->first();
+                }
+
+                if (!$clienteExistente) {
+                    \App\Models\Persona::create([
+                        'tipo_persona' => 'cliente',
+                        'nombre'       => $nombreCliente,
+                        'telefono'     => !empty($telefonoCliente) && $telefonoCliente !== '0' ? $telefonoCliente : '',
+                        'mail'         => '',
+                        'estado'       => 'Activo',
+                        'id_local'     => $request->id_local,
+                    ]);
+                }
+            }
+
             DB::commit();
 
             return response()->json([
@@ -255,6 +399,141 @@ class TurnoController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
+            return response()->json(['success' => false, 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    // 2b. Admin: Crear turno manual sin validar de_turno
+    public function storeAdmin(Request $request)
+    {
+        $request->validate([
+            'idservicio'     => 'required|integer',
+            'nombre_cliente' => 'required|string',
+            'telefono'       => 'nullable|string',
+            'fecha_servicio' => 'required|date',
+            'slot_hora'      => 'nullable|string',
+        ]);
+
+        $user    = $request->user();
+        $local   = \App\Models\Local::where('id_user', $user->id)->firstOrFail();
+        $servicio = Servicio::findOrFail($request->idservicio);
+
+        DB::beginTransaction();
+        try {
+            $esFijo      = $servicio->tipo_reserva === 'turno_fijo';
+            $miPosicion  = 0;
+            $horaEstimada = null;
+
+            if ($request->slot_hora) {
+                $hSlot = $request->slot_hora;
+                $slotCheck = Carbon::parse($request->fecha_servicio . ' ' . $hSlot, 'America/Argentina/Buenos_Aires');
+                $hayBloqueoAdmin = \App\Models\BloqueoHorario::where('id_local', $local->id)
+                    ->whereDate('fecha', $request->fecha_servicio)
+                    ->where(function ($q) use ($servicio) {
+                        $q->whereNull('idservicio')->orWhere('idservicio', $servicio->idservicio);
+                    })
+                    ->get()
+                    ->some(function ($b) use ($slotCheck) {
+                        $bIni = Carbon::parse($b->fecha . ' ' . $b->hora_inicio, 'America/Argentina/Buenos_Aires');
+                        $bFin = Carbon::parse($b->fecha . ' ' . $b->hora_fin, 'America/Argentina/Buenos_Aires');
+                        return $slotCheck->gte($bIni) && $slotCheck->lt($bFin);
+                    });
+
+                if ($hayBloqueoAdmin) {
+                    DB::rollBack();
+                    return response()->json([
+                        'success' => false,
+                        'error'   => 'El horario seleccionado está inhabilitado por un bloqueo de agenda.'
+                    ], 422);
+                }
+            }
+
+            if (!$esFijo) {
+                $ultimaPosicion = Pedido::where('tipo_pedido', 'servicio')
+                    ->whereDate('fecha_servicio', $request->fecha_servicio)
+                    ->where('id_local', $local->id)
+                    ->whereHas('detalles', fn($q) => $q->where('idservicio', $request->idservicio))
+                    ->max('posicion_cola') ?? 0;
+
+                $miPosicion = $ultimaPosicion + 1;
+                $minutosPorTurno = ($servicio->duracion ?? 30) + ($servicio->buffer_tiempo ?? 0);
+                $horaEstimada = Carbon::now()->addMinutes(($miPosicion - 1) * $minutosPorTurno)->format('H:i:s');
+            }
+
+            $pedido = Pedido::create([
+                'id_local'       => $local->id,
+                'nombre_cliente' => $request->nombre_cliente,
+                'telefono'       => $request->telefono ?? '0',
+                'tipo_pedido'    => 'servicio',
+                'estado'         => 'pendiente',
+                'estado_reserva' => 'confirmada',
+                'fecha_servicio' => $request->fecha_servicio,
+                'hora_inicio'    => $request->slot_hora,
+                'posicion_cola'  => $miPosicion,
+                'hora_estimada'  => $esFijo && $request->slot_hora ? $request->slot_hora . ':00' : $horaEstimada,
+                'estado_atencion'=> 'en_espera',
+                'token_publico'  => Str::random(32),
+                'subtotal'       => $servicio->precio,
+                'total'          => $servicio->precio,
+            ]);
+
+            // Obtener empleado asignado al servicio si existe
+            $empleadoId = null;
+            if (method_exists($servicio, 'empleados')) {
+                $empleadoId = $servicio->empleados()->first()?->idpersona;
+            }
+
+            DetallePedido::create([
+                'pedido_id'       => $pedido->id,
+                'idservicio'      => $servicio->idservicio,
+                'id_empleado'     => $empleadoId,
+                'cantidad'        => 1,
+                'precio_unitario' => $servicio->precio,
+                'subtotal'        => $servicio->precio,
+            ]);
+
+            // Registrar automáticamente el cliente en "Mis Clientes" si no existe
+            $nombreCliente = trim($request->nombre_cliente ?? '');
+            $telefonoCliente = trim($request->telefono ?? '');
+
+            if (!empty($nombreCliente)) {
+                $clienteExistente = null;
+                if (!empty($telefonoCliente) && $telefonoCliente !== '0') {
+                    $clienteExistente = \App\Models\Persona::where('id_local', $local->id)
+                        ->where('tipo_persona', 'cliente')
+                        ->where('telefono', $telefonoCliente)
+                        ->first();
+                }
+                if (!$clienteExistente) {
+                    $clienteExistente = \App\Models\Persona::where('id_local', $local->id)
+                        ->where('tipo_persona', 'cliente')
+                        ->where('nombre', $nombreCliente)
+                        ->first();
+                }
+
+                if (!$clienteExistente) {
+                    \App\Models\Persona::create([
+                        'tipo_persona' => 'cliente',
+                        'nombre'       => $nombreCliente,
+                        'telefono'     => !empty($telefonoCliente) && $telefonoCliente !== '0' ? $telefonoCliente : '',
+                        'mail'         => '',
+                        'estado'       => 'Activo',
+                        'id_local'     => $local->id,
+                    ]);
+                }
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'success'   => true,
+                'mensaje'   => 'Turno creado por admin',
+                'pedido_id' => $pedido->id,
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            \Illuminate\Support\Facades\Log::error("Error en storeAdmin: " . $e->getMessage() . " - Line: " . $e->getLine());
             return response()->json(['success' => false, 'error' => $e->getMessage()], 500);
         }
     }
@@ -321,45 +600,86 @@ class TurnoController extends Controller
         }
     }
 
-    // 4b. Admin: Marca un turno como completado
+    // 4b. Admin: Marca un turno como completado y procesa el cobro (Caja o Cuenta Corriente)
     public function completar(Request $request, $id)
     {
-        $turnoActual = Pedido::findOrFail($id);
+        $turnoActual = Pedido::with('detalles.servicio')->findOrFail($id);
         $turnoActual->update(['estado_atencion' => 'completado', 'estado' => 'entregado']);
 
-        // ¿El peluquero eligió crear cuenta para el cliente?
+        $monto           = (float) ($request->input('monto') ?? $turnoActual->total ?? 0);
+        $metodoPago      = $request->input('metodo_pago'); // 'efectivo', 'transferencia', 'cuenta_corriente'
+        $nombreCliente   = trim($turnoActual->nombre_cliente ?? 'Cliente');
+        $telefonoCliente = trim($turnoActual->telefono ?? '');
+        $servicioNombre  = $turnoActual->detalles->first()?->servicio?->nombre ?? 'Servicio';
+        $localId         = $turnoActual->id_local;
+
+        // 1. Buscar o registrar la Persona cliente en el local
+        $persona = null;
+        if (!empty($telefonoCliente) && $telefonoCliente !== '0') {
+            $persona = \App\Models\Persona::where('id_local', $localId)
+                ->where('tipo_persona', 'cliente')
+                ->where('telefono', $telefonoCliente)
+                ->first();
+        }
+        if (!$persona && !empty($nombreCliente)) {
+            $persona = \App\Models\Persona::where('id_local', $localId)
+                ->where('tipo_persona', 'cliente')
+                ->where('nombre', $nombreCliente)
+                ->first();
+        }
+        if (!$persona && !empty($nombreCliente)) {
+            $persona = \App\Models\Persona::create([
+                'tipo_persona' => 'cliente',
+                'nombre'       => $nombreCliente,
+                'telefono'     => !empty($telefonoCliente) && $telefonoCliente !== '0' ? $telefonoCliente : '',
+                'mail'         => $request->input('email', ''),
+                'estado'       => 'Activo',
+                'id_local'     => $localId,
+            ]);
+        }
+
+        // 2. Si el pago es "A Cuenta" (cuenta corriente) -> registrar Ingreso con saldo pendiente
+        if ($metodoPago === 'cuenta_corriente' && $monto > 0) {
+            \App\Models\Ingreso::create([
+                'idpersona'   => $persona?->idpersona,
+                'monto'       => $monto,
+                'tipo_pago'   => 'cuenta_corriente',
+                'descripcion' => "Servicio a cuenta: {$servicioNombre}" . ($persona ? " - {$persona->nombre}" : ""),
+                'saldo'       => $monto,
+                'estado'      => 'activo',
+                'id_local'    => $localId,
+            ]);
+        } elseif ($monto > 0 && !empty($metodoPago)) {
+            // 3. Si se cobró por Efectivo / Transferencia -> registrar Ingreso en caja (saldo = 0, ya cobrado)
+            \App\Models\Ingreso::create([
+                'idpersona'   => $persona?->idpersona,
+                'monto'       => $monto,
+                'tipo_pago'   => in_array($metodoPago, ['efectivo', 'transferencia', 'debito', 'credito']) ? $metodoPago : 'efectivo',
+                'descripcion' => "Cobro de turno: {$servicioNombre}" . ($persona ? " - {$persona->nombre}" : ""),
+                'saldo'       => 0,
+                'estado'      => 'activo',
+                'id_local'    => $localId,
+            ]);
+        }
+
+        // 4. ¿El peluquero eligió crear cuenta de usuario para el cliente?
         if ($request->input('crear_cuenta') && $request->input('email')) {
             $email = strtolower(trim($request->input('email')));
             $telefono = preg_replace('/[^\d]/', '', $turnoActual->telefono ?? '12345678');
             
-            // 1. Verificar si ya existe en users
             $user = \App\Models\User::where('email', $email)->first();
             
             if (!$user) {
-                // Crear usuario con rol de cliente (2) y el teléfono como password
                 $user = \App\Models\User::create([
-                    'name' => $turnoActual->nombre_cliente ?? 'Cliente',
-                    'email' => $email,
+                    'name'     => $turnoActual->nombre_cliente ?? 'Cliente',
+                    'email'    => $email,
                     'password' => \Illuminate\Support\Facades\Hash::make($telefono),
-                    'role_id' => 2,
+                    'role_id'  => 2,
                 ]);
             }
             
-            // 2. Vincular como cliente (Persona) en el local si no lo está
-            $persona = \App\Models\Persona::where('id_local', $turnoActual->id_local)
-                ->where('user_id', $user->id)
-                ->first();
-                
-            if (!$persona) {
-                \App\Models\Persona::create([
-                    'tipo_persona' => 'cliente',
-                    'nombre' => $turnoActual->nombre_cliente ?? 'Cliente',
-                    'telefono' => $turnoActual->telefono,
-                    'mail' => $email,
-                    'id_local' => $turnoActual->id_local,
-                    'user_id' => $user->id,
-                    'estado' => 'activo'
-                ]);
+            if ($persona) {
+                $persona->update(['user_id' => $user->id, 'mail' => $email]);
             }
         }
 
@@ -453,5 +773,77 @@ class TurnoController extends Controller
         $local->save();
 
         return response()->json(['success' => true, 'disponible' => $local->de_turno]);
+    }
+
+    // 8. Admin: Listar bloqueos de horarios de una fecha
+    public function getBloqueos(Request $request)
+    {
+        $user = auth('sanctum')->user();
+        $local = \App\Models\Local::where('id_user', $user->id)->firstOrFail();
+        $fecha = $request->query('fecha', Carbon::now('America/Argentina/Buenos_Aires')->toDateString());
+
+        $bloqueos = \App\Models\BloqueoHorario::with('servicio')
+            ->where('id_local', $local->id)
+            ->whereDate('fecha', $fecha)
+            ->orderBy('hora_inicio', 'asc')
+            ->get();
+
+        return response()->json(['bloqueos' => $bloqueos]);
+    }
+
+    // 9. Admin: Crear un bloqueo de horario para inhabilitar un slot o rango
+    public function crearBloqueo(Request $request)
+    {
+        $request->validate([
+            'fecha'       => 'required|date',
+            'hora_inicio' => 'required|string',
+            'hora_fin'    => 'nullable|string',
+            'duracion'    => 'nullable|integer',
+            'idservicio'  => 'nullable|integer',
+            'motivo'      => 'nullable|string|max:255',
+        ]);
+
+        $user  = auth('sanctum')->user();
+        $local = \App\Models\Local::where('id_user', $user->id)->firstOrFail();
+
+        $horaInicio = trim($request->hora_inicio);
+        $horaFin    = trim($request->hora_fin ?? '');
+
+        if (empty($horaFin)) {
+            $dur = (int) ($request->input('duracion') ?: 30);
+            $horaFin = Carbon::parse($request->fecha . ' ' . $horaInicio, 'America/Argentina/Buenos_Aires')
+                ->addMinutes($dur)
+                ->format('H:i');
+        }
+
+        $bloqueo = \App\Models\BloqueoHorario::create([
+            'id_local'    => $local->id,
+            'idservicio'  => $request->idservicio ?: null,
+            'fecha'       => $request->fecha,
+            'hora_inicio' => strlen($horaInicio) === 5 ? $horaInicio . ':00' : $horaInicio,
+            'hora_fin'    => strlen($horaFin) === 5 ? $horaFin . ':00' : $horaFin,
+            'motivo'      => $request->motivo ?: 'Inhabilitado por administrador',
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'mensaje' => 'Horario inhabilitado correctamente',
+            'bloqueo' => $bloqueo->load('servicio')
+        ], 201);
+    }
+
+    // 10. Admin: Eliminar / Habilitar un horario previamente bloqueado
+    public function eliminarBloqueo(Request $request, $id)
+    {
+        $user  = auth('sanctum')->user();
+        $local = \App\Models\Local::where('id_user', $user->id)->firstOrFail();
+
+        $bloqueo = \App\Models\BloqueoHorario::where('id_local', $local->id)->findOrFail($id);
+        $bloqueo->delete();
+
+        return response()->json([
+            'success' => true,
+            'mensaje' => 'Horario habilitado nuevamente con éxito'
+        ]);
     }
 }
