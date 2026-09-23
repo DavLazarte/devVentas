@@ -227,7 +227,7 @@ class AgenteController extends Controller
     {
         $this->checkAgente($request);
 
-        $categorias = Category::where('state', 'active')
+        $categorias = Category::whereIn('state', ['active', 'activo'])
             ->with('subcategories:id,category_id,name,slug')
             ->orderBy('orden')
             ->get()

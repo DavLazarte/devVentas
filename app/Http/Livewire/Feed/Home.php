@@ -66,7 +66,7 @@ class Home extends Component
     {
         $categorias = Cache::remember('categorias_activas', now()->addHours(12), function () {
             return Category::with(['subcategories', 'locales'])
-                ->where('state', 'active')
+                ->whereIn('state', ['active', 'activo'])
                 ->get();
         });
 

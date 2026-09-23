@@ -497,7 +497,9 @@ class SuperadminController extends Controller
         $categoria->name  = $request->name;
         $categoria->slug  = Str::slug($request->name);
         $categoria->icon  = $request->icon ?? null;
-        $categoria->state = $request->state ?? 'activo';
+        $state = $request->state ?? 'active';
+        if ($state === 'activo') $state = 'active';
+        $categoria->state = $state;
         $categoria->orden = $request->orden ?? 0;
         $categoria->save();
 
@@ -525,7 +527,11 @@ class SuperadminController extends Controller
             $categoria->slug = Str::slug($request->name);
         }
         if ($request->has('icon'))  $categoria->icon  = $request->icon;
-        if ($request->has('state')) $categoria->state = $request->state;
+        if ($request->has('state')) {
+            $state = $request->state;
+            if ($state === 'activo') $state = 'active';
+            $categoria->state = $state;
+        }
         if ($request->has('orden')) $categoria->orden = $request->orden;
 
         $categoria->save();
@@ -541,8 +547,8 @@ class SuperadminController extends Controller
         $this->checkAdmin($request);
 
         $categoria = \App\Models\Category::findOrFail($id);
-        // Soft delete or mark as inactivo
-        $categoria->state = 'inactivo';
+        // Soft delete or mark as inactive
+        $categoria->state = 'inactive';
         $categoria->save();
 
         return response()->json([

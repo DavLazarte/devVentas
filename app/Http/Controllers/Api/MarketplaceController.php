@@ -16,7 +16,7 @@ class MarketplaceController extends Controller
     public function categorias()
     {
         $categorias = Category::with('subcategories')
-            ->where('state', 'active')
+            ->whereIn('state', ['active', 'activo'])
             ->orderBy('orden')
             ->get();
             
