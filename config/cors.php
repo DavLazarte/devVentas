@@ -28,6 +28,8 @@ return [
         'https://adlpos-*.vercel.app',             // ADL POS previews
         'https://qhatu.vercel.app',                // Qhatu (si cambia el dominio)
         'https://qhatu-*.vercel.app',
+        'https://qhatu.devsign.ar',                // Qhatu custom domain
+        'https://www.qhatu.devsign.ar',
     ],
 
     'allowed_origins_patterns' => [],
