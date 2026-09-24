@@ -546,13 +546,16 @@ class TurnoController extends Controller
             ->firstOrFail();
 
         // Contar cuántos turnos "en_espera" o "siendo_atendidos" hay con posición MENOR a la mía
+        // FILTRADO POR SERVICIO: cada cola virtual es independiente por servicio
         $personasAdelante = 0;
         if ($pedido->posicion_cola !== null) {
+            $servicioId = $pedido->detalles->first()?->idservicio;
             $personasAdelante = Pedido::where('tipo_pedido', 'servicio')
                 ->where('id_local', $pedido->id_local)
                 ->whereDate('fecha_servicio', $pedido->fecha_servicio)
                 ->whereIn('estado_atencion', ['en_espera', 'siendo_atendido'])
                 ->where('posicion_cola', '<', $pedido->posicion_cola)
+                ->whereHas('detalles', fn($q) => $q->where('idservicio', $servicioId))
                 ->count();
         }
 
@@ -574,14 +577,17 @@ class TurnoController extends Controller
             $turnoActual->update(['estado_atencion' => 'siendo_atendido']);
             
             // Recalcular horas estimadas de los demás basándose en la hora REAL de ahora
+            // FILTRADO POR SERVICIO: solo afecta turnos del mismo servicio
             $detalle = $turnoActual->detalles->first();
             $minutosPorTurno = ($detalle->servicio->duracion ?? 30) + ($detalle->servicio->buffer_tiempo ?? 0);
+            $servicioId = $detalle->idservicio;
             
             $losDemas = Pedido::where('tipo_pedido', 'servicio')
                 ->where('id_local', $turnoActual->id_local)
                 ->whereDate('fecha_servicio', $turnoActual->fecha_servicio)
                 ->where('estado_atencion', 'en_espera')
                 ->where('posicion_cola', '>', $turnoActual->posicion_cola)
+                ->whereHas('detalles', fn($q) => $q->where('idservicio', $servicioId))
                 ->orderBy('posicion_cola', 'asc')
                 ->get();
             
