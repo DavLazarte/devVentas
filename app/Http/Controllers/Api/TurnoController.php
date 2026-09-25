@@ -14,6 +14,59 @@ use Illuminate\Support\Facades\DB;
 
 class TurnoController extends Controller
 {
+    /**
+     * Resuelve los servicios relacionados y empleados que atienden el servicio dado,
+     * para evitar solapamientos entre distintos servicios del mismo profesional.
+     */
+    private function resolverServiciosYEmpleadosRelacionados($servicio): array
+    {
+        $servicio->load('empleados');
+        $empleadosIds = $servicio->empleados->pluck('idpersona')->filter()->values()->toArray();
+
+        $empLocal = \App\Models\Persona::where('id_local', $servicio->id_local)
+            ->whereIn('tipo_persona', ['empleado', 'instructor', 'staff'])
+            ->pluck('idpersona')
+            ->toArray();
+
+        // Si el servicio no tiene empleados específicos asignados en el pivot,
+        // pero en el local hay un solo profesional/barbero, asumimos que él realiza todos los servicios
+        if (empty($empleadosIds) && count($empLocal) === 1) {
+            $empleadosIds = $empLocal;
+        }
+
+        $serviciosRelacionados = [$servicio->idservicio];
+        if (!empty($empleadosIds)) {
+            if (count($empLocal) <= 1) {
+                // Todo el local lo maneja el mismo profesional: bloquea en todos los servicios del local
+                $serviciosRelacionados = Servicio::where('id_local', $servicio->id_local)
+                    ->pluck('idservicio')
+                    ->toArray();
+            } else {
+                // Varios empleados: buscar todos los servicios que comparte alguno de sus empleados
+                $sRel = Servicio::where('id_local', $servicio->id_local)
+                    ->whereHas('empleados', function ($q) use ($empleadosIds) {
+                        $q->whereIn('personas.idpersona', $empleadosIds);
+                    })
+                    ->pluck('idservicio')
+                    ->toArray();
+                $serviciosRelacionados = array_unique(array_merge($serviciosRelacionados, $sRel));
+            }
+        } else {
+            // Sin empleados registrados: un solo prestador implícito (el dueño)
+            $serviciosRelacionados = Servicio::where('id_local', $servicio->id_local)
+                ->pluck('idservicio')
+                ->toArray();
+        }
+
+        $capacidadSimultanea = max(1, count($empleadosIds));
+
+        return [
+            'empleados_ids'          => $empleadosIds,
+            'servicios_relacionados' => array_values($serviciosRelacionados),
+            'capacidad_simultanea'   => $capacidadSimultanea,
+        ];
+    }
+
     // 1. Pública: Consultar cuánta gente hay y hora estimada
     public function disponibilidad(Request $request, $servicioId)
     {
@@ -103,13 +156,24 @@ class TurnoController extends Controller
                 }
             }
 
+            // Resolver servicios y empleados relacionados para evitar solapamientos entre servicios del mismo profesional
+            $infoRel = $this->resolverServiciosYEmpleadosRelacionados($servicio);
+            $serviciosRelacionados = $infoRel['servicios_relacionados'];
+            $empleadosIds = $infoRel['empleados_ids'];
+            $capacidadSimultanea = $infoRel['capacidad_simultanea'];
+
             // Reservas existentes con su rango de duración
             $reservas = Pedido::with('detalles.servicio')
                 ->where('tipo_pedido', 'servicio')
                 ->whereDate('fecha_servicio', $fecha)
                 ->whereIn('estado_atencion', ['en_espera', 'siendo_atendido', 'atendido'])
-                ->whereHas('detalles', function ($q) use ($servicioId, $recursoId) {
-                    $q->where('idservicio', $servicioId);
+                ->whereHas('detalles', function ($q) use ($serviciosRelacionados, $empleadosIds, $recursoId) {
+                    $q->where(function ($sub) use ($serviciosRelacionados, $empleadosIds) {
+                        $sub->whereIn('idservicio', $serviciosRelacionados);
+                        if (!empty($empleadosIds)) {
+                            $sub->orWhereIn('id_empleado', $empleadosIds);
+                        }
+                    });
                     if ($recursoId) {
                         $q->where('recurso_id', $recursoId);
                     }
@@ -170,14 +234,14 @@ class TurnoController extends Controller
                     $horaStr = $slotInicio->format('H:i');
                     $esFuturo = !$esHoy || $slotInicio->gt($ahora);
                     
-                    // Comprobar si solapa con turnos tomados
-                    $solapado = false;
+                    // Comprobar si solapa con turnos tomados respetando la capacidad del personal
+                    $solapadosCount = 0;
                     foreach ($rangosOcupados as $ocupado) {
                         if ($slotInicio->lt($ocupado['fin']) && $slotFin->gt($ocupado['inicio'])) {
-                            $solapado = true;
-                            break;
+                            $solapadosCount++;
                         }
                     }
+                    $solapado = $solapadosCount >= $capacidadSimultanea;
 
                     // Comprobar si solapa con algún horario inhabilitado/bloqueado
                     $bloqueoEncontrado = null;
@@ -260,28 +324,50 @@ class TurnoController extends Controller
                 $nuevoInicio = Carbon::parse($request->fecha_servicio . ' ' . $request->slot_hora, 'America/Argentina/Buenos_Aires');
                 $nuevoFin = $nuevoInicio->copy()->addMinutes($minutosPorTurno);
 
-                $hayChoque = Pedido::where('tipo_pedido', 'servicio')
+                $infoRel = $this->resolverServiciosYEmpleadosRelacionados($servicio);
+                $serviciosRelacionados = $infoRel['servicios_relacionados'];
+                $empleadosIds = $infoRel['empleados_ids'];
+                $capacidadSimultanea = $infoRel['capacidad_simultanea'];
+
+                $reservasExistentes = Pedido::with('detalles.servicio')
+                    ->where('tipo_pedido', 'servicio')
                     ->whereDate('fecha_servicio', $request->fecha_servicio)
                     ->whereIn('estado_atencion', ['en_espera', 'siendo_atendido', 'atendido'])
-                    ->whereHas('detalles', function ($q) use ($servicio, $request) {
-                        $q->where('idservicio', $servicio->idservicio);
+                    ->whereHas('detalles', function ($q) use ($serviciosRelacionados, $empleadosIds, $request) {
+                        $q->where(function ($sub) use ($serviciosRelacionados, $empleadosIds) {
+                            $sub->whereIn('idservicio', $serviciosRelacionados);
+                            if (!empty($empleadosIds)) {
+                                $sub->orWhereIn('id_empleado', $empleadosIds);
+                            }
+                        });
                         if ($request->recurso_id) {
                             $q->where('recurso_id', $request->recurso_id);
                         }
                     })
                     ->whereNotNull('hora_inicio')
-                    ->get()
-                    ->some(function ($p) use ($nuevoInicio, $nuevoFin, $minutosPorTurno) {
-                        $ini = Carbon::parse($p->fecha_servicio . ' ' . $p->hora_inicio, 'America/Argentina/Buenos_Aires');
-                        $fin = $ini->copy()->addMinutes($minutosPorTurno);
-                        return $nuevoInicio->lt($fin) && $nuevoFin->gt($ini);
-                    });
+                    ->get();
 
-                if ($hayChoque) {
+                $solapadosCount = 0;
+                foreach ($reservasExistentes as $p) {
+                    $ini = Carbon::parse($p->fecha_servicio . ' ' . $p->hora_inicio, 'America/Argentina/Buenos_Aires');
+                    $det = $p->detalles->first();
+                    $durReserva = $minutosPorTurno;
+                    if ($det && $det->servicio) {
+                        $durReserva = ($det->servicio->duracion ?? 30) + ($det->servicio->buffer_tiempo ?? 0);
+                        if ($durReserva <= 0) $durReserva = 30;
+                    }
+                    $fin = $ini->copy()->addMinutes($durReserva);
+
+                    if ($nuevoInicio->lt($fin) && $nuevoFin->gt($ini)) {
+                        $solapadosCount++;
+                    }
+                }
+
+                if ($solapadosCount >= $capacidadSimultanea) {
                     DB::rollBack();
                     return response()->json([
                         'success' => false,
-                        'error'   => 'El horario seleccionado ya no está disponible (se solapa con otro turno).'
+                        'error'   => 'El horario seleccionado ya no está disponible (el profesional se encuentra ocupado con otro turno).'
                     ], 422);
                 }
 
@@ -345,10 +431,15 @@ class TurnoController extends Controller
                 'total' => $servicio->precio,
             ]);
 
+            // Asignar id_empleado si existe
+            $infoRelStore = $this->resolverServiciosYEmpleadosRelacionados($servicio);
+            $empleadoIdAuto = !empty($infoRelStore['empleados_ids']) ? $infoRelStore['empleados_ids'][0] : null;
+
             // 4. Crear detalle
             DetallePedido::create([
                 'pedido_id' => $pedido->id,
                 'idservicio' => $servicio->idservicio,
+                'id_empleado' => $empleadoIdAuto,
                 'recurso_id' => $request->recurso_id ?? null,
                 'cantidad' => 1,
                 'precio_unitario' => $servicio->precio,
@@ -427,6 +518,55 @@ class TurnoController extends Controller
             if ($request->slot_hora) {
                 $hSlot = $request->slot_hora;
                 $slotCheck = Carbon::parse($request->fecha_servicio . ' ' . $hSlot, 'America/Argentina/Buenos_Aires');
+
+                $duracionAdmin = ($servicio->duracion ?? 30) + ($servicio->buffer_tiempo ?? 0);
+                if ($duracionAdmin <= 0) $duracionAdmin = 30;
+                $slotFinAdmin = $slotCheck->copy()->addMinutes($duracionAdmin);
+
+                $infoRelAdmin = $this->resolverServiciosYEmpleadosRelacionados($servicio);
+                $serviciosRelAdmin = $infoRelAdmin['servicios_relacionados'];
+                $empIdsAdmin = $infoRelAdmin['empleados_ids'];
+                $capSimultaneaAdmin = $infoRelAdmin['capacidad_simultanea'];
+
+                $reservasExistentes = Pedido::with('detalles.servicio')
+                    ->where('tipo_pedido', 'servicio')
+                    ->whereDate('fecha_servicio', $request->fecha_servicio)
+                    ->whereIn('estado_atencion', ['en_espera', 'siendo_atendido', 'atendido'])
+                    ->whereHas('detalles', function ($q) use ($serviciosRelAdmin, $empIdsAdmin) {
+                        $q->where(function ($sub) use ($serviciosRelAdmin, $empIdsAdmin) {
+                            $sub->whereIn('idservicio', $serviciosRelAdmin);
+                            if (!empty($empIdsAdmin)) {
+                                $sub->orWhereIn('id_empleado', $empIdsAdmin);
+                            }
+                        });
+                    })
+                    ->whereNotNull('hora_inicio')
+                    ->get();
+
+                $solapadosCount = 0;
+                foreach ($reservasExistentes as $p) {
+                    $ini = Carbon::parse($p->fecha_servicio . ' ' . $p->hora_inicio, 'America/Argentina/Buenos_Aires');
+                    $det = $p->detalles->first();
+                    $durReserva = $duracionAdmin;
+                    if ($det && $det->servicio) {
+                        $durReserva = ($det->servicio->duracion ?? 30) + ($det->servicio->buffer_tiempo ?? 0);
+                        if ($durReserva <= 0) $durReserva = 30;
+                    }
+                    $fin = $ini->copy()->addMinutes($durReserva);
+
+                    if ($slotCheck->lt($fin) && $slotFinAdmin->gt($ini)) {
+                        $solapadosCount++;
+                    }
+                }
+
+                if ($solapadosCount >= $capSimultaneaAdmin) {
+                    DB::rollBack();
+                    return response()->json([
+                        'success' => false,
+                        'error'   => 'El horario seleccionado ya no está disponible (el profesional ya tiene otro turno asignado en ese horario).'
+                    ], 422);
+                }
+
                 $hayBloqueoAdmin = \App\Models\BloqueoHorario::where('id_local', $local->id)
                     ->whereDate('fecha', $request->fecha_servicio)
                     ->where(function ($q) use ($servicio) {
@@ -478,10 +618,8 @@ class TurnoController extends Controller
             ]);
 
             // Obtener empleado asignado al servicio si existe
-            $empleadoId = null;
-            if (method_exists($servicio, 'empleados')) {
-                $empleadoId = $servicio->empleados()->first()?->idpersona;
-            }
+            $infoRelAdminDetalle = $this->resolverServiciosYEmpleadosRelacionados($servicio);
+            $empleadoId = !empty($infoRelAdminDetalle['empleados_ids']) ? $infoRelAdminDetalle['empleados_ids'][0] : null;
 
             DetallePedido::create([
                 'pedido_id'       => $pedido->id,
