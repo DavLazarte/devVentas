@@ -246,4 +246,75 @@ class CajaController extends Controller
             ],
         ], 201);
     }
+
+    /**
+     * PUT /api/caja/movimientos/{id}
+     * Edita un movimiento de caja (Ingreso, Venta o Egreso)
+     */
+    public function updateMovimiento($id, Request $request)
+    {
+        $local = $this->getLocal();
+        if (!$local) {
+            return response()->json(['message' => 'No tenés un local asignado.'], 403);
+        }
+
+        $request->validate([
+            'amount'        => 'required|numeric|min:0.01',
+            'description'   => 'nullable|string|max:255',
+            'paymentMethod' => 'nullable|string|in:efectivo,transferencia,cuenta_corriente,otro',
+        ]);
+
+        $monto = (float) $request->amount;
+        $desc = $request->description;
+        $metodo = $request->paymentMethod ?? 'efectivo';
+
+        if (str_starts_with($id, 'ING-')) {
+            $ingresoId = (int) substr($id, 4);
+            $ingreso = Ingreso::where('id_local', $local->id)->findOrFail($ingresoId);
+
+            $ingreso->monto = $monto;
+            if ($desc !== null) {
+                $ingreso->descripcion = $desc;
+            }
+            $ingreso->tipo_pago = $metodo;
+
+            if ($metodo === 'cuenta_corriente') {
+                $ingreso->saldo = $monto;
+            } elseif ($ingreso->getOriginal('tipo_pago') === 'cuenta_corriente') {
+                $ingreso->saldo = 0;
+            }
+
+            $ingreso->save();
+
+            return response()->json(['success' => true, 'message' => 'Ingreso actualizado correctamente']);
+        } elseif (str_starts_with($id, 'VENTA-')) {
+            $ventaId = (int) substr($id, 6);
+            $venta = Venta::where('id_local', $local->id)->findOrFail($ventaId);
+
+            $venta->forma_de_pago = $metodo;
+            if ($metodo === 'cuenta_corriente') {
+                $venta->pago = 0;
+                $venta->saldo = $venta->total_venta;
+            } else {
+                $venta->pago = $monto;
+                $venta->saldo = max(0, round($venta->total_venta - $monto, 2));
+            }
+            $venta->save();
+
+            return response()->json(['success' => true, 'message' => 'Venta actualizada correctamente']);
+        } elseif (str_starts_with($id, 'SAL-')) {
+            $salidaId = (int) substr($id, 4);
+            $salida = Salida::where('id_local', $local->id)->findOrFail($salidaId);
+
+            $salida->monto = $monto;
+            if ($desc !== null) {
+                $salida->descripcion = $desc;
+            }
+            $salida->save();
+
+            return response()->json(['success' => true, 'message' => 'Egreso actualizado correctamente']);
+        }
+
+        return response()->json(['message' => 'Tipo de movimiento no válido'], 400);
+    }
 }

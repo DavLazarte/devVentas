@@ -204,7 +204,33 @@ class ClienteController extends Controller
             ->get();
 
         if ($ventasPendientes->isEmpty() && $serviciosPendientes->isEmpty()) {
-            return response()->json(['message' => 'No hay deudas pendientes para este cliente'], 422);
+            DB::beginTransaction();
+            try {
+                $monto = (float) $request->monto;
+                $cliente->saldo_favor = round(($cliente->saldo_favor ?? 0) + $monto, 2);
+                $cliente->save();
+
+                Ingreso::create([
+                    'idpersona'   => $cliente->idpersona,
+                    'monto'       => $monto,
+                    'tipo_pago'   => $request->input('paymentMethod') ?? $request->input('tipo_pago') ?? 'efectivo',
+                    'descripcion' => $request->descripcion ?? 'Carga de saldo a favor',
+                    'saldo'       => 0,
+                    'estado'      => 'activo',
+                    'id_local'    => $local->id,
+                ]);
+
+                DB::commit();
+
+                return response()->json([
+                    'message'         => 'Monto cargado como saldo a favor del cliente',
+                    'client'          => $this->formatCliente($cliente->refresh()),
+                    'ventasAfectadas' => [],
+                ], 201);
+            } catch (\Exception $e) {
+                DB::rollBack();
+                return response()->json(['message' => 'Error al registrar saldo a favor', 'error' => $e->getMessage()], 500);
+            }
         }
 
         DB::beginTransaction();
@@ -261,12 +287,23 @@ class ClienteController extends Controller
                 $montoRestante -= $aAplicar;
             }
 
+            // Si sobró dinero del pago, se guarda automáticamente como saldo a favor del cliente
+            if ($montoRestante > 0) {
+                $cliente->saldo_favor = round(($cliente->saldo_favor ?? 0) + $montoRestante, 2);
+                $cliente->save();
+            }
+
             // Registrar el ingreso (pago recibido en efectivo/transferencia)
+            $descPago = $request->descripcion ?? 'Pago de deuda';
+            if ($montoRestante > 0) {
+                $descPago .= " (excedente de \${$montoRestante} como saldo a favor)";
+            }
+
             Ingreso::create([
                 'idpersona'   => $cliente->idpersona,
                 'monto'       => $request->monto,
                 'tipo_pago'   => $request->input('paymentMethod') ?? $request->input('tipo_pago') ?? 'efectivo',
-                'descripcion' => $request->descripcion ?? 'Pago de deuda',
+                'descripcion' => $descPago,
                 'saldo'       => 0,
                 'estado'      => 'activo',
                 'id_local'    => $local->id,
@@ -283,6 +320,91 @@ class ClienteController extends Controller
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json(['message' => 'Error', 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * POST /api/clientes-pos/{id}/saldo-favor
+     * Carga saldo a favor directamente a la cuenta del cliente y registra el ingreso en caja
+     */
+    public function cargarSaldoFavor(Request $request, $id)
+    {
+        $local   = $this->getLocal();
+        $cliente = Persona::where('id_local', $local?->id)->findOrFail($id);
+
+        $request->validate([
+            'amount'      => 'required|numeric|min:0.01',
+            'tipo_pago'   => 'nullable|string|in:efectivo,transferencia,tarjeta,otro',
+            'description' => 'nullable|string|max:255',
+        ]);
+
+        $monto    = (float) $request->amount;
+        $tipoPago = $request->input('tipo_pago', 'efectivo');
+        $desc     = $request->input('description') ?: "Carga de saldo a favor: {$cliente->nombre}";
+
+        DB::beginTransaction();
+        try {
+            $cliente->saldo_favor = round(($cliente->saldo_favor ?? 0) + $monto, 2);
+            $cliente->save();
+
+            // Registrar ingreso en caja
+            Ingreso::create([
+                'idpersona'   => $cliente->idpersona,
+                'monto'       => $monto,
+                'tipo_pago'   => $tipoPago,
+                'descripcion' => $desc,
+                'saldo'       => 0,
+                'estado'      => 'activo',
+                'id_local'    => $local->id,
+            ]);
+
+            DB::commit();
+
+            return response()->json([
+                'message' => 'Saldo a favor cargado exitosamente',
+                'client'  => $this->formatCliente($cliente->refresh()),
+            ], 200);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['message' => 'Error al cargar saldo a favor', 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * POST /api/clientes-pos/{id}/consumir-saldo-favor
+     * Descuenta saldo a favor del cliente
+     */
+    public function consumirSaldoFavor(Request $request, $id)
+    {
+        $local   = $this->getLocal();
+        $cliente = Persona::where('id_local', $local?->id)->findOrFail($id);
+
+        $request->validate([
+            'amount'      => 'required|numeric|min:0.01',
+            'description' => 'nullable|string|max:255',
+        ]);
+
+        $monto = (float) $request->amount;
+        $saldoActual = (float) ($cliente->saldo_favor ?? 0);
+
+        if ($saldoActual < $monto) {
+            return response()->json(['message' => 'El cliente no posee suficiente saldo a favor'], 422);
+        }
+
+        DB::beginTransaction();
+        try {
+            $cliente->saldo_favor = round($saldoActual - $monto, 2);
+            $cliente->save();
+
+            DB::commit();
+
+            return response()->json([
+                'message' => 'Saldo a favor aplicado exitosamente',
+                'client'  => $this->formatCliente($cliente->refresh()),
+            ], 200);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['message' => 'Error al aplicar saldo a favor', 'error' => $e->getMessage()], 500);
         }
     }
 
@@ -405,27 +527,51 @@ class ClienteController extends Controller
         if ($c->tipo_persona === 'empleado') {
             $serviciosAsignados = $c->servicios()
                 ->get(['servicios.idservicio', 'servicios.nombre', 'servicios.precio', 'servicios.duracion']);
+            $serviciosIds = $serviciosAsignados->pluck('idservicio')->toArray();
 
+            $hoy = \Carbon\Carbon::today('America/Argentina/Buenos_Aires')->toDateString();
+
+            // Buscar todos los detalles de turnos de hoy que correspondan a este empleado
             $detallesHoy = \App\Models\DetallePedido::with(['pedido', 'servicio'])
-                ->where('id_empleado', $c->idpersona)
-                ->whereDate('created_at', \Carbon\Carbon::today())
+                ->whereHas('pedido', function ($q) use ($hoy) {
+                    $q->where(function ($sub) use ($hoy) {
+                        $sub->whereDate('fecha_servicio', $hoy)
+                            ->orWhereDate('created_at', $hoy);
+                    })->whereIn('estado_atencion', ['completado', 'siendo_atendido']);
+                })
+                ->where(function ($q) use ($c, $serviciosIds) {
+                    $q->where('id_empleado', $c->idpersona)
+                      ->orWhere(function ($sub) use ($serviciosIds) {
+                          $sub->whereNull('id_empleado')
+                              ->whereIn('idservicio', $serviciosIds);
+                      });
+                })
                 ->get();
 
             $cortesHoy = $detallesHoy->count();
-            $recaudadoHoy = (float) $detallesHoy->sum('subtotal');
+            $recaudadoHoy = (float) $detallesHoy->sum(function ($d) {
+                return (float) ($d->subtotal ?? $d->precio_unitario ?? $d->servicio?->precio ?? 0);
+            });
 
             $historialServicios = \App\Models\DetallePedido::with(['pedido', 'servicio'])
-                ->where('id_empleado', $c->idpersona)
-                ->orderByDesc('created_at')
+                ->where(function ($q) use ($c, $serviciosIds) {
+                    $q->where('id_empleado', $c->idpersona)
+                      ->orWhere(function ($sub) use ($serviciosIds) {
+                          $sub->whereNull('id_empleado')
+                              ->whereIn('idservicio', $serviciosIds);
+                      });
+                })
+                ->whereHas('pedido')
+                ->orderByDesc('id')
                 ->take(30)
                 ->get()
                 ->map(fn($d) => [
                     'id'             => (string) $d->id,
                     'servicioNombre' => $d->servicio?->nombre ?? 'Servicio',
                     'clienteNombre'  => $d->pedido?->nombre_cliente ?? 'Cliente mostrador',
-                    'monto'          => (float) ($d->subtotal ?? $d->precio_unitario),
+                    'monto'          => (float) ($d->subtotal ?? $d->precio_unitario ?? $d->servicio?->precio ?? 0),
                     'estado'         => $d->pedido?->estado_atencion ?? $d->pedido?->estado ?? 'completado',
-                    'createdAt'      => $d->created_at?->toISOString(),
+                    'createdAt'      => $d->pedido?->fecha_servicio ?? $d->created_at?->toISOString(),
                 ]);
 
             $liquidaciones = \App\Models\Salida::where('idpersona', $c->idpersona)
@@ -509,8 +655,10 @@ class ClienteController extends Controller
             ->sum('saldo');
         $totalDeuda = $deudaVentas + $deudaServicios;
 
-        // Balance: siempre negativo indicando lo que debe. 
-        $balance = -((float) $totalDeuda);
+        $saldoFavor = (float) ($c->saldo_favor ?? 0);
+
+        // Balance: si tiene deuda es negativo (-$totalDeuda), si no tiene deuda y tiene saldo a favor es positivo (+$saldoFavor)
+        $balance = $totalDeuda > 0 ? -((float) $totalDeuda) : $saldoFavor;
 
         // Todas las ventas del cliente (historial de ventas de productos)
         $ventas = Venta::with(['detalles.producto', 'detalles.variantesArticulos'])
@@ -584,10 +732,99 @@ class ClienteController extends Controller
             'phone'        => $c->telefono ?? '',
             'type'         => $c->tipo_persona ?? 'cliente',
             'balance'      => (float) $balance,
+            'saldo_favor'  => (float) $saldoFavor,
             'ventas'       => $todasLasVentas,
             'pagos'        => $pagos,
             // legacy: transactions vacío para no romper nada
             'transactions' => [],
         ];
+    }
+
+    /**
+     * GET /api/clientes-pos/{id}/cortes
+     * Obtener listado de cortes/atenciones de un empleado con filtrado de fechas y paginación
+     */
+    public function getCortesEmpleado($id, Request $request)
+    {
+        $local = $this->getLocal();
+        $empleado = Persona::findOrFail($id);
+        $localId = $local?->id ?? $empleado->id_local;
+
+        $serviciosIds = $empleado->servicios()->pluck('servicios.idservicio')->toArray();
+
+        $rango = $request->query('rango', 'hoy'); // 'hoy', 'ayer', 'semana', 'mes', 'todos', 'custom'
+        $fechaDesde = $request->query('fecha_desde');
+        $fechaHasta = $request->query('fecha_hasta');
+        $page = max(1, (int) $request->query('page', 1));
+        $limit = max(1, min(100, (int) $request->query('limit', 15)));
+
+        $query = \App\Models\DetallePedido::with(['pedido', 'servicio'])
+            ->where(function ($q) use ($empleado, $serviciosIds) {
+                $q->where('id_empleado', $empleado->idpersona)
+                  ->orWhere(function ($sub) use ($serviciosIds) {
+                      $sub->whereNull('id_empleado')
+                          ->whereIn('idservicio', $serviciosIds);
+                  });
+            })
+            ->whereHas('pedido', function ($q) use ($localId) {
+                if ($localId) {
+                    $q->where('id_local', $localId);
+                }
+                $q->whereIn('estado_atencion', ['completado', 'siendo_atendido']);
+            });
+
+        // Filtrado por fecha
+        $tz = 'America/Argentina/Buenos_Aires';
+        $ahora = \Carbon\Carbon::now($tz);
+
+        if ($rango === 'hoy') {
+            $hoy = $ahora->toDateString();
+            $query->whereHas('pedido', fn($q) => $q->where(fn($sub) => $sub->whereDate('fecha_servicio', $hoy)->orWhereDate('created_at', $hoy)));
+        } elseif ($rango === 'ayer') {
+            $ayer = $ahora->copy()->subDay()->toDateString();
+            $query->whereHas('pedido', fn($q) => $q->where(fn($sub) => $sub->whereDate('fecha_servicio', $ayer)->orWhereDate('created_at', $ayer)));
+        } elseif ($rango === 'semana') {
+            $inicioSemana = $ahora->copy()->startOfWeek()->toDateString();
+            $finSemana = $ahora->copy()->endOfWeek()->toDateString();
+            $query->whereHas('pedido', fn($q) => $q->where(fn($sub) => $sub->whereBetween('fecha_servicio', [$inicioSemana, $finSemana])->orWhereBetween('created_at', [$inicioSemana, $finSemana])));
+        } elseif ($rango === 'mes') {
+            $inicioMes = $ahora->copy()->startOfMonth()->toDateString();
+            $finMes = $ahora->copy()->endOfMonth()->toDateString();
+            $query->whereHas('pedido', fn($q) => $q->where(fn($sub) => $sub->whereBetween('fecha_servicio', [$inicioMes, $finMes])->orWhereBetween('created_at', [$inicioMes, $finMes])));
+        } elseif ($rango === 'custom' && $fechaDesde) {
+            $hasta = $fechaHasta ?: $fechaDesde;
+            $query->whereHas('pedido', fn($q) => $q->where(fn($sub) => $sub->whereBetween('fecha_servicio', [$fechaDesde, $hasta])->orWhereBetween('created_at', [$fechaDesde, $hasta])));
+        }
+
+        // Totales del período seleccionado (sin paginar)
+        $totalCortes = (clone $query)->count();
+        $totalRecaudado = (float) (clone $query)->get()->sum(function ($d) {
+            return (float) ($d->subtotal ?? $d->precio_unitario ?? $d->servicio?->precio ?? 0);
+        });
+
+        // Paginación
+        $cortes = $query->orderByDesc('id')
+            ->skip(($page - 1) * $limit)
+            ->take($limit)
+            ->get()
+            ->map(fn($d) => [
+                'id'             => (string) $d->id,
+                'servicioNombre' => $d->servicio?->nombre ?? 'Servicio',
+                'clienteNombre'  => $d->pedido?->nombre_cliente ?? 'Cliente mostrador',
+                'monto'          => (float) ($d->subtotal ?? $d->precio_unitario ?? $d->servicio?->precio ?? 0),
+                'estado'         => $d->pedido?->estado_atencion ?? $d->pedido?->estado ?? 'completado',
+                'createdAt'      => $d->pedido?->fecha_servicio ?? $d->created_at?->toISOString(),
+            ]);
+
+        $hasMore = ($page * $limit) < $totalCortes;
+
+        return response()->json([
+            'cortes'          => $cortes,
+            'total_cortes'    => $totalCortes,
+            'total_recaudado' => $totalRecaudado,
+            'page'            => $page,
+            'limit'           => $limit,
+            'has_more'        => $hasMore,
+        ]);
     }
 }

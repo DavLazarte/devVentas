@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Str;
 
 class Recurso extends Model
 {
@@ -13,12 +14,14 @@ class Recurso extends Model
 
     protected $fillable = [
         'id_local',
+        'id_empleado',  // Vínculo con Persona (tipo empleado)
         'nombre',       // "Cancha 1", "Sillón Gonzalo", "Box Manicuría A"
         'tipo',         // 'cancha', 'sillon', 'cabina', 'box', 'sala', 'consultorio'
         'descripcion',
         'capacidad',    // cuántas personas simultáneas (default 1)
         'activo',
         'imagen',
+        'token_staff',  // token único para el panel del empleado (sin login)
     ];
 
     protected $casts = [
@@ -26,11 +29,28 @@ class Recurso extends Model
         'capacidad' => 'integer',
     ];
 
+    // Auto-generar token_staff al crear un recurso nuevo
+    protected static function boot()
+    {
+        parent::boot();
+        static::creating(function ($recurso) {
+            if (empty($recurso->token_staff)) {
+                $recurso->token_staff = Str::random(32);
+            }
+        });
+    }
+
+
     // ── Relaciones ────────────────────────────────────────────────
 
     public function local()
     {
         return $this->belongsTo(Local::class, 'id_local');
+    }
+
+    public function empleado()
+    {
+        return $this->belongsTo(Persona::class, 'id_empleado', 'idpersona');
     }
 
     // Servicios que se pueden realizar en/con este recurso

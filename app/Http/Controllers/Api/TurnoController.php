@@ -612,6 +612,26 @@ class TurnoController extends Controller
         $turnoActual = Pedido::with('detalles.servicio')->findOrFail($id);
         $turnoActual->update(['estado_atencion' => 'completado', 'estado' => 'entregado']);
 
+        // Auto-asignar o manual id_empleado en DetallePedido
+        $detalle = $turnoActual->detalles->first();
+        $empleadoIdManual = $request->input('empleado_id');
+        if ($empleadoIdManual) {
+            $turnoActual->detalles()->update(['id_empleado' => $empleadoIdManual]);
+            $turnoActual->load('detalles.servicio');
+        } elseif ($detalle && !$detalle->id_empleado) {
+            $empleadoAuto = $detalle->servicio?->empleados()->first();
+            if (!$empleadoAuto) {
+                $empleadoAuto = \App\Models\Persona::where('id_local', $turnoActual->id_local)
+                    ->whereIn('tipo_persona', ['empleado', 'instructor', 'staff'])
+                    ->whereHas('servicios', fn($q) => $q->where('servicios.idservicio', $detalle->idservicio))
+                    ->first();
+            }
+            if ($empleadoAuto) {
+                $turnoActual->detalles()->update(['id_empleado' => $empleadoAuto->idpersona]);
+                $turnoActual->load('detalles.servicio');
+            }
+        }
+
         $monto           = (float) ($request->input('monto') ?? $turnoActual->total ?? 0);
         $metodoPago      = $request->input('metodo_pago'); // 'efectivo', 'transferencia', 'cuenta_corriente'
         $nombreCliente   = trim($turnoActual->nombre_cliente ?? 'Cliente');
@@ -644,28 +664,61 @@ class TurnoController extends Controller
             ]);
         }
 
-        // 2. Si el pago es "A Cuenta" (cuenta corriente) -> registrar Ingreso con saldo pendiente
-        if ($metodoPago === 'cuenta_corriente' && $monto > 0) {
-            \App\Models\Ingreso::create([
-                'idpersona'   => $persona?->idpersona,
-                'monto'       => $monto,
-                'tipo_pago'   => 'cuenta_corriente',
-                'descripcion' => "Servicio a cuenta: {$servicioNombre}" . ($persona ? " - {$persona->nombre}" : ""),
-                'saldo'       => $monto,
-                'estado'      => 'activo',
-                'id_local'    => $localId,
-            ]);
-        } elseif ($monto > 0 && !empty($metodoPago)) {
-            // 3. Si se cobró por Efectivo / Transferencia -> registrar Ingreso en caja (saldo = 0, ya cobrado)
-            \App\Models\Ingreso::create([
-                'idpersona'   => $persona?->idpersona,
-                'monto'       => $monto,
-                'tipo_pago'   => in_array($metodoPago, ['efectivo', 'transferencia', 'debito', 'credito']) ? $metodoPago : 'efectivo',
-                'descripcion' => "Cobro de turno: {$servicioNombre}" . ($persona ? " - {$persona->nombre}" : ""),
-                'saldo'       => 0,
-                'estado'      => 'activo',
-                'id_local'    => $localId,
-            ]);
+        // Obtener el nombre del empleado para la descripción en caja
+        $empleadoNombre = "";
+        $detalleP = $turnoActual->detalles->first();
+        if ($detalleP && $detalleP->id_empleado) {
+            $emp = \App\Models\Persona::find($detalleP->id_empleado);
+            if ($emp) {
+                $empleadoNombre = " (por {$emp->nombre})";
+            }
+        }
+
+        // ── Pago mixto: soporta efectivo + transferencia + cuenta corriente simultáneos
+        $montoEfectivo      = (float) $request->input('monto_efectivo', 0);
+        $montoTransferencia = (float) $request->input('monto_transferencia', 0);
+        $montoCuentaCte     = (float) $request->input('monto_cuenta_corriente', 0);
+
+        // Compatibilidad legacy (monto + metodo_pago)
+        if ($montoEfectivo === 0.0 && $montoTransferencia === 0.0 && $montoCuentaCte === 0.0 && $monto > 0 && !empty($metodoPago)) {
+            if ($metodoPago === 'cuenta_corriente')  $montoCuentaCte     = $monto;
+            elseif ($metodoPago === 'transferencia') $montoTransferencia = $monto;
+            else                                     $montoEfectivo      = $monto;
+        }
+
+        // ── Saldo a favor: montos
+        $montoSaldoFavor = (float) $request->input('monto_saldo_favor', 0);
+        $montoUsarSaldo  = (float) $request->input('monto_usar_saldo_favor', 0);
+
+        $notaSaldo = '';
+        if ($montoSaldoFavor > 0) {
+            $notaSaldo = ' (+$' . number_format($montoSaldoFavor, 0, ',', '.') . ' a favor)';
+        } elseif ($montoUsarSaldo > 0) {
+            $notaSaldo = ' (usó $' . number_format($montoUsarSaldo, 0, ',', '.') . ' saldo a favor)';
+        }
+
+        $prefijo = "Cobro de turno: {$servicioNombre}" . ($persona ? " - {$persona->nombre}" : '') . $empleadoNombre . $notaSaldo;
+
+        if ($montoEfectivo > 0) {
+            \App\Models\Ingreso::create(['idpersona'=>$persona?->idpersona,'monto'=>$montoEfectivo,'tipo_pago'=>'efectivo','descripcion'=>$prefijo,'saldo'=>0,'estado'=>'activo','id_local'=>$localId]);
+        }
+        if ($montoTransferencia > 0) {
+            \App\Models\Ingreso::create(['idpersona'=>$persona?->idpersona,'monto'=>$montoTransferencia,'tipo_pago'=>'transferencia','descripcion'=>$prefijo,'saldo'=>0,'estado'=>'activo','id_local'=>$localId]);
+        }
+        if ($montoCuentaCte > 0) {
+            \App\Models\Ingreso::create(['idpersona'=>$persona?->idpersona,'monto'=>$montoCuentaCte,'tipo_pago'=>'cuenta_corriente','descripcion'=>"Servicio a cuenta: {$servicioNombre}" . ($persona ? " - {$persona->nombre}" : '') . $empleadoNombre,'saldo'=>$montoCuentaCte,'estado'=>'activo','id_local'=>$localId]);
+        }
+
+        // ── Saldo a favor: guardar vuelto o excedente
+        if ($montoSaldoFavor > 0 && $persona) {
+            $persona->saldo_favor = round(($persona->saldo_favor ?? 0) + $montoSaldoFavor, 2);
+            $persona->save();
+        }
+
+        // ── Saldo a favor: descontar si el cliente pagó usando saldo a favor
+        if ($montoUsarSaldo > 0 && $persona && ($persona->saldo_favor ?? 0) >= $montoUsarSaldo) {
+            $persona->saldo_favor = round(max(0, ($persona->saldo_favor ?? 0) - $montoUsarSaldo), 2);
+            $persona->save();
         }
 
         // 4. ¿El peluquero eligió crear cuenta de usuario para el cliente?

@@ -30,6 +30,14 @@ Route::get('/auth/google', [\App\Http\Controllers\Api\GoogleAuthController::clas
 Route::get('/auth/google/callback', [\App\Http\Controllers\Api\GoogleAuthController::class, 'callback']);
 Route::get('/images/perfiles/{filename}', [SocioController::class, 'serveImage']);
 
+// ── Panel de Empleado (Staff Link — sin auth, acceso por token) ──
+Route::prefix('staff')->group(function () {
+    Route::get('/{token}', [\App\Http\Controllers\Api\StaffController::class, 'show']);
+    Route::patch('/{token}/turnos/{id}/llamar',    [\App\Http\Controllers\Api\StaffController::class, 'llamar']);
+    Route::patch('/{token}/turnos/{id}/completar', [\App\Http\Controllers\Api\StaffController::class, 'completar']);
+    Route::patch('/{token}/turnos/{id}/cancelar',  [\App\Http\Controllers\Api\StaffController::class, 'cancelar']);
+});
+
 // ──────────────────────────────────────────────
 // Marketplace Público (Tienda Dux)
 // ──────────────────────────────────────────────
@@ -180,13 +188,17 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('/clientes-pos/{id}', [ClienteController::class, 'destroy']);
         Route::post('/clientes-pos/{id}/transacciones', [ClienteController::class, 'createTransaction']);
         Route::post('/clientes-pos/{id}/pago', [ClienteController::class, 'registrarPago']);
+        Route::post('/clientes-pos/{id}/saldo-favor', [ClienteController::class, 'cargarSaldoFavor']);
+        Route::post('/clientes-pos/{id}/consumir-saldo-favor', [ClienteController::class, 'consumirSaldoFavor']);
         Route::post('/clientes-pos/{id}/pagar-comision', [ClienteController::class, 'pagarComision']);
+        Route::get('/clientes-pos/{id}/cortes', [ClienteController::class, 'getCortesEmpleado']);
     });
 
     // Caja (requiere plan con caja)
     Route::middleware('plan.feature:caja')->group(function () {
         Route::get('/caja', [CajaController::class, 'index']);
         Route::post('/caja', [CajaController::class, 'store']);
+        Route::put('/caja/movimientos/{id}', [CajaController::class, 'updateMovimiento']);
     });
 
     // ──────────────────────────────────────────────
@@ -223,6 +235,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // Servicios (Planes, Clases) y Empleados vinculados
     Route::get('/servicios/empleados', [\App\Http\Controllers\Api\ServicioController::class, 'getEmpleados']);
     Route::post('/servicios/empleados', [\App\Http\Controllers\Api\ServicioController::class, 'storeEmpleado']);
+    Route::get('/servicios/recursos', [\App\Http\Controllers\Api\ServicioController::class, 'getRecursos']);
     Route::apiResource('servicios', \App\Http\Controllers\Api\ServicioController::class);
 
     // Clases (Horarios/Templates)

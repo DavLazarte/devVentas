@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Str;
 
 class Persona extends Model
 {
@@ -26,11 +27,26 @@ class Persona extends Model
         'fecha_nacimiento',
         'foto',
         'estado_membresia',
+        'token_staff',
+        'saldo_favor',
     ];
 
     protected $casts = [
         'fecha_nacimiento' => 'date',
+        'saldo_favor'      => 'decimal:2',
     ];
+
+    // Auto-generar token_staff al crear empleados/instructores/staff
+    protected static function boot()
+    {
+        parent::boot();
+        static::creating(function ($persona) {
+            if (in_array($persona->tipo_persona, ['empleado', 'instructor', 'staff']) && empty($persona->token_staff)) {
+                $persona->token_staff = Str::random(32);
+            }
+        });
+    }
+
 
     // Relación con User (NUEVA)
     public function user()

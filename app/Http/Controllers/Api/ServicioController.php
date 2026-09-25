@@ -254,4 +254,21 @@ class ServicioController extends Controller
             'message' => 'Servicio eliminado exitosamente'
         ]);
     }
+
+    /**
+     * GET /api/servicios/recursos
+     * Lista los empleados del local con su token_staff para compartir el panel
+     */
+    public function getRecursos()
+    {
+        $localId = $this->getLocalId();
+
+        $empleados = Persona::whereIn('tipo_persona', ['empleado', 'instructor', 'staff'])
+            ->where('id_local', $localId)
+            ->whereNotNull('token_staff')
+            ->orderBy('nombre')
+            ->get(['idpersona as id', 'nombre', 'tipo_persona as tipo', 'token_staff', 'telefono']);
+
+        return response()->json(['recursos' => $empleados]);
+    }
 }
