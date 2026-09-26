@@ -340,7 +340,8 @@ class ClienteController extends Controller
 
         $monto    = (float) $request->amount;
         $tipoPago = $request->input('tipo_pago', 'efectivo');
-        $desc     = $request->input('description') ?: "Carga de saldo a favor: {$cliente->nombre}";
+        $notaDesc = $request->input('description');
+        $desc     = $notaDesc ? "Carga de saldo a favor: {$notaDesc}" : "Carga de saldo a favor: {$cliente->nombre}";
 
         DB::beginTransaction();
         try {
@@ -349,13 +350,13 @@ class ClienteController extends Controller
 
             // Registrar ingreso en caja
             Ingreso::create([
-                'idpersona'   => $cliente->idpersona,
-                'monto'       => $monto,
-                'tipo_pago'   => $tipoPago,
-                'descripcion' => $desc,
-                'saldo'       => 0,
-                'estado'      => 'activo',
-                'id_local'    => $local->id,
+                'idpersona'    => $cliente->idpersona,
+                'monto'        => $monto,
+                'tipo_pago'    => $tipoPago,
+                'descripcion'  => $desc,
+                'saldo'        => 0,
+                'estado'       => 'activo',
+                'id_local'     => $local->id,
             ]);
 
             DB::commit();

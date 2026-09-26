@@ -164,6 +164,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/pedidos', [PedidoController::class, 'index']);
     Route::post('/pedidos', [PedidoController::class, 'store']);
     Route::patch('/pedidos/{id}', [PedidoController::class, 'update']);
+    Route::put('/pedidos/{id}/items', [PedidoController::class, 'updateItems']);
     Route::patch('/pedidos/{id}/estado', [PedidoController::class, 'updateEstado']);
     Route::post('/pedidos/{id}/entregar', [PedidoController::class, 'entregar']);
     Route::delete('/pedidos/{id}', [PedidoController::class, 'destroy']);
@@ -199,6 +200,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/caja', [CajaController::class, 'index']);
         Route::post('/caja', [CajaController::class, 'store']);
         Route::put('/caja/movimientos/{id}', [CajaController::class, 'updateMovimiento']);
+        Route::delete('/caja/movimientos/{id}', [CajaController::class, 'destroyMovimiento']);
     });
 
     // ──────────────────────────────────────────────

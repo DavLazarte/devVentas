@@ -45,7 +45,8 @@ class PedidoController extends Controller
             $s = $request->search;
             $query->where(function ($q) use ($s) {
                 $q->where('nombre_cliente', 'like', "%{$s}%")
-                  ->orWhere('telefono', 'like', "%{$s}%");
+                  ->orWhere('telefono', 'like', "%{$s}%")
+                  ->orWhere('id', 'like', "%{$s}%");
             });
         }
 
@@ -217,6 +218,71 @@ class PedidoController extends Controller
             'message' => 'Pedido actualizado',
             'order'   => $this->formatPedido($pedido),
         ]);
+    }
+
+    /**
+     * PUT /api/pedidos/{id}/items
+     * Actualiza los items de un pedido (reemplazo completo)
+     */
+    public function updateItems(Request $request, $id)
+    {
+        $local = $this->getLocal();
+        $pedido = Pedido::where('id_local', $local?->id)->findOrFail($id);
+
+        $request->validate([
+            'items'              => 'required|array|min:1',
+            'items.*.productId'  => 'required',
+            'items.*.varianteId' => 'nullable',
+            'items.*.quantity'   => 'required|integer|min:1',
+            'items.*.price'      => 'required|numeric|min:0',
+            'total'              => 'required|numeric|min:0',
+        ]);
+
+        DB::beginTransaction();
+        try {
+            // Eliminar detalles actuales
+            $pedido->detalles()->delete();
+
+            // Pre-fetch
+            $productIds  = collect($request->items)->pluck('productId')->unique()->values();
+            $varianteIds = collect($request->items)->filter(fn($i) => !empty($i['varianteId']))->pluck('varianteId')->unique()->values();
+            $articulos = Articulo::whereIn('idarticulo', $productIds)->get()->keyBy('idarticulo');
+            $variantes = $varianteIds->isNotEmpty() ? ArticuloVariante::whereIn('id_variante', $varianteIds)->get()->keyBy('id_variante') : collect();
+
+            foreach ($request->items as $item) {
+                $varianteId = $item['varianteId'] ?? null;
+                $variante   = $varianteId ? $variantes->get($varianteId) : null;
+                $articulo   = $articulos->get($item['productId']);
+
+                DetallePedido::create([
+                    'pedido_id'            => $pedido->id,
+                    'idarticulo'           => $item['productId'],
+                    'id_variante'          => $varianteId,
+                    'sku_vendido'          => $variante?->sku ?? $articulo?->codigo,
+                    'descripcion_variante' => $variante?->descripcion_variante,
+                    'cantidad'             => $item['quantity'],
+                    'precio_unitario'      => $item['price'],
+                    'subtotal'             => $item['price'] * $item['quantity'],
+                ]);
+            }
+
+            $pedido->total = $request->total;
+            $pedido->subtotal = $request->total;
+            $pedido->save();
+
+            DB::commit();
+
+            // Refetch para devolver formateado
+            $pedido->load(['detalles.producto', 'detalles.variantesArticulos']);
+
+            return response()->json([
+                'message' => 'Items del pedido actualizados',
+                'order'   => $this->formatPedido($pedido),
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['message' => 'Error al actualizar items', 'error' => $e->getMessage()], 500);
+        }
     }
 
     /**

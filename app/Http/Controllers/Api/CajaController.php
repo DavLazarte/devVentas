@@ -317,4 +317,44 @@ class CajaController extends Controller
 
         return response()->json(['message' => 'Tipo de movimiento no válido'], 400);
     }
+    /**
+     * DELETE /api/caja/movimientos/{id}
+     * Elimina un movimiento de caja (Ingreso o Egreso)
+     */
+    public function destroyMovimiento($id)
+    {
+        $local = $this->getLocal();
+        if (!$local) {
+            return response()->json(['message' => 'No tenés un local asignado.'], 403);
+        }
+
+        if (str_starts_with($id, 'ING-')) {
+            $ingresoId = (int) substr($id, 4);
+            $ingreso = Ingreso::where('id_local', $local->id)->findOrFail($ingresoId);
+            
+            // Revertir en el cliente si el ingreso estaba asignado a una persona
+            if ($ingreso->idpersona) {
+                $persona = $ingreso->cliente ?? \App\Models\Persona::find($ingreso->idpersona);
+                if ($persona) {
+                    $desc = mb_strtolower($ingreso->descripcion ?? '');
+                    if (str_contains($desc, 'favor') || str_contains($desc, 'saldo') || str_contains($desc, 'carga')) {
+                        $persona->saldo_favor = max(0, round(($persona->saldo_favor ?? 0) - (float)$ingreso->monto, 2));
+                        $persona->save();
+                    }
+                }
+            }
+
+            $ingreso->delete();
+            return response()->json(['success' => true, 'message' => 'Ingreso eliminado correctamente']);
+        } elseif (str_starts_with($id, 'VENTA-')) {
+            return response()->json(['message' => 'Las ventas se deben eliminar desde el panel de Ventas.'], 400);
+        } elseif (str_starts_with($id, 'SAL-')) {
+            $salidaId = (int) substr($id, 4);
+            $salida = Salida::where('id_local', $local->id)->findOrFail($salidaId);
+            $salida->delete();
+            return response()->json(['success' => true, 'message' => 'Egreso eliminado correctamente']);
+        }
+
+        return response()->json(['message' => 'Movimiento no encontrado.'], 404);
+    }
 }
