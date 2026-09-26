@@ -35,7 +35,7 @@ class StaffController extends Controller
 
     /**
      * GET /api/staff/{token}?fecha=YYYY-MM-DD
-     * Panel del empleado: sus turnos del día
+     * Panel del empleado: sus turnos del dÃ­a
      */
     public function show($token, Request $request)
     {
@@ -48,7 +48,7 @@ class StaffController extends Controller
         // Servicios asignados a este empleado
         $serviciosIds = $empleado->servicios()->pluck('servicios.idservicio')->toArray();
 
-        // Turnos del día para los servicios de este empleado (pendientes y en atención)
+        // Turnos del dÃ­a para los servicios de este empleado (pendientes y en atenciÃ³n)
         $pedidos = Pedido::with('detalles.servicio')
             ->where('tipo_pedido', 'servicio')
             ->where('id_local', $empleado->id_local)
@@ -82,8 +82,28 @@ class StaffController extends Controller
             ->orderBy('updated_at', 'desc')
             ->get();
 
-        $formatearTurno = function ($p) {
+        $formatearTurno = function ($p) use ($local) {
             $detalle = $p->detalles->first();
+
+            // Buscar saldo a favor del cliente
+            $saldoFavor = 0.0;
+            $cliente = null;
+            if ($p->telefono && $p->telefono !== '0') {
+                $cliente = \App\Models\Persona::where('id_local', $local->id)
+                    ->where('tipo_persona', 'cliente')
+                    ->where('telefono', $p->telefono)
+                    ->first();
+            }
+            if (!$cliente && !empty($p->nombre_cliente)) {
+                $cliente = \App\Models\Persona::where('id_local', $local->id)
+                    ->where('tipo_persona', 'cliente')
+                    ->where('nombre', $p->nombre_cliente)
+                    ->first();
+            }
+            if ($cliente) {
+                $saldoFavor = (float) ($cliente->saldo_favor ?? 0);
+            }
+
             return [
                 'id'              => $p->id,
                 'nombre_cliente'  => $p->nombre_cliente,
@@ -97,6 +117,7 @@ class StaffController extends Controller
                 'precio'          => (float) ($detalle?->subtotal ?? $detalle?->precio_unitario ?? $detalle?->servicio?->precio ?? 0),
                 'tipo_reserva'    => $detalle?->servicio?->tipo_reserva ?? 'cola_virtual',
                 'token_publico'   => $p->token_publico,
+                'saldo_favor'     => $saldoFavor,
             ];
         };
 
@@ -110,29 +131,58 @@ class StaffController extends Controller
             return (float) ($p->total ?? $detalle?->subtotal ?? $detalle?->precio_unitario ?? $detalle?->servicio?->precio ?? 0);
         });
 
+        // Ingresos reales cobrados para este empleado en esta fecha
+        $empCount = Persona::where('id_local', $empleado->id_local)
+            ->whereIn('tipo_persona', ['empleado', 'instructor', 'staff'])
+            ->count();
+
+        $ingresosStaff = \App\Models\Ingreso::where('id_local', $empleado->id_local)
+            ->whereDate('created_at', $fecha)
+            ->where(function ($q) use ($empleado, $empCount) {
+                $q->where('descripcion', 'LIKE', '%(por ' . $empleado->nombre . ')%');
+                if ($empCount <= 1) {
+                    $q->orWhere('descripcion', 'LIKE', 'Cobro de turno:%');
+                }
+            })
+            ->get();
+
+        $efectivoHoy = (float) $ingresosStaff->whereIn('tipo_pago', ['efectivo', null])->sum('monto');
+        $transferenciaHoy = (float) $ingresosStaff->where('tipo_pago', 'transferencia')->sum('monto');
+        $totalIngresosStaff = $efectivoHoy + $transferenciaHoy;
+
+        if ($totalIngresosStaff > 0) {
+            $totalRecaudadoHoy = $totalIngresosStaff;
+        } elseif ($totalRecaudadoHoy > 0 && $efectivoHoy == 0 && $transferenciaHoy == 0) {
+            $efectivoHoy = $totalRecaudadoHoy;
+        }
+
         return response()->json([
             'empleado' => [
-                'id'         => $empleado->idpersona,
-                'nombre'     => $empleado->nombre,
-                'tipo'       => $empleado->tipo_persona,
-                'cortes_hoy' => $cortesHoyCount,
-                'total_hoy'  => $totalRecaudadoHoy,
+                'id'                 => $empleado->idpersona,
+                'nombre'             => $empleado->nombre,
+                'tipo'               => $empleado->tipo_persona,
+                'cortes_hoy'         => $cortesHoyCount,
+                'total_hoy'          => $totalRecaudadoHoy,
+                'efectivo_hoy'       => $efectivoHoy,
+                'transferencia_hoy'  => $transferenciaHoy,
             ],
             'local' => [
                 'nombre' => $local?->nombre ?? '',
                 'slug'   => $local?->slug ?? '',
             ],
-            'fecha'      => $fecha,
-            'cortes_hoy' => $cortesHoyCount,
-            'total_hoy'  => $totalRecaudadoHoy,
-            'turnos'     => $turnos->values(),
-            'historial'  => $historial->values(),
+            'fecha'              => $fecha,
+            'cortes_hoy'         => $cortesHoyCount,
+            'total_hoy'          => $totalRecaudadoHoy,
+            'efectivo_hoy'       => $efectivoHoy,
+            'transferencia_hoy'  => $transferenciaHoy,
+            'turnos'             => $turnos->values(),
+            'historial'          => $historial->values(),
         ]);
     }
 
     /**
      * PATCH /api/staff/{token}/turnos/{id}/llamar
-     * El empleado llama a un cliente específico
+     * El empleado llama a un cliente especÃ­fico
      */
     public function llamar($token, $id)
     {
@@ -234,7 +284,7 @@ class StaffController extends Controller
             ]);
         }
 
-        // ── Pago mixto
+        // â”€â”€ Pago mixto
         $montoEfectivo      = (float) $request->input('monto_efectivo', 0);
         $montoTransferencia = (float) $request->input('monto_transferencia', 0);
         $montoCuentaCte     = (float) $request->input('monto_cuenta_corriente', 0);
@@ -245,7 +295,7 @@ class StaffController extends Controller
             else                                     $montoEfectivo      = $monto;
         }
 
-        // ── Saldo a favor: montos
+        // â”€â”€ Saldo a favor: montos
         $montoSaldoFavor = (float) $request->input('monto_saldo_favor', 0);
         $montoUsarSaldo  = (float) $request->input('monto_usar_saldo_favor', 0);
 
@@ -253,7 +303,7 @@ class StaffController extends Controller
         if ($montoSaldoFavor > 0) {
             $notaSaldo = ' (+$' . number_format($montoSaldoFavor, 0, ',', '.') . ' a favor)';
         } elseif ($montoUsarSaldo > 0) {
-            $notaSaldo = ' (usó $' . number_format($montoUsarSaldo, 0, ',', '.') . ' saldo a favor)';
+            $notaSaldo = ' (usÃ³ $' . number_format($montoUsarSaldo, 0, ',', '.') . ' saldo a favor)';
         }
 
         $prefijo = "Cobro de turno: {$servicioNombre}" . ($clientePersona ? " - {$clientePersona->nombre}" : '') . " (por {$empleado->nombre})" . $notaSaldo;
@@ -268,13 +318,13 @@ class StaffController extends Controller
             Ingreso::create(['idpersona'=>$clientePersona?->idpersona,'monto'=>$montoCuentaCte,'tipo_pago'=>'cuenta_corriente','descripcion'=>"Servicio a cuenta: {$servicioNombre}" . ($clientePersona ? " - {$clientePersona->nombre}" : '') . " (por {$empleado->nombre})", 'saldo'=>$montoCuentaCte,'estado'=>'activo','id_local'=>$localId]);
         }
 
-        // ── Saldo a favor: guardar vuelto o excedente
+        // â”€â”€ Saldo a favor: guardar vuelto o excedente
         if ($montoSaldoFavor > 0 && $clientePersona) {
             $clientePersona->saldo_favor = round(($clientePersona->saldo_favor ?? 0) + $montoSaldoFavor, 2);
             $clientePersona->save();
         }
 
-        // ── Saldo a favor: descontar si el cliente pagó usando saldo a favor
+        // â”€â”€ Saldo a favor: descontar si el cliente pagÃ³ usando saldo a favor
         if ($montoUsarSaldo > 0 && $clientePersona && ($clientePersona->saldo_favor ?? 0) >= $montoUsarSaldo) {
             $clientePersona->saldo_favor = round(max(0, ($clientePersona->saldo_favor ?? 0) - $montoUsarSaldo), 2);
             $clientePersona->save();

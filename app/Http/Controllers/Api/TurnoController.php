@@ -28,8 +28,8 @@ class TurnoController extends Controller
             ->pluck('idpersona')
             ->toArray();
 
-        // Si el servicio no tiene empleados específicos asignados en el pivot,
-        // pero en el local hay un solo profesional/barbero, asumimos que él realiza todos los servicios
+        // Si el servicio no tiene empleados especÃ­ficos asignados en el pivot,
+        // pero en el local hay un solo profesional/barbero, asumimos que Ã©l realiza todos los servicios
         if (empty($empleadosIds) && count($empLocal) === 1) {
             $empleadosIds = $empLocal;
         }
@@ -52,7 +52,7 @@ class TurnoController extends Controller
                 $serviciosRelacionados = array_unique(array_merge($serviciosRelacionados, $sRel));
             }
         } else {
-            // Sin empleados registrados: un solo prestador implícito (el dueño)
+            // Sin empleados registrados: un solo prestador implÃ­cito (el dueÃ±o)
             $serviciosRelacionados = Servicio::where('id_local', $servicio->id_local)
                 ->pluck('idservicio')
                 ->toArray();
@@ -67,7 +67,7 @@ class TurnoController extends Controller
         ];
     }
 
-    // 1. Pública: Consultar cuánta gente hay y hora estimada
+    // 1. PÃºblica: Consultar cuÃ¡nta gente hay y hora estimada
     public function disponibilidad(Request $request, $servicioId)
     {
         $fecha = $request->query('fecha', date('Y-m-d'));
@@ -82,7 +82,7 @@ class TurnoController extends Controller
         }
 
         if ($servicio->tipo_reserva === 'cola_virtual') {
-            // Contar cuántos están esperando hoy
+            // Contar cuÃ¡ntos estÃ¡n esperando hoy
             $query = Pedido::where('tipo_pedido', 'servicio')
                 ->whereDate('fecha_servicio', $fecha)
                 ->whereIn('estado_atencion', ['en_espera', 'siendo_atendido'])
@@ -95,7 +95,7 @@ class TurnoController extends Controller
 
             $personasEnCola = $query->count();
             
-            // Lógica simple de estimación (Duración servicio + buffer)
+            // LÃ³gica simple de estimaciÃ³n (DuraciÃ³n servicio + buffer)
             $minutosPorTurno = ($servicio->duracion ?? 30) + ($servicio->buffer_tiempo ?? 0);
             $minutosTotalesEspera = $personasEnCola * $minutosPorTurno;
             
@@ -113,7 +113,7 @@ class TurnoController extends Controller
         // Si es turno fijo tradicional, devolver array de slots libres
         $slots = [];
         $duracion = ($servicio->duracion ?? 30) + ($servicio->buffer_tiempo ?? 0);
-        if ($duracion <= 0) $duracion = 30; // Fallback mínimo
+        if ($duracion <= 0) $duracion = 30; // Fallback mÃ­nimo
 
         if ($servicio->local && !$cerrado) {
             $diaSemanaIngles = Carbon::parse($fecha, 'America/Argentina/Buenos_Aires')->englishDayOfWeek; // Ej: Monday
@@ -147,7 +147,7 @@ class TurnoController extends Controller
                         }
                     }
                 }
-                // Formato String único: "09:00-18:00"
+                // Formato String Ãºnico: "09:00-18:00"
                 elseif (is_string($configDia) && strtolower(trim($configDia)) !== 'cerrado') {
                     $partes = explode('-', $configDia);
                     if (count($partes) === 2) {
@@ -162,7 +162,7 @@ class TurnoController extends Controller
             $empleadosIds = $infoRel['empleados_ids'];
             $capacidadSimultanea = $infoRel['capacidad_simultanea'];
 
-            // Reservas existentes con su rango de duración
+            // Reservas existentes con su rango de duraciÃ³n
             $reservas = Pedido::with('detalles.servicio')
                 ->where('tipo_pedido', 'servicio')
                 ->whereDate('fecha_servicio', $fecha)
@@ -243,7 +243,7 @@ class TurnoController extends Controller
                     }
                     $solapado = $solapadosCount >= $capacidadSimultanea;
 
-                    // Comprobar si solapa con algún horario inhabilitado/bloqueado
+                    // Comprobar si solapa con algÃºn horario inhabilitado/bloqueado
                     $bloqueoEncontrado = null;
                     foreach ($rangosBloqueados as $bloq) {
                         if ($slotInicio->lt($bloq['fin']) && $slotFin->gt($bloq['inicio'])) {
@@ -290,7 +290,7 @@ class TurnoController extends Controller
         ]);
     }
 
-    // 2. Pública: Cliente reserva turno
+    // 2. PÃºblica: Cliente reserva turno
     public function store(Request $request)
     {
         $request->validate([
@@ -304,11 +304,11 @@ class TurnoController extends Controller
 
         $servicio = Servicio::with('local')->findOrFail($request->idservicio);
 
-        // Verificar que el local esté aceptando turnos
+        // Verificar que el local estÃ© aceptando turnos
         if (isset($servicio->local) && $servicio->local->de_turno !== null && (int)$servicio->local->de_turno === 0) {
             return response()->json([
                 'success' => false,
-                'error'   => 'El local no está aceptando turnos en este momento.'
+                'error'   => 'El local no estÃ¡ aceptando turnos en este momento.'
             ], 422);
         }
 
@@ -367,7 +367,7 @@ class TurnoController extends Controller
                     DB::rollBack();
                     return response()->json([
                         'success' => false,
-                        'error'   => 'El horario seleccionado ya no está disponible (el profesional se encuentra ocupado con otro turno).'
+                        'error'   => 'El horario seleccionado ya no estÃ¡ disponible (el profesional se encuentra ocupado con otro turno).'
                     ], 422);
                 }
 
@@ -387,13 +387,13 @@ class TurnoController extends Controller
                     DB::rollBack();
                     return response()->json([
                         'success' => false,
-                        'error'   => 'El horario seleccionado está inhabilitado por el administrador.'
+                        'error'   => 'El horario seleccionado estÃ¡ inhabilitado por el administrador.'
                     ], 422);
                 }
             }
 
             if (!$esFijo) {
-                // 1. Calcular posición en cola (MAX + 1)
+                // 1. Calcular posiciÃ³n en cola (MAX + 1)
                 $ultimaPosicion = Pedido::where('tipo_pedido', 'servicio')
                     ->whereDate('fecha_servicio', $request->fecha_servicio)
                     ->where('id_local', $request->id_local)
@@ -407,7 +407,7 @@ class TurnoController extends Controller
                 
                 $miPosicion = $ultimaPosicion + 1;
 
-                // 2. Calcular hora estimada estática inicial
+                // 2. Calcular hora estimada estÃ¡tica inicial
                 $minutosPorTurno = ($servicio->duracion ?? 30) + ($servicio->buffer_tiempo ?? 0);
                 $horaEstimada = Carbon::now()->addMinutes(($miPosicion - 1) * $minutosPorTurno)->format('H:i:s');
             }
@@ -446,7 +446,7 @@ class TurnoController extends Controller
                 'subtotal' => $servicio->precio,
             ]);
 
-            // Registrar automáticamente el cliente en "Mis Clientes" si no existe
+            // Registrar automÃ¡ticamente el cliente en "Mis Clientes" si no existe
             $nombreCliente = trim($request->nombre_cliente ?? '');
             $telefonoCliente = trim($request->telefono ?? '');
 
@@ -563,7 +563,7 @@ class TurnoController extends Controller
                     DB::rollBack();
                     return response()->json([
                         'success' => false,
-                        'error'   => 'El horario seleccionado ya no está disponible (el profesional ya tiene otro turno asignado en ese horario).'
+                        'error'   => 'El horario seleccionado ya no estÃ¡ disponible (el profesional ya tiene otro turno asignado en ese horario).'
                     ], 422);
                 }
 
@@ -583,7 +583,7 @@ class TurnoController extends Controller
                     DB::rollBack();
                     return response()->json([
                         'success' => false,
-                        'error'   => 'El horario seleccionado está inhabilitado por un bloqueo de agenda.'
+                        'error'   => 'El horario seleccionado estÃ¡ inhabilitado por un bloqueo de agenda.'
                     ], 422);
                 }
             }
@@ -630,7 +630,7 @@ class TurnoController extends Controller
                 'subtotal'        => $servicio->precio,
             ]);
 
-            // Registrar automáticamente el cliente en "Mis Clientes" si no existe
+            // Registrar automÃ¡ticamente el cliente en "Mis Clientes" si no existe
             $nombreCliente = trim($request->nombre_cliente ?? '');
             $telefonoCliente = trim($request->telefono ?? '');
 
@@ -676,14 +676,14 @@ class TurnoController extends Controller
         }
     }
 
-    // 3. Pública: Trackear estado por token
+    // 3. PÃºblica: Trackear estado por token
     public function status($token)
     {
         $pedido = Pedido::with('detalles.servicio', 'detalles.recurso', 'local')
             ->where('token_publico', $token)
             ->firstOrFail();
 
-        // Contar cuántos turnos "en_espera" o "siendo_atendidos" hay con posición MENOR a la mía
+        // Contar cuÃ¡ntos turnos "en_espera" o "siendo_atendidos" hay con posiciÃ³n MENOR a la mÃ­a
         // FILTRADO POR SERVICIO: cada cola virtual es independiente por servicio
         $personasAdelante = 0;
         if ($pedido->posicion_cola !== null) {
@@ -705,7 +705,7 @@ class TurnoController extends Controller
         ]);
     }
 
-    // 4. Admin: Llama a un turno específico (pasa al sillón)
+    // 4. Admin: Llama a un turno especÃ­fico (pasa al sillÃ³n)
     public function llamar($id)
     {
         $turnoActual = Pedido::findOrFail($id);
@@ -714,7 +714,7 @@ class TurnoController extends Controller
         try {
             $turnoActual->update(['estado_atencion' => 'siendo_atendido']);
             
-            // Recalcular horas estimadas de los demás basándose en la hora REAL de ahora
+            // Recalcular horas estimadas de los demÃ¡s basÃ¡ndose en la hora REAL de ahora
             // FILTRADO POR SERVICIO: solo afecta turnos del mismo servicio
             $detalle = $turnoActual->detalles->first();
             $minutosPorTurno = ($detalle->servicio->duracion ?? 30) + ($detalle->servicio->buffer_tiempo ?? 0);
@@ -802,7 +802,7 @@ class TurnoController extends Controller
             ]);
         }
 
-        // Obtener el nombre del empleado para la descripción en caja
+        // Obtener el nombre del empleado para la descripciÃ³n en caja
         $empleadoNombre = "";
         $detalleP = $turnoActual->detalles->first();
         if ($detalleP && $detalleP->id_empleado) {
@@ -812,7 +812,7 @@ class TurnoController extends Controller
             }
         }
 
-        // ── Pago mixto: soporta efectivo + transferencia + cuenta corriente simultáneos
+        // â”€â”€ Pago mixto: soporta efectivo + transferencia + cuenta corriente simultÃ¡neos
         $montoEfectivo      = (float) $request->input('monto_efectivo', 0);
         $montoTransferencia = (float) $request->input('monto_transferencia', 0);
         $montoCuentaCte     = (float) $request->input('monto_cuenta_corriente', 0);
@@ -824,7 +824,7 @@ class TurnoController extends Controller
             else                                     $montoEfectivo      = $monto;
         }
 
-        // ── Saldo a favor: montos
+        // â”€â”€ Saldo a favor: montos
         $montoSaldoFavor = (float) $request->input('monto_saldo_favor', 0);
         $montoUsarSaldo  = (float) $request->input('monto_usar_saldo_favor', 0);
 
@@ -832,7 +832,7 @@ class TurnoController extends Controller
         if ($montoSaldoFavor > 0) {
             $notaSaldo = ' (+$' . number_format($montoSaldoFavor, 0, ',', '.') . ' a favor)';
         } elseif ($montoUsarSaldo > 0) {
-            $notaSaldo = ' (usó $' . number_format($montoUsarSaldo, 0, ',', '.') . ' saldo a favor)';
+            $notaSaldo = ' (usÃ³ $' . number_format($montoUsarSaldo, 0, ',', '.') . ' saldo a favor)';
         }
 
         $prefijo = "Cobro de turno: {$servicioNombre}" . ($persona ? " - {$persona->nombre}" : '') . $empleadoNombre . $notaSaldo;
@@ -847,19 +847,19 @@ class TurnoController extends Controller
             \App\Models\Ingreso::create(['idpersona'=>$persona?->idpersona,'monto'=>$montoCuentaCte,'tipo_pago'=>'cuenta_corriente','descripcion'=>"Servicio a cuenta: {$servicioNombre}" . ($persona ? " - {$persona->nombre}" : '') . $empleadoNombre,'saldo'=>$montoCuentaCte,'estado'=>'activo','id_local'=>$localId]);
         }
 
-        // ── Saldo a favor: guardar vuelto o excedente
+        // â”€â”€ Saldo a favor: guardar vuelto o excedente
         if ($montoSaldoFavor > 0 && $persona) {
             $persona->saldo_favor = round(($persona->saldo_favor ?? 0) + $montoSaldoFavor, 2);
             $persona->save();
         }
 
-        // ── Saldo a favor: descontar si el cliente pagó usando saldo a favor
+        // â”€â”€ Saldo a favor: descontar si el cliente pagÃ³ usando saldo a favor
         if ($montoUsarSaldo > 0 && $persona && ($persona->saldo_favor ?? 0) >= $montoUsarSaldo) {
             $persona->saldo_favor = round(max(0, ($persona->saldo_favor ?? 0) - $montoUsarSaldo), 2);
             $persona->save();
         }
 
-        // 4. ¿El peluquero eligió crear cuenta de usuario para el cliente?
+        // 4. Â¿El peluquero eligiÃ³ crear cuenta de usuario para el cliente?
         if ($request->input('crear_cuenta') && $request->input('email')) {
             $email = strtolower(trim($request->input('email')));
             $telefono = preg_replace('/[^\d]/', '', $turnoActual->telefono ?? '12345678');
@@ -912,7 +912,7 @@ class TurnoController extends Controller
         $local = \App\Models\Local::where('id_user', $user->id)->first();
         $localId = $local ? $local->id : $request->query('local_id');
 
-        // Solución al bug de medianoche UTC: usar la fecha local correcta
+        // SoluciÃ³n al bug de medianoche UTC: usar la fecha local correcta
         $fechaHoy = $request->query('fecha', \Carbon\Carbon::now('America/Argentina/Buenos_Aires')->toDateString());
 
         $pedidos = Pedido::with('detalles.servicio', 'detalles.recurso')
@@ -945,7 +945,7 @@ class TurnoController extends Controller
         return response()->json($result);
     }
 
-    // 6. Admin: Obtener el estado actual del local (si está aceptando turnos)
+    // 6. Admin: Obtener el estado actual del local (si estÃ¡ aceptando turnos)
     public function getEstadoLocal()
     {
         $user = auth('sanctum')->user();
@@ -1040,7 +1040,7 @@ class TurnoController extends Controller
 
         return response()->json([
             'success' => true,
-            'mensaje' => 'Horario habilitado nuevamente con éxito'
+            'mensaje' => 'Horario habilitado nuevamente con Ã©xito'
         ]);
     }
 }

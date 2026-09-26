@@ -28,10 +28,10 @@ class ClienteController extends Controller
     {
         $local = $this->getLocal();
         if (!$local) {
-            return response()->json(['message' => 'No tenés un local asignado.'], 403);
+            return response()->json(['message' => 'No tenÃ©s un local asignado.'], 403);
         }
 
-        // ── Cuentas corrientes: clientes con deuda pendiente ──────────
+        // â”€â”€ Cuentas corrientes: clientes con deuda pendiente â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         if ($request->boolean('with_debt')) {
             $deudores = Persona::where('id_local', $local->id)
                 ->where('tipo_persona', 'cliente')
@@ -104,7 +104,7 @@ class ClienteController extends Controller
     {
         $local = $this->getLocal();
         if (!$local) {
-            return response()->json(['message' => 'No tenés un local asignado.'], 403);
+            return response()->json(['message' => 'No tenÃ©s un local asignado.'], 403);
         }
 
         $request->validate([
@@ -238,7 +238,7 @@ class ClienteController extends Controller
             $montoRestante  = (float) $request->monto;
             $itemsAfectados = [];
 
-            // Unir deudas ordenadas por fecha más antigua primero
+            // Unir deudas ordenadas por fecha mÃ¡s antigua primero
             $deudas = collect();
             foreach ($ventasPendientes as $v) {
                 $deudas->push((object)[
@@ -287,7 +287,7 @@ class ClienteController extends Controller
                 $montoRestante -= $aAplicar;
             }
 
-            // Si sobró dinero del pago, se guarda automáticamente como saldo a favor del cliente
+            // Si sobrÃ³ dinero del pago, se guarda automÃ¡ticamente como saldo a favor del cliente
             if ($montoRestante > 0) {
                 $cliente->saldo_favor = round(($cliente->saldo_favor ?? 0) + $montoRestante, 2);
                 $cliente->save();
@@ -470,7 +470,7 @@ class ClienteController extends Controller
 
     /**
      * POST /api/clientes-pos/{id}/pagar-comision
-     * Registra el pago de comisión / liquidación a un empleado y crea la Salida en Caja
+     * Registra el pago de comisiÃ³n / liquidaciÃ³n a un empleado y crea la Salida en Caja
      */
     public function pagarComision(Request $request, $id)
     {
@@ -490,7 +490,7 @@ class ClienteController extends Controller
         $descripcion = $request->descripcion;
         if (empty($descripcion)) {
             $porcentajeStr = $request->porcentaje ? " ({$request->porcentaje}%)" : "";
-            $descripcion = "Liquidación comisión{$porcentajeStr} - {$empleado->nombre}";
+            $descripcion = "LiquidaciÃ³n comisiÃ³n{$porcentajeStr} - {$empleado->nombre}";
         }
 
         DB::beginTransaction();
@@ -508,7 +508,7 @@ class ClienteController extends Controller
             DB::commit();
 
             return response()->json([
-                'message' => 'Comisión liquidada y salida registrada en caja exitosamente',
+                'message' => 'ComisiÃ³n liquidada y salida registrada en caja exitosamente',
                 'client'  => $this->formatCliente($empleado->refresh()),
                 'salida'  => $salida,
             ], 201);
@@ -524,7 +524,7 @@ class ClienteController extends Controller
         $user = Auth::user();
         $isFinanciera = str_starts_with($user->role->name ?? '', 'financiera');
 
-        // ── Si es empleado/personal: mostrar actividad profesional, cortes y servicios ──
+        // â”€â”€ Si es empleado/personal: mostrar actividad profesional, cortes y servicios â”€â”€
         if ($c->tipo_persona === 'empleado') {
             $serviciosAsignados = $c->servicios()
                 ->get(['servicios.idservicio', 'servicios.nombre', 'servicios.precio', 'servicios.duracion']);
@@ -538,7 +538,7 @@ class ClienteController extends Controller
                     $q->where(function ($sub) use ($hoy) {
                         $sub->whereDate('fecha_servicio', $hoy)
                             ->orWhereDate('created_at', $hoy);
-                    })->whereIn('estado_atencion', ['completado', 'siendo_atendido']);
+                    })->whereIn('estado_atencion', ['completado']);
                 })
                 ->where(function ($q) use ($c, $serviciosIds) {
                     $q->where('id_empleado', $c->idpersona)
@@ -553,6 +553,31 @@ class ClienteController extends Controller
             $recaudadoHoy = (float) $detallesHoy->sum(function ($d) {
                 return (float) ($d->subtotal ?? $d->precio_unitario ?? $d->servicio?->precio ?? 0);
             });
+
+            // Desglose de ingresos cobrados en caja para este empleado hoy
+            $empCount = \App\Models\Persona::where('id_local', $c->id_local)
+                ->whereIn('tipo_persona', ['empleado', 'instructor', 'staff'])
+                ->count();
+
+            $ingresosHoy = \App\Models\Ingreso::where('id_local', $c->id_local)
+                ->whereDate('created_at', $hoy)
+                ->where(function ($q) use ($c, $empCount) {
+                    $q->where('descripcion', 'LIKE', '%(por ' . $c->nombre . ')%');
+                    if ($empCount <= 1) {
+                        $q->orWhere('descripcion', 'LIKE', 'Cobro de turno:%');
+                    }
+                })
+                ->get();
+
+            $efectivoHoy = (float) $ingresosHoy->whereIn('tipo_pago', ['efectivo', null])->sum('monto');
+            $transferenciaHoy = (float) $ingresosHoy->where('tipo_pago', 'transferencia')->sum('monto');
+            $totalIngresosStaff = $efectivoHoy + $transferenciaHoy;
+
+            if ($totalIngresosStaff > 0) {
+                $recaudadoHoy = $totalIngresosStaff;
+            } elseif ($recaudadoHoy > 0 && $efectivoHoy == 0 && $transferenciaHoy == 0) {
+                $efectivoHoy = $recaudadoHoy;
+            }
 
             $historialServicios = \App\Models\DetallePedido::with(['pedido', 'servicio'])
                 ->where(function ($q) use ($c, $serviciosIds) {
@@ -594,6 +619,8 @@ class ClienteController extends Controller
                 'balance'             => 0,
                 'cortes_hoy'          => $cortesHoy,
                 'recaudado_hoy'       => $recaudadoHoy,
+                'efectivo_hoy'        => $efectivoHoy,
+                'transferencia_hoy'   => $transferenciaHoy,
                 'servicios_asignados' => $serviciosAsignados,
                 'historial_servicios' => $historialServicios,
                 'ventas'              => [],
@@ -736,14 +763,14 @@ class ClienteController extends Controller
             'saldo_favor'  => (float) $saldoFavor,
             'ventas'       => $todasLasVentas,
             'pagos'        => $pagos,
-            // legacy: transactions vacío para no romper nada
+            // legacy: transactions vacÃ­o para no romper nada
             'transactions' => [],
         ];
     }
 
     /**
      * GET /api/clientes-pos/{id}/cortes
-     * Obtener listado de cortes/atenciones de un empleado con filtrado de fechas y paginación
+     * Obtener listado de cortes/atenciones de un empleado con filtrado de fechas y paginaciÃ³n
      */
     public function getCortesEmpleado($id, Request $request)
     {
@@ -771,7 +798,7 @@ class ClienteController extends Controller
                 if ($localId) {
                     $q->where('id_local', $localId);
                 }
-                $q->whereIn('estado_atencion', ['completado', 'siendo_atendido']);
+                $q->whereIn('estado_atencion', ['completado']);
             });
 
         // Filtrado por fecha
@@ -803,6 +830,43 @@ class ClienteController extends Controller
             return (float) ($d->subtotal ?? $d->precio_unitario ?? $d->servicio?->precio ?? 0);
         });
 
+        // Desglose por método de pago de caja (Efectivo y Transferencia)
+        $empCount = Persona::where('id_local', $localId)
+            ->whereIn('tipo_persona', ['empleado', 'instructor', 'staff'])
+            ->count();
+
+        $ingresosQuery = \App\Models\Ingreso::where('id_local', $localId)
+            ->where(function ($q) use ($empleado, $empCount) {
+                $q->where('descripcion', 'LIKE', '%(por ' . $empleado->nombre . ')%');
+                if ($empCount <= 1) {
+                    $q->orWhere('descripcion', 'LIKE', 'Cobro de turno:%');
+                }
+            });
+
+        if ($rango === 'hoy') {
+            $ingresosQuery->whereDate('created_at', $hoy);
+        } elseif ($rango === 'ayer') {
+            $ingresosQuery->whereDate('created_at', $ayer);
+        } elseif ($rango === 'semana') {
+            $ingresosQuery->whereBetween('created_at', [$inicioSemana . ' 00:00:00', $finSemana . ' 23:59:59']);
+        } elseif ($rango === 'mes') {
+            $ingresosQuery->whereBetween('created_at', [$inicioMes . ' 00:00:00', $finMes . ' 23:59:59']);
+        } elseif ($rango === 'custom' && $fechaDesde) {
+            $hasta = $fechaHasta ?: $fechaDesde;
+            $ingresosQuery->whereBetween('created_at', [$fechaDesde . ' 00:00:00', $hasta . ' 23:59:59']);
+        }
+
+        $ingresosEmpleado = $ingresosQuery->get();
+        $totalEfectivo = (float) $ingresosEmpleado->whereIn('tipo_pago', ['efectivo', null])->sum('monto');
+        $totalTransferencia = (float) $ingresosEmpleado->where('tipo_pago', 'transferencia')->sum('monto');
+        $totalIngresosStaff = $totalEfectivo + $totalTransferencia;
+
+        if ($totalIngresosStaff > 0) {
+            $totalRecaudado = $totalIngresosStaff;
+        } elseif ($totalRecaudado > 0 && $totalEfectivo == 0 && $totalTransferencia == 0) {
+            $totalEfectivo = $totalRecaudado;
+        }
+
         // Paginación
         $cortes = $query->orderByDesc('id')
             ->skip(($page - 1) * $limit)
@@ -820,12 +884,14 @@ class ClienteController extends Controller
         $hasMore = ($page * $limit) < $totalCortes;
 
         return response()->json([
-            'cortes'          => $cortes,
-            'total_cortes'    => $totalCortes,
-            'total_recaudado' => $totalRecaudado,
-            'page'            => $page,
-            'limit'           => $limit,
-            'has_more'        => $hasMore,
+            'cortes'              => $cortes,
+            'total_cortes'        => $totalCortes,
+            'total_recaudado'     => $totalRecaudado,
+            'total_efectivo'      => $totalEfectivo,
+            'total_transferencia' => $totalTransferencia,
+            'page'                => $page,
+            'limit'               => $limit,
+            'has_more'            => $hasMore,
         ]);
     }
 }
