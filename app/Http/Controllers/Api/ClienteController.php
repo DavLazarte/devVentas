@@ -819,9 +819,14 @@ class ClienteController extends Controller
             $inicioMes = $ahora->copy()->startOfMonth()->toDateString();
             $finMes = $ahora->copy()->endOfMonth()->toDateString();
             $query->whereHas('pedido', fn($q) => $q->where(fn($sub) => $sub->whereBetween('fecha_servicio', [$inicioMes, $finMes])->orWhereBetween('created_at', [$inicioMes, $finMes])));
-        } elseif ($rango === 'custom' && $fechaDesde) {
-            $hasta = $fechaHasta ?: $fechaDesde;
-            $query->whereHas('pedido', fn($q) => $q->where(fn($sub) => $sub->whereBetween('fecha_servicio', [$fechaDesde, $hasta])->orWhereBetween('created_at', [$fechaDesde, $hasta])));
+        } elseif ($rango === 'custom') {
+            if ($fechaDesde) {
+                $hasta = $fechaHasta ?: $fechaDesde;
+                $query->whereHas('pedido', fn($q) => $q->where(fn($sub) => $sub->whereBetween('fecha_servicio', [$fechaDesde, $hasta])->orWhereBetween('created_at', [$fechaDesde, $hasta])));
+            } else {
+                $hoy = $ahora->toDateString();
+                $query->whereHas('pedido', fn($q) => $q->where(fn($sub) => $sub->whereDate('fecha_servicio', $hoy)->orWhereDate('created_at', $hoy)));
+            }
         }
 
         // Totales del período seleccionado (sin paginar)
@@ -851,9 +856,13 @@ class ClienteController extends Controller
             $ingresosQuery->whereBetween('created_at', [$inicioSemana . ' 00:00:00', $finSemana . ' 23:59:59']);
         } elseif ($rango === 'mes') {
             $ingresosQuery->whereBetween('created_at', [$inicioMes . ' 00:00:00', $finMes . ' 23:59:59']);
-        } elseif ($rango === 'custom' && $fechaDesde) {
-            $hasta = $fechaHasta ?: $fechaDesde;
-            $ingresosQuery->whereBetween('created_at', [$fechaDesde . ' 00:00:00', $hasta . ' 23:59:59']);
+        } elseif ($rango === 'custom') {
+            if ($fechaDesde) {
+                $hasta = $fechaHasta ?: $fechaDesde;
+                $ingresosQuery->whereBetween('created_at', [$fechaDesde . ' 00:00:00', $hasta . ' 23:59:59']);
+            } else {
+                $ingresosQuery->whereDate('created_at', $hoy);
+            }
         }
 
         $ingresosEmpleado = $ingresosQuery->get();
