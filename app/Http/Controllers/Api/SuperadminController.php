@@ -366,7 +366,7 @@ class SuperadminController extends Controller
             'plan' => 'sometimes|string',
             'plan_id' => 'sometimes|integer|exists:planes,id',
             'mostrar_feed' => 'sometimes|boolean',
-            'tipo' => 'sometimes|string|in:venta,servicio,gym,financiera,farmacia',
+            'tipo' => 'sometimes|string|in:venta,servicio,mixto,gym,financiera,farmacia,remiseria,info',
             'siempre_abierto' => 'sometimes|boolean',
             'de_turno' => 'sometimes|boolean',
         ]);

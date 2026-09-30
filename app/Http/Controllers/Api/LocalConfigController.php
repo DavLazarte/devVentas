@@ -21,7 +21,7 @@ class LocalConfigController extends Controller
 
         $request->validate([
             'nombre_local' => 'required|string|max:255',
-            'tipo_local' => 'required|in:venta,servicio,gym,financiera,farmacia',
+            'tipo_local' => 'required|in:venta,servicio,mixto,gym,financiera,farmacia',
         ]);
 
         $slug = Str::slug($request->nombre_local);

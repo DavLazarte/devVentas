@@ -35,7 +35,14 @@ class PedidoController extends Controller
         }
 
         $query = Pedido::with(['detalles.producto', 'detalles.variantesArticulos'])
-            ->where('id_local', $local->id);
+            ->where('id_local', $local->id)
+            ->where(function ($q) {
+                $q->where('tipo_pedido', '!=', 'servicio')
+                  ->orWhereNull('tipo_pedido');
+            })
+            ->whereDoesntHave('detalles', function ($qd) {
+                $qd->whereNotNull('idservicio');
+            });
 
         if ($request->has('estado') && $request->estado !== 'todos') {
             $query->where('estado', $request->estado);

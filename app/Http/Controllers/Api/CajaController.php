@@ -105,6 +105,7 @@ class CajaController extends Controller
             return [
                 'id'            => 'VENTA-' . $v->id,
                 'type'          => 'ingreso',
+                'category'      => 'producto',
                 'amount'        => (float) $v->pago,       // lo que se cobró (para el balance de caja)
                 'totalVenta'    => (float) $v->total_venta, // total real de la venta
                 'pago'          => (float) $v->pago,
@@ -131,9 +132,13 @@ class CajaController extends Controller
 
         $ingresos = $ingresosData->map(function($i) {
             $isCuentaCorriente = $i->tipo_pago === 'cuenta_corriente';
+            $descLower = strtolower($i->descripcion ?? '');
+            $isDeuda = str_contains($descLower, 'pago de deuda') || str_contains($descLower, 'cobro de deuda');
+
             return [
                 'id'            => 'ING-' . $i->id_ingreso,
                 'type'          => 'ingreso',
+                'category'      => $isDeuda ? 'deuda' : 'servicio',
                 'amount'        => $isCuentaCorriente ? 0 : (float) $i->monto,
                 'totalVenta'    => (float) $i->monto,
                 'saldo'         => (float) $i->saldo,
@@ -149,16 +154,20 @@ class CajaController extends Controller
         $salidas = Salida::where('id_local', $local->id)
             ->whereDate('created_at', $date)
             ->get()
-            ->map(fn($s) => [
-                'id'            => 'SAL-' . $s->idsalida,
-                'type'          => 'egreso',
-                'amount'        => (float) $s->monto,
-                'description'   => $s->descripcion ?? 'Egreso',
-                'paymentMethod' => null,
-                'createdAt'     => $s->created_at?->toISOString(),
-                'saleId'        => null,
-                'items'         => [],
-            ]);
+            ->map(function($s) {
+                $isComision = $s->tipo_salida === 'comision' || str_contains(strtolower($s->descripcion ?? ''), 'comisi');
+                return [
+                    'id'            => 'SAL-' . $s->idsalida,
+                    'type'          => 'egreso',
+                    'category'      => $isComision ? 'comision' : 'egreso',
+                    'amount'        => (float) $s->monto,
+                    'description'   => $s->descripcion ?? 'Egreso',
+                    'paymentMethod' => null,
+                    'createdAt'     => $s->created_at?->toISOString(),
+                    'saleId'        => null,
+                    'items'         => [],
+                ];
+            });
 
         // Resumen por forma de pago (sumando ventas + ingresos directos)
         $ingresosCobrados = $ingresosData->where('tipo_pago', '!=', 'cuenta_corriente');
@@ -174,15 +183,23 @@ class CajaController extends Controller
             return str_contains($desc, 'pago de deuda') || str_contains($desc, 'cobro de deuda');
         })->sum('monto');
 
+        $totalProductos = (float) $ventas->sum('pago');
+        $totalServicios = (float) $ingresosCobrados->filter(function($i) {
+            $desc = strtolower($i->descripcion ?? '');
+            return !str_contains($desc, 'pago de deuda') && !str_contains($desc, 'cobro de deuda');
+        })->sum('monto');
+
         $ventasCuenta = (float) $ventas->where('forma_de_pago', 'cuenta_corriente')->sum('saldo');
         $serviciosCuenta = (float) $ingresosData->where('tipo_pago', 'cuenta_corriente')->sum('saldo');
 
         $resumen = [
-            'efectivo'      => $efectivoVentas + $efectivoIngresos,
-            'transferencia' => $transferenciaVentas + $transferenciaIngresos,
-            'cobros_deuda'  => $cobrosDeuda,
-            'ventas_cuenta' => $ventasCuenta + $serviciosCuenta,
-            'egresos'       => (float) Salida::where('id_local', $local->id)->whereDate('created_at', $date)->sum('monto'),
+            'efectivo'        => $efectivoVentas + $efectivoIngresos,
+            'transferencia'   => $transferenciaVentas + $transferenciaIngresos,
+            'cobros_deuda'    => $cobrosDeuda,
+            'ventas_cuenta'   => $ventasCuenta + $serviciosCuenta,
+            'total_productos' => $totalProductos,
+            'total_servicios' => $totalServicios,
+            'egresos'         => (float) Salida::where('id_local', $local->id)->whereDate('created_at', $date)->sum('monto'),
         ];
 
         $all = $ventasEntries->concat($ingresos)->concat($salidas)

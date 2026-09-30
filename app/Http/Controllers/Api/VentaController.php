@@ -205,9 +205,17 @@ class VentaController extends Controller
             return response()->json(['ventasHoy' => 0, 'stockBajo' => 0, 'pedidosPendientes' => 0]);
         }
 
-        $ventasHoy = Venta::where('id_local', $local->id)
+        $ventasHoy = (float) Venta::where('id_local', $local->id)
             ->whereDate('created_at', today())
             ->sum('total_venta');
+
+        if (in_array($local->tipo, ['mixto', 'servicio'])) {
+            $serviciosHoy = (float) \App\Models\Ingreso::where('id_local', $local->id)
+                ->whereDate('created_at', today())
+                ->where('tipo_pago', '!=', 'cuenta_corriente')
+                ->sum('monto');
+            $ventasHoy += $serviciosHoy;
+        }
 
         $stockBajo = Articulo::where('id_local', $local->id)
             ->where('tiene_variantes', false)
@@ -216,6 +224,13 @@ class VentaController extends Controller
             ->count();
 
         $pedidosPendientes = \App\Models\Pedido::where('id_local', $local->id)
+            ->where(function ($q) {
+                $q->where('tipo_pedido', '!=', 'servicio')
+                  ->orWhereNull('tipo_pedido');
+            })
+            ->whereDoesntHave('detalles', function ($qd) {
+                $qd->whereNotNull('idservicio');
+            })
             ->where('estado', 'pendiente')
             ->count();
 

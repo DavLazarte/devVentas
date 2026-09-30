@@ -145,11 +145,11 @@ class ArticuloVariante extends Model
             $baseSku .= '-' . implode('-', $sufijos);
         }
 
-        // Verificar que el SKU sea único
+        // Verificar que el SKU sea único (incluyendo soft-deletes para evitar violación de UNIQUE en MySQL)
         $contador = 1;
         $skuOriginal = $baseSku;
 
-        while (self::where('sku', $baseSku)->exists()) {
+        while (self::withTrashed()->where('sku', $baseSku)->exists()) {
             $baseSku = $skuOriginal . '-' . $contador;
             $contador++;
         }

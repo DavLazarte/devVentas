@@ -29,11 +29,16 @@ class Persona extends Model
         'estado_membresia',
         'token_staff',
         'saldo_favor',
+        'esquema_liquidacion',
+        'base_fija_dia',
+        'porcentaje_comision_default',
     ];
 
     protected $casts = [
         'fecha_nacimiento' => 'date',
         'saldo_favor'      => 'decimal:2',
+        'base_fija_dia'    => 'decimal:2',
+        'porcentaje_comision_default' => 'decimal:2',
     ];
 
     // Auto-generar token_staff al crear empleados/instructores/staff

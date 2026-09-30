@@ -119,7 +119,7 @@ class AuthController extends Controller
             'email' => 'required|email|unique:users',
             'password' => 'required|min:8',
             'nombre_local' => 'required|string|max:255',
-            'tipo_local' => 'required|in:venta,servicio',
+            'tipo_local' => 'required|in:venta,servicio,mixto',
         ], [
             'email.unique' => 'Este email ya está registrado. Si tenés cuenta en Vértice o tenés un POS, ingresá con los datos de esa cuenta.'
         ]);

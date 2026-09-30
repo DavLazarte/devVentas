@@ -104,22 +104,28 @@ class ClienteController extends Controller
     {
         $local = $this->getLocal();
         if (!$local) {
-            return response()->json(['message' => 'No tenÃ©s un local asignado.'], 403);
+            return response()->json(['message' => 'No tenés un local asignado.'], 403);
         }
 
         $request->validate([
-            'name'  => 'required|string|max:255',
-            'phone' => 'nullable|string|max:50',
-            'email' => 'nullable|email',
+            'name'                        => 'required|string|max:255',
+            'phone'                       => 'nullable|string|max:50',
+            'email'                       => 'nullable|email',
+            'esquema_liquidacion'         => 'nullable|string|in:base_diaria,comision_pura,sueldo_fijo,manual',
+            'base_fija_dia'               => 'nullable|numeric|min:0',
+            'porcentaje_comision_default' => 'nullable|numeric|min:0|max:100',
         ]);
 
         $cliente = Persona::create([
-            'tipo_persona' => $request->type ?? 'cliente',
-            'nombre'       => $request->name,
-            'telefono'     => $request->phone,
-            'mail'         => $request->email ?? '',
-            'estado'       => 'Activo',
-            'id_local'     => $local->id,
+            'tipo_persona'                => $request->type ?? 'cliente',
+            'nombre'                      => $request->name,
+            'telefono'                    => $request->phone,
+            'mail'                        => $request->email ?? '',
+            'estado'                      => 'Activo',
+            'id_local'                    => $local->id,
+            'esquema_liquidacion'         => $request->esquema_liquidacion ?? 'comision_pura',
+            'base_fija_dia'               => $request->base_fija_dia ?? null,
+            'porcentaje_comision_default' => $request->porcentaje_comision_default ?? 50,
         ]);
 
         return response()->json([
@@ -137,16 +143,31 @@ class ClienteController extends Controller
         $cliente = Persona::where('id_local', $local?->id)->findOrFail($id);
 
         $request->validate([
-            'name'  => 'required|string|max:255',
-            'phone' => 'required|string|max:50',
-            'email' => 'nullable|email',
+            'name'                        => 'required|string|max:255',
+            'phone'                       => 'required|string|max:50',
+            'email'                       => 'nullable|email',
+            'esquema_liquidacion'         => 'nullable|string|in:base_diaria,comision_pura,sueldo_fijo,manual',
+            'base_fija_dia'               => 'nullable|numeric|min:0',
+            'porcentaje_comision_default' => 'nullable|numeric|min:0|max:100',
         ]);
 
-        $cliente->update([
+        $data = [
             'nombre'   => $request->name,
             'telefono' => $request->phone,
             'mail'     => $request->email,
-        ]);
+        ];
+
+        if ($request->has('esquema_liquidacion')) {
+            $data['esquema_liquidacion'] = $request->esquema_liquidacion;
+        }
+        if ($request->has('base_fija_dia')) {
+            $data['base_fija_dia'] = $request->base_fija_dia;
+        }
+        if ($request->has('porcentaje_comision_default')) {
+            $data['porcentaje_comision_default'] = $request->porcentaje_comision_default;
+        }
+
+        $cliente->update($data);
 
         return response()->json([
             'message' => 'Cliente actualizado',
@@ -480,17 +501,24 @@ class ClienteController extends Controller
             ->findOrFail($id);
 
         $request->validate([
-            'monto'       => 'required|numeric|min:0.01',
-            'porcentaje'  => 'nullable|numeric|min:0|max:100',
-            'tipo_pago'   => 'nullable|string',
-            'descripcion' => 'nullable|string|max:255',
+            'monto'                => 'required|numeric|min:0.01',
+            'tipo_pago'            => 'nullable|string',
+            'descripcion'          => 'nullable|string|max:255',
+            'esquema_liquidacion'  => 'nullable|string|in:base_diaria,comision_pura,sueldo_fijo,manual',
+            'base_fija_dia'        => 'nullable|numeric|min:0',
+            'porcentaje_comision'  => 'nullable|numeric|min:0|max:100',
+            'guardar_como_default' => 'nullable|boolean',
         ]);
 
         $monto = (float) $request->monto;
-        $descripcion = $request->descripcion;
-        if (empty($descripcion)) {
-            $porcentajeStr = $request->porcentaje ? " ({$request->porcentaje}%)" : "";
-            $descripcion = "LiquidaciÃ³n comisiÃ³n{$porcentajeStr} - {$empleado->nombre}";
+        $descripcion = $request->descripcion ?: "Liquidación {$empleado->nombre}";
+
+        if ($request->boolean('guardar_como_default')) {
+            $empleado->update([
+                'esquema_liquidacion' => $request->esquema_liquidacion ?? 'comision_pura',
+                'base_fija_dia' => $request->base_fija_dia ?? 0,
+                'porcentaje_comision_default' => $request->porcentaje_comision ?? 0,
+            ]);
         }
 
         DB::beginTransaction();
@@ -621,6 +649,9 @@ class ClienteController extends Controller
                 'recaudado_hoy'       => $recaudadoHoy,
                 'efectivo_hoy'        => $efectivoHoy,
                 'transferencia_hoy'   => $transferenciaHoy,
+                'esquema_liquidacion' => $c->esquema_liquidacion ?? 'comision_pura',
+                'base_fija_dia'       => (float) ($c->base_fija_dia ?? 0),
+                'porcentaje_comision_default' => (float) ($c->porcentaje_comision_default ?? 50),
                 'servicios_asignados' => $serviciosAsignados,
                 'historial_servicios' => $historialServicios,
                 'ventas'              => [],
@@ -807,33 +838,75 @@ class ClienteController extends Controller
 
         if ($rango === 'hoy') {
             $hoy = $ahora->toDateString();
-            $query->whereHas('pedido', fn($q) => $q->where(fn($sub) => $sub->whereDate('fecha_servicio', $hoy)->orWhereDate('created_at', $hoy)));
+            $query->whereHas('pedido', fn($q) => $q->where(fn($sub) => 
+                $sub->whereDate('fecha_servicio', $hoy)
+                    ->orWhere(fn($s2) => $s2->whereNull('fecha_servicio')->whereDate('created_at', $hoy))
+            ));
         } elseif ($rango === 'ayer') {
             $ayer = $ahora->copy()->subDay()->toDateString();
-            $query->whereHas('pedido', fn($q) => $q->where(fn($sub) => $sub->whereDate('fecha_servicio', $ayer)->orWhereDate('created_at', $ayer)));
+            $query->whereHas('pedido', fn($q) => $q->where(fn($sub) => 
+                $sub->whereDate('fecha_servicio', $ayer)
+                    ->orWhere(fn($s2) => $s2->whereNull('fecha_servicio')->whereDate('created_at', $ayer))
+            ));
         } elseif ($rango === 'semana') {
             $inicioSemana = $ahora->copy()->startOfWeek()->toDateString();
             $finSemana = $ahora->copy()->endOfWeek()->toDateString();
-            $query->whereHas('pedido', fn($q) => $q->where(fn($sub) => $sub->whereBetween('fecha_servicio', [$inicioSemana, $finSemana])->orWhereBetween('created_at', [$inicioSemana, $finSemana])));
+            $query->whereHas('pedido', fn($q) => $q->where(fn($sub) => 
+                $sub->whereBetween('fecha_servicio', [$inicioSemana, $finSemana])
+                    ->orWhere(fn($s2) => $s2->whereNull('fecha_servicio')->whereBetween('created_at', [$inicioSemana . ' 00:00:00', $finSemana . ' 23:59:59']))
+            ));
         } elseif ($rango === 'mes') {
             $inicioMes = $ahora->copy()->startOfMonth()->toDateString();
             $finMes = $ahora->copy()->endOfMonth()->toDateString();
-            $query->whereHas('pedido', fn($q) => $q->where(fn($sub) => $sub->whereBetween('fecha_servicio', [$inicioMes, $finMes])->orWhereBetween('created_at', [$inicioMes, $finMes])));
+            $query->whereHas('pedido', fn($q) => $q->where(fn($sub) => 
+                $sub->whereBetween('fecha_servicio', [$inicioMes, $finMes])
+                    ->orWhere(fn($s2) => $s2->whereNull('fecha_servicio')->whereBetween('created_at', [$inicioMes . ' 00:00:00', $finMes . ' 23:59:59']))
+            ));
         } elseif ($rango === 'custom') {
             if ($fechaDesde) {
                 $hasta = $fechaHasta ?: $fechaDesde;
-                $query->whereHas('pedido', fn($q) => $q->where(fn($sub) => $sub->whereBetween('fecha_servicio', [$fechaDesde, $hasta])->orWhereBetween('created_at', [$fechaDesde, $hasta])));
+                $query->whereHas('pedido', fn($q) => $q->where(fn($sub) => 
+                    $sub->whereBetween('fecha_servicio', [$fechaDesde, $hasta])
+                        ->orWhere(fn($s2) => $s2->whereNull('fecha_servicio')->whereBetween('created_at', [$fechaDesde . ' 00:00:00', $hasta . ' 23:59:59']))
+                ));
             } else {
                 $hoy = $ahora->toDateString();
-                $query->whereHas('pedido', fn($q) => $q->where(fn($sub) => $sub->whereDate('fecha_servicio', $hoy)->orWhereDate('created_at', $hoy)));
+                $query->whereHas('pedido', fn($q) => $q->where(fn($sub) => 
+                    $sub->whereDate('fecha_servicio', $hoy)
+                        ->orWhere(fn($s2) => $s2->whereNull('fecha_servicio')->whereDate('created_at', $hoy))
+                ));
             }
         }
 
         // Totales del período seleccionado (sin paginar)
-        $totalCortes = (clone $query)->count();
-        $totalRecaudado = (float) (clone $query)->get()->sum(function ($d) {
+        $detallesTotal = (clone $query)->get();
+        $totalCortes = $detallesTotal->count();
+        $totalRecaudado = (float) $detallesTotal->sum(function ($d) {
             return (float) ($d->subtotal ?? $d->precio_unitario ?? $d->servicio?->precio ?? 0);
         });
+
+        $diasTrabajados = $detallesTotal->map(function ($d) use ($tz) {
+            $fecha = $d->pedido?->fecha_servicio;
+            if (!$fecha && $d->pedido?->created_at) {
+                $fecha = \Carbon\Carbon::parse($d->pedido->created_at)->setTimezone($tz)->toDateString();
+            }
+            if (!$fecha && $d->created_at) {
+                $fecha = \Carbon\Carbon::parse($d->created_at)->setTimezone($tz)->toDateString();
+            }
+            return $fecha ? \Carbon\Carbon::parse($fecha)->toDateString() : null;
+        })->filter()->filter(function ($date) use ($fechaDesde, $fechaHasta, $rango, $ahora) {
+            if ($rango === 'custom' && $fechaDesde) {
+                $hasta = $fechaHasta ?: $fechaDesde;
+                return $date >= $fechaDesde && $date <= $hasta;
+            }
+            if ($rango === 'hoy') {
+                return $date === $ahora->toDateString();
+            }
+            if ($rango === 'ayer') {
+                return $date === $ahora->copy()->subDay()->toDateString();
+            }
+            return true;
+        })->unique()->count();
 
         // Desglose por método de pago de caja (Efectivo y Transferencia)
         $empCount = Persona::where('id_local', $localId)
@@ -898,6 +971,7 @@ class ClienteController extends Controller
             'total_recaudado'     => $totalRecaudado,
             'total_efectivo'      => $totalEfectivo,
             'total_transferencia' => $totalTransferencia,
+            'dias_trabajados'     => $diasTrabajados,
             'page'                => $page,
             'limit'               => $limit,
             'has_more'            => $hasMore,
