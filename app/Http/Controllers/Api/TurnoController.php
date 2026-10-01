@@ -221,13 +221,6 @@ class TurnoController extends Controller
             $ahora = Carbon::now('America/Argentina/Buenos_Aires');
             $esHoy = Carbon::parse($fecha, 'America/Argentina/Buenos_Aires')->isToday();
 
-            // Intervalo estándar de la grilla (15 min) para sincronizar servicios de diferente duración
-            // Permite encajar turnos de 15, 30, 40, 45, 60 min sin desfasajes ni pérdidas de horarios libres
-            $intervaloGrilla = 15;
-            if ($duracion > 0 && $duracion < 15) {
-                $intervaloGrilla = $duracion;
-            }
-
             foreach ($turnosDelDia as $turno) {
                 if (empty($turno['apertura']) || empty($turno['cierre'])) continue;
 
@@ -268,7 +261,7 @@ class TurnoController extends Controller
                             'bloqueo_id' => $bloqueoEncontrado ? $bloqueoEncontrado['id'] : null,
                         ];
                     }
-                    $currentSlot->addMinutes($intervaloGrilla);
+                    $currentSlot->addMinutes($duracion);
                 }
             }
         }
