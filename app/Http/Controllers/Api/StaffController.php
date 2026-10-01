@@ -309,13 +309,40 @@ class StaffController extends Controller
         $prefijo = "Cobro de turno: {$servicioNombre}" . ($clientePersona ? " - {$clientePersona->nombre}" : '') . " (por {$empleado->nombre})" . $notaSaldo;
 
         if ($montoEfectivo > 0) {
-            Ingreso::create(['idpersona'=>$clientePersona?->idpersona,'monto'=>$montoEfectivo,'tipo_pago'=>'efectivo','descripcion'=>$prefijo,'saldo'=>0,'estado'=>'activo','id_local'=>$localId]);
+            Ingreso::create([
+                'idpersona'    => $clientePersona?->idpersona,
+                'monto'        => $montoEfectivo,
+                'tipo_pago'    => 'efectivo',
+                'tipo_ingreso' => 'servicio',
+                'descripcion'  => $prefijo,
+                'saldo'        => 0,
+                'estado'       => 'activo',
+                'id_local'     => $localId,
+            ]);
         }
         if ($montoTransferencia > 0) {
-            Ingreso::create(['idpersona'=>$clientePersona?->idpersona,'monto'=>$montoTransferencia,'tipo_pago'=>'transferencia','descripcion'=>$prefijo,'saldo'=>0,'estado'=>'activo','id_local'=>$localId]);
+            Ingreso::create([
+                'idpersona'    => $clientePersona?->idpersona,
+                'monto'        => $montoTransferencia,
+                'tipo_pago'    => 'transferencia',
+                'tipo_ingreso' => 'servicio',
+                'descripcion'  => $prefijo,
+                'saldo'        => 0,
+                'estado'       => 'activo',
+                'id_local'     => $localId,
+            ]);
         }
         if ($montoCuentaCte > 0) {
-            Ingreso::create(['idpersona'=>$clientePersona?->idpersona,'monto'=>$montoCuentaCte,'tipo_pago'=>'cuenta_corriente','descripcion'=>"Servicio a cuenta: {$servicioNombre}" . ($clientePersona ? " - {$clientePersona->nombre}" : '') . " (por {$empleado->nombre})", 'saldo'=>$montoCuentaCte,'estado'=>'activo','id_local'=>$localId]);
+            Ingreso::create([
+                'idpersona'    => $clientePersona?->idpersona,
+                'monto'        => $montoCuentaCte,
+                'tipo_pago'    => 'cuenta_corriente',
+                'tipo_ingreso' => 'servicio',
+                'descripcion'  => "Servicio a cuenta: {$servicioNombre}" . ($clientePersona ? " - {$clientePersona->nombre}" : '') . " (por {$empleado->nombre})",
+                'saldo'        => $montoCuentaCte,
+                'estado'       => 'activo',
+                'id_local'     => $localId,
+            ]);
         }
 
         // â”€â”€ Saldo a favor: guardar vuelto o excedente

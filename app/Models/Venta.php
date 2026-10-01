@@ -17,6 +17,8 @@ class Venta extends Model
         'descuento',
         'recargo',
         'pago',
+        'monto_efectivo',
+        'monto_transferencia',
         'forma_de_pago',
         'saldo',
         'estado',

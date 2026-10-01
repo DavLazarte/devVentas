@@ -85,6 +85,10 @@ class LocalConfigController extends Controller
             'longitud' => 'nullable|numeric',
             'mostrar_feed' => 'nullable|boolean',
             'siempre_abierto' => 'nullable|boolean',
+            'alias_mp' => 'nullable|string|max:100',
+            'cbu' => 'nullable|string|max:50',
+            'banco' => 'nullable|string|max:100',
+            'titular_cuenta' => 'nullable|string|max:150',
             'categories' => 'nullable|array',
             'categories.*' => 'exists:categories,id',
             'subcategories' => 'nullable|array',
@@ -108,6 +112,14 @@ class LocalConfigController extends Controller
         }
         if ($request->has('siempre_abierto')) {
             $local->siempre_abierto = $request->siempre_abierto;
+        }
+
+        // Datos bancarios y de cobro
+        if (\Illuminate\Support\Facades\Schema::hasColumn('locales', 'alias_mp')) {
+            if ($request->has('alias_mp')) $local->alias_mp = $request->alias_mp;
+            if ($request->has('cbu')) $local->cbu = $request->cbu;
+            if ($request->has('banco')) $local->banco = $request->banco;
+            if ($request->has('titular_cuenta')) $local->titular_cuenta = $request->titular_cuenta;
         }
 
         $local->save();

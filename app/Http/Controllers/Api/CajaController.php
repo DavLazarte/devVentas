@@ -102,19 +102,24 @@ class CajaController extends Controller
                 $desc .= ' (A cuenta)';
             }
 
+            $montoEf = (float) ($v->monto_efectivo ?? ($v->forma_de_pago === 'efectivo' ? $v->pago : 0));
+            $montoTr = (float) ($v->monto_transferencia ?? ($v->forma_de_pago === 'transferencia' ? $v->pago : 0));
+
             return [
-                'id'            => 'VENTA-' . $v->id,
-                'type'          => 'ingreso',
-                'category'      => 'producto',
-                'amount'        => (float) $v->pago,       // lo que se cobró (para el balance de caja)
-                'totalVenta'    => (float) $v->total_venta, // total real de la venta
-                'pago'          => (float) $v->pago,
-                'saldo'         => (float) $v->saldo,
-                'description'   => $desc,
-                'paymentMethod' => $v->forma_de_pago,
-                'createdAt'     => $v->created_at->toISOString(),
-                'saleId'        => (string) $v->id,
-                'items'         => $v->detalles->map(function($d) {
+                'id'                 => 'VENTA-' . $v->id,
+                'type'               => 'ingreso',
+                'category'           => 'producto',
+                'amount'             => (float) $v->pago,       // lo que se cobró (para el balance de caja)
+                'totalVenta'         => (float) $v->total_venta, // total real de la venta
+                'pago'               => (float) $v->pago,
+                'saldo'              => (float) $v->saldo,
+                'montoEfectivo'      => $montoEf,
+                'montoTransferencia' => $montoTr,
+                'description'        => $desc,
+                'paymentMethod'      => $v->forma_de_pago,
+                'createdAt'          => $v->created_at->toISOString(),
+                'saleId'             => (string) $v->id,
+                'items'              => $v->detalles->map(function($d) {
                     $variantName = $d->descripcion_variante ?? ($d->variantesArticulos?->descripcion_variante ?? '');
                     return [
                         'productName' => ($d->producto?->nombre ?? 'Servicio / Producto') . ($variantName ? ' - ' . $variantName : ''),
@@ -125,25 +130,72 @@ class CajaController extends Controller
             ];
         });
 
+        $isLocalServicioOrMixto = in_array($local->tipo, ['servicio', 'mixto']);
+
+        // Clasificador relacional directo por columna tipo_ingreso
+        $clasificarIngreso = function($i) use ($isLocalServicioOrMixto) {
+            // Relacional: si tiene tipo_ingreso definido en la base de datos
+            if (!empty($i->tipo_ingreso)) {
+                if ($i->tipo_ingreso === 'servicio') {
+                    return $isLocalServicioOrMixto ? 'servicio' : 'deuda';
+                }
+                if (in_array($i->tipo_ingreso, ['cobro_deuda', 'saldo_favor'])) {
+                    return 'deuda';
+                }
+                if ($i->tipo_ingreso === 'manual' && !empty($i->idpersona)) {
+                    return 'deuda';
+                }
+                return 'ingreso';
+            }
+
+            // Fallback de retrocompatibilidad
+            if ($isLocalServicioOrMixto && str_contains(strtolower($i->descripcion ?? ''), 'turno')) {
+                return 'servicio';
+            }
+            return (!empty($i->idpersona)) ? 'deuda' : 'ingreso';
+        };
+
+        // Resolución inteligente de la forma de pago (si por defecto quedó en efectivo pero la descripción dice transferencia)
+        $resolverMetodoPago = function($i) {
+            $descLower = strtolower(trim($i->descripcion ?? ''));
+            if (($i->tipo_pago === 'efectivo' || empty($i->tipo_pago)) && (str_contains($descLower, 'transferencia') || str_contains($descLower, 'transf'))) {
+                return 'transferencia';
+            }
+            return $i->tipo_pago ?? 'efectivo';
+        };
+
         // Ingresos del día (cobros de deuda, cobros de turnos inmediatos, y servicios a cuenta)
-        $ingresosData = Ingreso::where('id_local', $local->id)
+        $ingresosData = Ingreso::with('cliente')
+            ->where('id_local', $local->id)
             ->whereDate('created_at', $date)
             ->get();
 
-        $ingresos = $ingresosData->map(function($i) {
+        $ingresos = $ingresosData->map(function($i) use ($clasificarIngreso, $resolverMetodoPago) {
             $isCuentaCorriente = $i->tipo_pago === 'cuenta_corriente';
-            $descLower = strtolower($i->descripcion ?? '');
-            $isDeuda = str_contains($descLower, 'pago de deuda') || str_contains($descLower, 'cobro de deuda');
+            $category = $clasificarIngreso($i);
+            $metodo = $resolverMetodoPago($i);
+
+            $desc = $i->descripcion;
+            if ($category === 'deuda') {
+                $descLower = strtolower($desc ?? '');
+                $clienteNombre = $i->cliente?->nombre;
+                // Si la descripción previa era solo "transferencia" o similar, enriquecerla para mayor claridad
+                if (!str_contains($descLower, 'pago') && !str_contains($descLower, 'cobro') && !str_contains($descLower, 'deuda') && !str_contains($descLower, 'saldo')) {
+                    $desc = 'Pago de deuda' . ($desc ? " ({$desc})" : '') . ($clienteNombre ? " - {$clienteNombre}" : '');
+                } elseif ($clienteNombre && !str_contains($descLower, strtolower($clienteNombre))) {
+                    $desc .= " - {$clienteNombre}";
+                }
+            }
 
             return [
                 'id'            => 'ING-' . $i->id_ingreso,
                 'type'          => 'ingreso',
-                'category'      => $isDeuda ? 'deuda' : 'servicio',
+                'category'      => $category,
                 'amount'        => $isCuentaCorriente ? 0 : (float) $i->monto,
                 'totalVenta'    => (float) $i->monto,
                 'saldo'         => (float) $i->saldo,
-                'description'   => $i->descripcion ?? ($isCuentaCorriente ? 'Servicio a cuenta' : 'Ingreso manual'),
-                'paymentMethod' => $i->tipo_pago ?? 'efectivo',
+                'description'   => $desc ?? ($isCuentaCorriente ? 'Servicio a cuenta' : 'Ingreso manual'),
+                'paymentMethod' => $metodo,
                 'createdAt'     => $i->created_at?->toISOString(),
                 'saleId'        => null,
                 'items'         => [],
@@ -172,25 +224,43 @@ class CajaController extends Controller
         // Resumen por forma de pago (sumando ventas + ingresos directos)
         $ingresosCobrados = $ingresosData->where('tipo_pago', '!=', 'cuenta_corriente');
         
-        $efectivoVentas = (float) $ventas->where('forma_de_pago', 'efectivo')->sum('pago');
-        $efectivoIngresos = (float) $ingresosCobrados->whereIn('tipo_pago', ['efectivo', null])->sum('monto');
+        $efectivoVentas = (float) $ventas->sum(function($v) {
+            if ($v->forma_de_pago === 'mixto') {
+                return (float) ($v->monto_efectivo ?? 0);
+            }
+            return $v->forma_de_pago === 'efectivo' ? (float) $v->pago : 0;
+        });
+        $efectivoIngresos = (float) $ingresosCobrados->filter(function($i) use ($resolverMetodoPago) {
+            return in_array($resolverMetodoPago($i), ['efectivo', null]);
+        })->sum('monto');
         
-        $transferenciaVentas = (float) $ventas->where('forma_de_pago', 'transferencia')->sum('pago');
-        $transferenciaIngresos = (float) $ingresosCobrados->where('tipo_pago', 'transferencia')->sum('monto');
+        $transferenciaVentas = (float) $ventas->sum(function($v) {
+            if ($v->forma_de_pago === 'mixto') {
+                return (float) ($v->monto_transferencia ?? 0);
+            }
+            return $v->forma_de_pago === 'transferencia' ? (float) $v->pago : 0;
+        });
+        $transferenciaIngresos = (float) $ingresosCobrados->filter(function($i) use ($resolverMetodoPago) {
+            return $resolverMetodoPago($i) === 'transferencia';
+        })->sum('monto');
         
-        $cobrosDeuda = (float) $ingresosCobrados->filter(function($i) {
-            $desc = strtolower($i->descripcion ?? '');
-            return str_contains($desc, 'pago de deuda') || str_contains($desc, 'cobro de deuda');
+        $cobrosDeuda = (float) $ingresosCobrados->filter(function($i) use ($clasificarIngreso) {
+            return $clasificarIngreso($i) === 'deuda';
         })->sum('monto');
 
         $totalProductos = (float) $ventas->sum('pago');
-        $totalServicios = (float) $ingresosCobrados->filter(function($i) {
-            $desc = strtolower($i->descripcion ?? '');
-            return !str_contains($desc, 'pago de deuda') && !str_contains($desc, 'cobro de deuda');
-        })->sum('monto');
+        $totalServicios = $isLocalServicioOrMixto
+            ? (float) $ingresosCobrados->filter(function($i) use ($clasificarIngreso) {
+                return $clasificarIngreso($i) === 'servicio';
+            })->sum('monto')
+            : 0;
 
         $ventasCuenta = (float) $ventas->where('forma_de_pago', 'cuenta_corriente')->sum('saldo');
-        $serviciosCuenta = (float) $ingresosData->where('tipo_pago', 'cuenta_corriente')->sum('saldo');
+        $serviciosCuenta = $isLocalServicioOrMixto
+            ? (float) $ingresosData->where('tipo_pago', 'cuenta_corriente')->filter(function($i) use ($clasificarIngreso) {
+                return $clasificarIngreso($i) === 'servicio';
+            })->sum('saldo')
+            : 0;
 
         $resumen = [
             'efectivo'        => $efectivoVentas + $efectivoIngresos,
@@ -229,13 +299,14 @@ class CajaController extends Controller
         if ($request->type === 'ingreso') {
             $isCuentaCorriente = ($request->tipo_pago === 'cuenta_corriente');
             $entry = Ingreso::create([
-                'idpersona'   => $request->idpersona,
-                'monto'       => $request->amount,
-                'tipo_pago'   => $request->tipo_pago ?? 'efectivo',
-                'descripcion' => $request->description,
-                'saldo'       => $isCuentaCorriente ? $request->amount : 0,
-                'estado'      => 'activo',
-                'id_local'    => $local->id,
+                'idpersona'    => $request->idpersona,
+                'monto'        => $request->amount,
+                'tipo_pago'    => $request->tipo_pago ?? 'efectivo',
+                'tipo_ingreso' => $request->input('tipo_ingreso', 'manual'),
+                'descripcion'  => $request->description,
+                'saldo'        => $isCuentaCorriente ? $request->amount : 0,
+                'estado'       => 'activo',
+                'id_local'     => $local->id,
             ]);
             $id = 'ING-' . $entry->id_ingreso;
         } else {
@@ -278,7 +349,7 @@ class CajaController extends Controller
         $request->validate([
             'amount'        => 'required|numeric|min:0.01',
             'description'   => 'nullable|string|max:255',
-            'paymentMethod' => 'nullable|string|in:efectivo,transferencia,cuenta_corriente,otro',
+            'paymentMethod' => 'nullable|string|in:efectivo,transferencia,cuenta_corriente,mixto,otro',
         ]);
 
         $monto = (float) $request->amount;

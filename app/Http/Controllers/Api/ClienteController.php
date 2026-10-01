@@ -231,14 +231,22 @@ class ClienteController extends Controller
                 $cliente->saldo_favor = round(($cliente->saldo_favor ?? 0) + $monto, 2);
                 $cliente->save();
 
+                $tipoPago = $request->input('paymentMethod') ?? $request->input('tipo_pago') ?? 'efectivo';
+                $descSaldo = 'Carga de saldo a favor';
+                if (!empty($request->descripcion)) {
+                    $descSaldo .= ' - ' . $request->descripcion;
+                }
+                $descSaldo .= " ({$cliente->nombre})";
+
                 Ingreso::create([
-                    'idpersona'   => $cliente->idpersona,
-                    'monto'       => $monto,
-                    'tipo_pago'   => $request->input('paymentMethod') ?? $request->input('tipo_pago') ?? 'efectivo',
-                    'descripcion' => $request->descripcion ?? 'Carga de saldo a favor',
-                    'saldo'       => 0,
-                    'estado'      => 'activo',
-                    'id_local'    => $local->id,
+                    'idpersona'    => $cliente->idpersona,
+                    'monto'        => $monto,
+                    'tipo_pago'    => $tipoPago,
+                    'tipo_ingreso' => 'saldo_favor',
+                    'descripcion'  => $descSaldo,
+                    'saldo'        => 0,
+                    'estado'       => 'activo',
+                    'id_local'     => $local->id,
                 ]);
 
                 DB::commit();
@@ -315,19 +323,31 @@ class ClienteController extends Controller
             }
 
             // Registrar el ingreso (pago recibido en efectivo/transferencia)
-            $descPago = $request->descripcion ?? 'Pago de deuda';
+            $tipoPago = $request->input('paymentMethod') ?? $request->input('tipo_pago') ?? 'efectivo';
+            $descCustom = trim($request->descripcion ?? '');
+            $descPago = 'Pago de deuda';
+            if (!empty($descCustom)) {
+                $descLower = strtolower($descCustom);
+                if (str_contains($descLower, 'pago') || str_contains($descLower, 'cobro') || str_contains($descLower, 'deuda')) {
+                    $descPago = $descCustom;
+                } else {
+                    $descPago .= " ({$descCustom})";
+                }
+            }
+            $descPago .= " - {$cliente->nombre}";
             if ($montoRestante > 0) {
                 $descPago .= " (excedente de \${$montoRestante} como saldo a favor)";
             }
 
             Ingreso::create([
-                'idpersona'   => $cliente->idpersona,
-                'monto'       => $request->monto,
-                'tipo_pago'   => $request->input('paymentMethod') ?? $request->input('tipo_pago') ?? 'efectivo',
-                'descripcion' => $descPago,
-                'saldo'       => 0,
-                'estado'      => 'activo',
-                'id_local'    => $local->id,
+                'idpersona'    => $cliente->idpersona,
+                'monto'        => $request->monto,
+                'tipo_pago'    => $tipoPago,
+                'tipo_ingreso' => 'cobro_deuda',
+                'descripcion'  => $descPago,
+                'saldo'        => 0,
+                'estado'       => 'activo',
+                'id_local'     => $local->id,
             ]);
 
             DB::commit();
@@ -374,6 +394,7 @@ class ClienteController extends Controller
                 'idpersona'    => $cliente->idpersona,
                 'monto'        => $monto,
                 'tipo_pago'    => $tipoPago,
+                'tipo_ingreso' => 'saldo_favor',
                 'descripcion'  => $desc,
                 'saldo'        => 0,
                 'estado'       => 'activo',

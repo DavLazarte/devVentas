@@ -221,6 +221,13 @@ class TurnoController extends Controller
             $ahora = Carbon::now('America/Argentina/Buenos_Aires');
             $esHoy = Carbon::parse($fecha, 'America/Argentina/Buenos_Aires')->isToday();
 
+            // Intervalo estándar de la grilla (15 min) para sincronizar servicios de diferente duración
+            // Permite encajar turnos de 15, 30, 40, 45, 60 min sin desfasajes ni pérdidas de horarios libres
+            $intervaloGrilla = 15;
+            if ($duracion > 0 && $duracion < 15) {
+                $intervaloGrilla = $duracion;
+            }
+
             foreach ($turnosDelDia as $turno) {
                 if (empty($turno['apertura']) || empty($turno['cierre'])) continue;
 
@@ -243,7 +250,7 @@ class TurnoController extends Controller
                     }
                     $solapado = $solapadosCount >= $capacidadSimultanea;
 
-                    // Comprobar si solapa con algÃºn horario inhabilitado/bloqueado
+                    // Comprobar si solapa con algún horario inhabilitado/bloqueado
                     $bloqueoEncontrado = null;
                     foreach ($rangosBloqueados as $bloq) {
                         if ($slotInicio->lt($bloq['fin']) && $slotFin->gt($bloq['inicio'])) {
@@ -261,7 +268,7 @@ class TurnoController extends Controller
                             'bloqueo_id' => $bloqueoEncontrado ? $bloqueoEncontrado['id'] : null,
                         ];
                     }
-                    $currentSlot->addMinutes($duracion);
+                    $currentSlot->addMinutes($intervaloGrilla);
                 }
             }
         }
@@ -838,13 +845,40 @@ class TurnoController extends Controller
         $prefijo = "Cobro de turno: {$servicioNombre}" . ($persona ? " - {$persona->nombre}" : '') . $empleadoNombre . $notaSaldo;
 
         if ($montoEfectivo > 0) {
-            \App\Models\Ingreso::create(['idpersona'=>$persona?->idpersona,'monto'=>$montoEfectivo,'tipo_pago'=>'efectivo','descripcion'=>$prefijo,'saldo'=>0,'estado'=>'activo','id_local'=>$localId]);
+            \App\Models\Ingreso::create([
+                'idpersona'    => $persona?->idpersona,
+                'monto'        => $montoEfectivo,
+                'tipo_pago'    => 'efectivo',
+                'tipo_ingreso' => 'servicio',
+                'descripcion'  => $prefijo,
+                'saldo'        => 0,
+                'estado'       => 'activo',
+                'id_local'     => $localId,
+            ]);
         }
         if ($montoTransferencia > 0) {
-            \App\Models\Ingreso::create(['idpersona'=>$persona?->idpersona,'monto'=>$montoTransferencia,'tipo_pago'=>'transferencia','descripcion'=>$prefijo,'saldo'=>0,'estado'=>'activo','id_local'=>$localId]);
+            \App\Models\Ingreso::create([
+                'idpersona'    => $persona?->idpersona,
+                'monto'        => $montoTransferencia,
+                'tipo_pago'    => 'transferencia',
+                'tipo_ingreso' => 'servicio',
+                'descripcion'  => $prefijo,
+                'saldo'        => 0,
+                'estado'       => 'activo',
+                'id_local'     => $localId,
+            ]);
         }
         if ($montoCuentaCte > 0) {
-            \App\Models\Ingreso::create(['idpersona'=>$persona?->idpersona,'monto'=>$montoCuentaCte,'tipo_pago'=>'cuenta_corriente','descripcion'=>"Servicio a cuenta: {$servicioNombre}" . ($persona ? " - {$persona->nombre}" : '') . $empleadoNombre,'saldo'=>$montoCuentaCte,'estado'=>'activo','id_local'=>$localId]);
+            \App\Models\Ingreso::create([
+                'idpersona'    => $persona?->idpersona,
+                'monto'        => $montoCuentaCte,
+                'tipo_pago'    => 'cuenta_corriente',
+                'tipo_ingreso' => 'servicio',
+                'descripcion'  => "Servicio a cuenta: {$servicioNombre}" . ($persona ? " - {$persona->nombre}" : '') . $empleadoNombre,
+                'saldo'        => $montoCuentaCte,
+                'estado'       => 'activo',
+                'id_local'     => $localId,
+            ]);
         }
 
         // â”€â”€ Saldo a favor: guardar vuelto o excedente

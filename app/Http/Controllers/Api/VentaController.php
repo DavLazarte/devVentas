@@ -89,24 +89,49 @@ class VentaController extends Controller
         }
 
         $request->validate([
-            'items'             => 'required|array|min:1',
-            'items.*.productId' => 'required',
-            'items.*.quantity'  => 'required|numeric|min:0.001',
-            'items.*.price'     => 'required|numeric|min:0',
-            'paymentMethod'     => 'required|string',
-            'total'             => 'required|numeric|min:0',
-            'clienteId'         => 'nullable|exists:personas,idpersona',
-            'montoRecibido'     => 'nullable|numeric|min:0',
-            'discount'          => 'nullable|numeric|min:0|max:100',
-            'surcharge'         => 'nullable|numeric|min:0|max:100',
+            'items'              => 'required|array|min:1',
+            'items.*.productId'  => 'required',
+            'items.*.quantity'   => 'required|numeric|min:0.001',
+            'items.*.price'      => 'required|numeric|min:0',
+            'paymentMethod'      => 'required|string',
+            'total'              => 'required|numeric|min:0',
+            'clienteId'          => 'nullable|exists:personas,idpersona',
+            'montoRecibido'      => 'nullable|numeric|min:0',
+            'montoEfectivo'      => 'nullable|numeric|min:0',
+            'montoTransferencia' => 'nullable|numeric|min:0',
+            'discount'           => 'nullable|numeric|min:0|max:100',
+            'surcharge'          => 'nullable|numeric|min:0|max:100',
         ]);
 
         $esCuenta    = $request->paymentMethod === 'cuenta';
+        $esMixto     = $request->paymentMethod === 'mixto';
         $clienteId   = $request->clienteId;
-        $montoAhora  = $esCuenta ? ($request->montoRecibido ?? 0) : ($request->montoRecibido ?? $request->total);
-        $pago        = min($montoAhora, $request->total);
-        $saldo       = $esCuenta ? max(0, $request->total - $montoAhora) : 0;
-        $formaPago   = $esCuenta ? 'cuenta_corriente' : $request->paymentMethod;
+
+        $montoEfectivo      = (float) ($request->montoEfectivo ?? 0);
+        $montoTransferencia = (float) ($request->montoTransferencia ?? 0);
+
+        if ($esMixto) {
+            $totalCobrado = $montoEfectivo + $montoTransferencia;
+            $pago         = min($totalCobrado, $request->total);
+            $saldo        = max(0, round($request->total - $pago, 2));
+            $formaPago    = 'mixto';
+        } elseif ($esCuenta) {
+            $montoAhora   = (float) ($request->montoRecibido ?? 0);
+            $pago         = min($montoAhora, $request->total);
+            $saldo        = max(0, round($request->total - $montoAhora, 2));
+            $formaPago    = 'cuenta_corriente';
+            $montoEfectivo = $pago;
+        } else {
+            $montoAhora   = (float) ($request->montoRecibido ?? $request->total);
+            $pago         = min($montoAhora, $request->total);
+            $saldo        = 0;
+            $formaPago    = $request->paymentMethod;
+            if ($formaPago === 'efectivo') {
+                $montoEfectivo = $pago;
+            } elseif ($formaPago === 'transferencia') {
+                $montoTransferencia = $pago;
+            }
+        }
 
         // ── Pre-fetch artículos y variantes en bulk (evita N+1) ──────────
         $productIds  = collect($request->items)->pluck('productId')->unique()->values();
@@ -125,7 +150,7 @@ class VentaController extends Controller
 
         DB::beginTransaction();
         try {
-            $venta = Venta::create([
+            $ventaData = [
                 'idcliente'     => $clienteId,
                 'tipo_venta'    => 'mostrador',
                 'total_venta'   => $request->total,
@@ -136,7 +161,14 @@ class VentaController extends Controller
                 'saldo'         => $saldo,
                 'estado'        => 'Activo',
                 'id_local'      => $local->id,
-            ]);
+            ];
+
+            if (\Illuminate\Support\Facades\Schema::hasColumn('ventas', 'monto_efectivo')) {
+                $ventaData['monto_efectivo']      = $montoEfectivo;
+                $ventaData['monto_transferencia'] = $montoTransferencia;
+            }
+
+            $venta = Venta::create($ventaData);
 
             foreach ($request->items as $item) {
                 $articuloId = $item['productId'];
@@ -261,9 +293,11 @@ class VentaController extends Controller
             'paymentMethod' => $v->forma_de_pago,
             'descuento'     => (float) $v->descuento,
             'recargo'       => (float) $v->recargo,
-            'pago'          => (float) $v->pago,
-            'saldo'         => (float) $v->saldo,
-            'createdAt'     => $v->created_at->toISOString(),
+            'pago'               => (float) $v->pago,
+            'saldo'              => (float) $v->saldo,
+            'montoEfectivo'      => (float) ($v->monto_efectivo ?? ($v->forma_de_pago === 'efectivo' ? $v->pago : 0)),
+            'montoTransferencia' => (float) ($v->monto_transferencia ?? ($v->forma_de_pago === 'transferencia' ? $v->pago : 0)),
+            'createdAt'          => $v->created_at->toISOString(),
         ];
     }
 }
