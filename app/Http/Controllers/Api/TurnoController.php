@@ -89,7 +89,10 @@ class TurnoController extends Controller
                 ->whereHas('detalles', function ($q) use ($servicioId, $recursoId) {
                     $q->where('idservicio', $servicioId);
                     if ($recursoId) {
-                        $q->where('recurso_id', $recursoId);
+                        $q->where(function ($subQ) use ($recursoId) {
+                            $subQ->where('recurso_id', $recursoId)
+                                 ->orWhere('id_empleado', $recursoId);
+                        });
                     }
                 });
 
@@ -175,7 +178,10 @@ class TurnoController extends Controller
                         }
                     });
                     if ($recursoId) {
-                        $q->where('recurso_id', $recursoId);
+                        $q->where(function ($subQ) use ($recursoId) {
+                            $subQ->where('recurso_id', $recursoId)
+                                 ->orWhere('id_empleado', $recursoId);
+                        });
                     }
                 })
                 ->whereNotNull('hora_inicio')
@@ -316,6 +322,24 @@ class TurnoController extends Controller
         try {
             $esFijo = $servicio->tipo_reserva === 'turno_fijo';
             $miPosicion = 0;
+
+            // Manejar si el recurso_id enviado es en realidad un empleado
+            $recursoIdEnviado = $request->recurso_id;
+            $empleadoFinal = null;
+            $recursoFinal = null;
+
+            if ($recursoIdEnviado) {
+                $esEmpleado = \App\Models\Persona::where('id_local', $request->id_local)
+                    ->whereIn('tipo_persona', ['empleado', 'instructor', 'staff'])
+                    ->where('idpersona', $recursoIdEnviado)
+                    ->exists();
+
+                if ($esEmpleado) {
+                    $empleadoFinal = $recursoIdEnviado;
+                } else {
+                    $recursoFinal = $recursoIdEnviado;
+                }
+            }
             $horaEstimada = null;
             $minutosPorTurno = ($servicio->duracion ?? 30) + ($servicio->buffer_tiempo ?? 0);
             if ($minutosPorTurno <= 0) $minutosPorTurno = 30;
@@ -333,15 +357,18 @@ class TurnoController extends Controller
                     ->where('tipo_pedido', 'servicio')
                     ->whereDate('fecha_servicio', $request->fecha_servicio)
                     ->whereIn('estado_atencion', ['en_espera', 'siendo_atendido', 'atendido'])
-                    ->whereHas('detalles', function ($q) use ($serviciosRelacionados, $empleadosIds, $request) {
+                    ->whereHas('detalles', function ($q) use ($serviciosRelacionados, $empleadosIds, $recursoFinal, $empleadoFinal) {
                         $q->where(function ($sub) use ($serviciosRelacionados, $empleadosIds) {
                             $sub->whereIn('idservicio', $serviciosRelacionados);
                             if (!empty($empleadosIds)) {
                                 $sub->orWhereIn('id_empleado', $empleadosIds);
                             }
                         });
-                        if ($request->recurso_id) {
-                            $q->where('recurso_id', $request->recurso_id);
+                        if ($recursoFinal) {
+                            $q->where('recurso_id', $recursoFinal);
+                        }
+                        if ($empleadoFinal) {
+                            $q->where('id_empleado', $empleadoFinal);
                         }
                     })
                     ->whereNotNull('hora_inicio')
@@ -397,10 +424,13 @@ class TurnoController extends Controller
                 $ultimaPosicion = Pedido::where('tipo_pedido', 'servicio')
                     ->whereDate('fecha_servicio', $request->fecha_servicio)
                     ->where('id_local', $request->id_local)
-                    ->whereHas('detalles', function($q) use ($request) {
+                    ->whereHas('detalles', function($q) use ($request, $recursoFinal, $empleadoFinal) {
                         $q->where('idservicio', $request->idservicio);
-                        if ($request->recurso_id) {
-                            $q->where('recurso_id', $request->recurso_id);
+                        if ($recursoFinal) {
+                            $q->where('recurso_id', $recursoFinal);
+                        }
+                        if ($empleadoFinal) {
+                            $q->where('id_empleado', $empleadoFinal);
                         }
                     })
                     ->max('posicion_cola') ?? 0;
@@ -431,7 +461,7 @@ class TurnoController extends Controller
                 'total' => $servicio->precio,
             ]);
 
-            // Asignar id_empleado si existe
+            // Asignar id_empleado si existe (o el forzado por frontend)
             $infoRelStore = $this->resolverServiciosYEmpleadosRelacionados($servicio);
             $empleadoIdAuto = !empty($infoRelStore['empleados_ids']) ? $infoRelStore['empleados_ids'][0] : null;
 
@@ -439,8 +469,8 @@ class TurnoController extends Controller
             DetallePedido::create([
                 'pedido_id' => $pedido->id,
                 'idservicio' => $servicio->idservicio,
-                'id_empleado' => $empleadoIdAuto,
-                'recurso_id' => $request->recurso_id ?? null,
+                'id_empleado' => $empleadoFinal ?? $empleadoIdAuto,
+                'recurso_id' => $recursoFinal,
                 'cantidad' => 1,
                 'precio_unitario' => $servicio->precio,
                 'subtotal' => $servicio->precio,
