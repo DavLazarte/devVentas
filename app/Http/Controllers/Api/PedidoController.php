@@ -73,6 +73,41 @@ class PedidoController extends Controller
     }
 
     /**
+     * GET /api/pedidos/counts
+     * Devuelve el total de pedidos agrupados por estado en UNA sola query.
+     * Mucho más eficiente que hacer 4 requests separados desde el frontend.
+     */
+    public function counts()
+    {
+        $local = $this->getLocal();
+        if (!$local) {
+            return response()->json(['todos' => 0, 'pendiente' => 0, 'en_proceso' => 0, 'entregado' => 0, 'cancelado' => 0]);
+        }
+
+        $rows = Pedido::where('id_local', $local->id)
+            ->where(function ($q) {
+                $q->where('tipo_pedido', '!=', 'servicio')
+                  ->orWhereNull('tipo_pedido');
+            })
+            ->whereDoesntHave('detalles', function ($qd) {
+                $qd->whereNotNull('idservicio');
+            })
+            ->selectRaw('estado, COUNT(*) as total')
+            ->groupBy('estado')
+            ->pluck('total', 'estado');
+
+        $total = $rows->sum();
+
+        return response()->json([
+            'todos'      => (int) $total,
+            'pendiente'  => (int) $rows->get('pendiente', 0),
+            'en_proceso' => (int) $rows->get('en_proceso', 0),
+            'entregado'  => (int) $rows->get('entregado', 0),
+            'cancelado'  => (int) $rows->get('cancelado', 0),
+        ]);
+    }
+
+    /**
      * POST /api/pedidos
      */
     public function store(Request $request)

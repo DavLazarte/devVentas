@@ -266,10 +266,17 @@ class VentaController extends Controller
             ->where('estado', 'pendiente')
             ->count();
 
+        $turnosPendientes = \App\Models\Pedido::where('id_local', $local->id)
+            ->where('tipo_pedido', 'servicio')
+            ->whereIn('estado_atencion', ['en_espera', 'siendo_atendido'])
+            ->where('fecha_servicio', '>=', \Carbon\Carbon::now('America/Argentina/Buenos_Aires')->toDateString())
+            ->count();
+
         return response()->json([
             'ventasHoy'         => (float) $ventasHoy,
             'stockBajo'         => $stockBajo,
             'pedidosPendientes' => $pedidosPendientes,
+            'turnosPendientes'  => $turnosPendientes,
         ]);
     }
 

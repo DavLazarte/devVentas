@@ -161,6 +161,7 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     // Pedidos — accesible para todos los planes (recibir pedidos es free)
+    Route::get('/pedidos/counts', [PedidoController::class, 'counts']);
     Route::get('/pedidos', [PedidoController::class, 'index']);
     Route::post('/pedidos', [PedidoController::class, 'store']);
     Route::patch('/pedidos/{id}', [PedidoController::class, 'update']);
