@@ -3,12 +3,14 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\CierreCaja;
 use App\Models\Ingreso;
 use App\Models\Local;
 use App\Models\Salida;
 use App\Models\Venta;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class CajaController extends Controller
 {
@@ -17,6 +19,35 @@ class CajaController extends Controller
         $user = Auth::user();
         if (!$user) return null;
         return Local::where('id_user', $user->id)->first();
+    }
+
+    private function getTurnoStartTime($cajaActiva, $localId)
+    {
+        $inicioDia = today();
+        if ($cajaActiva && $cajaActiva->fecha_apertura && $cajaActiva->fecha_apertura < today()->toDateString()) {
+            return \Carbon\Carbon::parse($cajaActiva->fecha_apertura)->startOfDay();
+        }
+        if ($cajaActiva && $cajaActiva->created_at < $inicioDia) {
+            return $cajaActiva->created_at;
+        }
+
+        // Buscar el último cierre cerrado previo a esta caja
+        $ultimoCierre = CierreCaja::where(function($q) use ($localId) {
+                $q->where('id_local', $localId)->orWhereNull('id_local');
+            })
+            ->where(function($q) {
+                $q->whereIn('estado', ['cerrada', 'cerrado'])
+                  ->orWhereNotNull('fecha_cierre');
+            })
+            ->when($cajaActiva, fn($q) => $q->where('id', '<', $cajaActiva->id))
+            ->latest('id')
+            ->first();
+
+        if ($ultimoCierre && $ultimoCierre->created_at >= $inicioDia) {
+            return $ultimoCierre->updated_at ?? $ultimoCierre->created_at;
+        }
+
+        return $inicioDia;
     }
 
     /**
@@ -33,16 +64,30 @@ class CajaController extends Controller
 
         $date = $request->has('date') ? $request->date : today()->toDateString();
         $isFinanciera = str_starts_with($user->role->name ?? '', 'financiera');
+        
+        // Determinar límites de tiempo según el turno de caja
+        $cajaActiva = CierreCaja::where(function($q) use ($local) {
+                $q->where('id_local', $local->id)->orWhereNull('id_local');
+            })
+            ->where('estado', 'abierta')
+            ->latest('id')
+            ->first();
+
+        $isHoy = $date === today()->toDateString();
+
+        $startTime = ($isHoy && $cajaActiva) ? $this->getTurnoStartTime($cajaActiva, $local->id) : null;
+        $applyDateFilter = function($query) use ($date, $request, $startTime) {
+            if ($request->input('scope') === 'all') return $query;
+            if ($startTime) return $query->where('created_at', '>=', $startTime);
+            return $query->whereDate('created_at', $date);
+        };
 
         if ($isFinanciera) {
             $ingresosQuery = Ingreso::where('id_local', $local->id);
             $salidasQuery = Salida::where('id_local', $local->id);
 
-            // Si no pide 'all', filtramos por fecha
-            if ($request->input('scope') !== 'all') {
-                $ingresosQuery->whereDate('created_at', $date);
-                $salidasQuery->whereDate('created_at', $date);
-            }
+            $ingresosQuery = $applyDateFilter($ingresosQuery);
+            $salidasQuery = $applyDateFilter($salidasQuery);
 
             $ingresosData = $ingresosQuery->get();
             $salidasData = $salidasQuery->get();
@@ -87,10 +132,10 @@ class CajaController extends Controller
         }
 
         // Ventas del día como ingresos automáticos (Para Pos Normal)
-        $ventas = Venta::with(['detalles.producto', 'detalles.variantesArticulos', 'persona'])
-            ->where('id_local', $local->id)
-            ->whereDate('created_at', $date)
-            ->get();
+        $ventasQuery = Venta::with(['detalles.producto', 'detalles.variantesArticulos', 'persona'])
+            ->where('id_local', $local->id);
+        $ventasQuery = $applyDateFilter($ventasQuery);
+        $ventas = $ventasQuery->get();
 
         $ventasEntries = $ventas->map(function($v) {
             $clienteNombre = $v->persona?->nombre;
@@ -109,8 +154,8 @@ class CajaController extends Controller
                 'id'                 => 'VENTA-' . $v->id,
                 'type'               => 'ingreso',
                 'category'           => 'producto',
-                'amount'             => (float) $v->pago,       // lo que se cobró (para el balance de caja)
-                'totalVenta'         => (float) $v->total_venta, // total real de la venta
+                'amount'             => (float) $v->pago,
+                'totalVenta'         => (float) $v->total_venta,
                 'pago'               => (float) $v->pago,
                 'saldo'              => (float) $v->saldo,
                 'montoEfectivo'      => $montoEf,
@@ -130,14 +175,10 @@ class CajaController extends Controller
             ];
         });
 
-        $isLocalServicioOrMixto = in_array($local->tipo, ['servicio', 'mixto']);
-
-        // Clasificador relacional directo por columna tipo_ingreso
-        $clasificarIngreso = function($i) use ($isLocalServicioOrMixto) {
-            // Relacional: si tiene tipo_ingreso definido en la base de datos
+        $clasificarIngreso = function($i) {
             if (!empty($i->tipo_ingreso)) {
                 if ($i->tipo_ingreso === 'servicio') {
-                    return $isLocalServicioOrMixto ? 'servicio' : 'deuda';
+                    return 'servicio';
                 }
                 if (in_array($i->tipo_ingreso, ['cobro_deuda', 'saldo_favor'])) {
                     return 'deuda';
@@ -148,14 +189,13 @@ class CajaController extends Controller
                 return 'ingreso';
             }
 
-            // Fallback de retrocompatibilidad
-            if ($isLocalServicioOrMixto && str_contains(strtolower($i->descripcion ?? ''), 'turno')) {
+            $descLower = strtolower($i->descripcion ?? '');
+            if (str_contains($descLower, 'turno') || str_contains($descLower, 'servicio')) {
                 return 'servicio';
             }
             return (!empty($i->idpersona)) ? 'deuda' : 'ingreso';
         };
 
-        // Resolución inteligente de la forma de pago (si por defecto quedó en efectivo pero la descripción dice transferencia)
         $resolverMetodoPago = function($i) {
             $descLower = strtolower(trim($i->descripcion ?? ''));
             if (($i->tipo_pago === 'efectivo' || empty($i->tipo_pago)) && (str_contains($descLower, 'transferencia') || str_contains($descLower, 'transf'))) {
@@ -165,10 +205,9 @@ class CajaController extends Controller
         };
 
         // Ingresos del día (cobros de deuda, cobros de turnos inmediatos, y servicios a cuenta)
-        $ingresosData = Ingreso::with('cliente')
-            ->where('id_local', $local->id)
-            ->whereDate('created_at', $date)
-            ->get();
+        $ingresosQuery = Ingreso::with('cliente')->where('id_local', $local->id);
+        $ingresosQuery = $applyDateFilter($ingresosQuery);
+        $ingresosData = $ingresosQuery->get();
 
         $ingresos = $ingresosData->map(function($i) use ($clasificarIngreso, $resolverMetodoPago) {
             $isCuentaCorriente = $i->tipo_pago === 'cuenta_corriente';
@@ -179,7 +218,6 @@ class CajaController extends Controller
             if ($category === 'deuda') {
                 $descLower = strtolower($desc ?? '');
                 $clienteNombre = $i->cliente?->nombre;
-                // Si la descripción previa era solo "transferencia" o similar, enriquecerla para mayor claridad
                 if (!str_contains($descLower, 'pago') && !str_contains($descLower, 'cobro') && !str_contains($descLower, 'deuda') && !str_contains($descLower, 'saldo')) {
                     $desc = 'Pago de deuda' . ($desc ? " ({$desc})" : '') . ($clienteNombre ? " - {$clienteNombre}" : '');
                 } elseif ($clienteNombre && !str_contains($descLower, strtolower($clienteNombre))) {
@@ -203,23 +241,22 @@ class CajaController extends Controller
         });
 
         // Egresos del día
-        $salidas = Salida::where('id_local', $local->id)
-            ->whereDate('created_at', $date)
-            ->get()
-            ->map(function($s) {
-                $isComision = $s->tipo_salida === 'comision' || str_contains(strtolower($s->descripcion ?? ''), 'comisi');
-                return [
-                    'id'            => 'SAL-' . $s->idsalida,
-                    'type'          => 'egreso',
-                    'category'      => $isComision ? 'comision' : 'egreso',
-                    'amount'        => (float) $s->monto,
-                    'description'   => $s->descripcion ?? 'Egreso',
-                    'paymentMethod' => null,
-                    'createdAt'     => $s->created_at?->toISOString(),
-                    'saleId'        => null,
-                    'items'         => [],
-                ];
-            });
+        $salidasQuery = Salida::where('id_local', $local->id);
+        $salidasQuery = $applyDateFilter($salidasQuery);
+        $salidas = $salidasQuery->get()->map(function($s) {
+            $isComision = $s->tipo_salida === 'comision' || str_contains(strtolower($s->descripcion ?? ''), 'comisi');
+            return [
+                'id'            => 'SAL-' . $s->idsalida,
+                'type'          => 'egreso',
+                'category'      => $isComision ? 'comision' : 'egreso',
+                'amount'        => (float) $s->monto,
+                'description'   => $s->descripcion ?? 'Egreso',
+                'paymentMethod' => null,
+                'createdAt'     => $s->created_at?->toISOString(),
+                'saleId'        => null,
+                'items'         => [],
+            ];
+        });
 
         // Resumen por forma de pago (sumando ventas + ingresos directos)
         $ingresosCobrados = $ingresosData->where('tipo_pago', '!=', 'cuenta_corriente');
@@ -249,27 +286,29 @@ class CajaController extends Controller
         })->sum('monto');
 
         $totalProductos = (float) $ventas->sum('pago');
-        $totalServicios = $isLocalServicioOrMixto
-            ? (float) $ingresosCobrados->filter(function($i) use ($clasificarIngreso) {
-                return $clasificarIngreso($i) === 'servicio';
-            })->sum('monto')
-            : 0;
+        $totalServicios = (float) $ingresosCobrados->filter(function($i) use ($clasificarIngreso) {
+            return $clasificarIngreso($i) === 'servicio';
+        })->sum('monto');
+
+        $totalOtrosIngresos = (float) $ingresosCobrados->filter(function($i) use ($clasificarIngreso) {
+            return $clasificarIngreso($i) === 'ingreso';
+        })->sum('monto');
 
         $ventasCuenta = (float) $ventas->where('forma_de_pago', 'cuenta_corriente')->sum('saldo');
-        $serviciosCuenta = $isLocalServicioOrMixto
-            ? (float) $ingresosData->where('tipo_pago', 'cuenta_corriente')->filter(function($i) use ($clasificarIngreso) {
-                return $clasificarIngreso($i) === 'servicio';
-            })->sum('saldo')
-            : 0;
+        $serviciosCuenta = (float) $ingresosData->where('tipo_pago', 'cuenta_corriente')->filter(function($i) use ($clasificarIngreso) {
+            return $clasificarIngreso($i) === 'servicio';
+        })->sum('saldo');
 
         $resumen = [
-            'efectivo'        => $efectivoVentas + $efectivoIngresos,
-            'transferencia'   => $transferenciaVentas + $transferenciaIngresos,
-            'cobros_deuda'    => $cobrosDeuda,
-            'ventas_cuenta'   => $ventasCuenta + $serviciosCuenta,
-            'total_productos' => $totalProductos,
-            'total_servicios' => $totalServicios,
-            'egresos'         => (float) Salida::where('id_local', $local->id)->whereDate('created_at', $date)->sum('monto'),
+            'efectivo'             => $efectivoVentas + $efectivoIngresos,
+            'transferencia'        => $transferenciaVentas + $transferenciaIngresos,
+            'cobros_deuda'         => $cobrosDeuda,
+            'ventas_cuenta'        => $ventasCuenta + $serviciosCuenta,
+            'total_productos'      => $totalProductos,
+            'total_servicios'      => $totalServicios,
+            'total_otros_ingresos' => $totalOtrosIngresos,
+            'total_ingresos'       => $totalServicios + $cobrosDeuda + $totalOtrosIngresos,
+            'egresos'              => (float) $salidas->sum('amount'),
         ];
 
         $all = $ventasEntries->concat($ingresos)->concat($salidas)
@@ -405,6 +444,7 @@ class CajaController extends Controller
 
         return response()->json(['message' => 'Tipo de movimiento no válido'], 400);
     }
+
     /**
      * DELETE /api/caja/movimientos/{id}
      * Elimina un movimiento de caja (Ingreso o Egreso)
@@ -420,7 +460,6 @@ class CajaController extends Controller
             $ingresoId = (int) substr($id, 4);
             $ingreso = Ingreso::where('id_local', $local->id)->findOrFail($ingresoId);
             
-            // Revertir en el cliente si el ingreso estaba asignado a una persona
             if ($ingreso->idpersona) {
                 $persona = $ingreso->cliente ?? \App\Models\Persona::find($ingreso->idpersona);
                 if ($persona) {
@@ -435,7 +474,49 @@ class CajaController extends Controller
             $ingreso->delete();
             return response()->json(['success' => true, 'message' => 'Ingreso eliminado correctamente']);
         } elseif (str_starts_with($id, 'VENTA-')) {
-            return response()->json(['message' => 'Las ventas se deben eliminar desde el panel de Ventas.'], 400);
+            $ventaId = (int) substr($id, 6);
+            $venta = Venta::with('detalles')->where('id_local', $local->id)->findOrFail($ventaId);
+
+            DB::beginTransaction();
+            try {
+                // Revertir stock de cada detalle vendido
+                foreach ($venta->detalles as $detalle) {
+                    $cantidad = (float) ($detalle->cantidad_decimal ?? $detalle->cantidad ?? 0);
+                    if ($cantidad <= 0) continue;
+
+                    if ($detalle->id_variante) {
+                        $variante = \App\Models\ArticuloVariante::find($detalle->id_variante);
+                        if ($variante) {
+                            $articulo = \App\Models\Articulo::find($detalle->idarticulo);
+                            if ($articulo && in_array($articulo->tipo_venta, ['peso', 'volumen'])) {
+                                $variante->stock_decimal = round((float)$variante->stock_decimal + $cantidad, 3);
+                            } else {
+                                $variante->stock = (int)$variante->stock + (int)$cantidad;
+                            }
+                            $variante->save();
+                        }
+                    } elseif ($detalle->idarticulo) {
+                        $articulo = \App\Models\Articulo::find($detalle->idarticulo);
+                        if ($articulo) {
+                            if (in_array($articulo->tipo_venta, ['peso', 'volumen'])) {
+                                $articulo->stock_decimal = round((float)$articulo->stock_decimal + $cantidad, 3);
+                            } else {
+                                $articulo->stock = (int)$articulo->stock + (int)$cantidad;
+                            }
+                            $articulo->save();
+                        }
+                    }
+                }
+
+                $venta->detalles()->delete();
+                $venta->delete();
+
+                DB::commit();
+                return response()->json(['success' => true, 'message' => 'Venta eliminada y stock restituido correctamente']);
+            } catch (\Exception $e) {
+                DB::rollBack();
+                return response()->json(['message' => 'Error al eliminar la venta: ' . $e->getMessage()], 500);
+            }
         } elseif (str_starts_with($id, 'SAL-')) {
             $salidaId = (int) substr($id, 4);
             $salida = Salida::where('id_local', $local->id)->findOrFail($salidaId);
@@ -444,5 +525,270 @@ class CajaController extends Controller
         }
 
         return response()->json(['message' => 'Movimiento no encontrado.'], 404);
+    }
+
+    /**
+     * GET /api/caja/estado
+     * Devuelve el estado actual de la caja (abierta o cerrada)
+     */
+    public function estado(Request $request)
+    {
+        $local = $this->getLocal();
+        if (!$local) {
+            return response()->json(['message' => 'No tenés un local asignado.'], 403);
+        }
+
+        // Buscar caja abierta activa sin restricción de fecha para turnos cruzados
+        $caja = CierreCaja::where(function($q) use ($local) {
+                $q->where('id_local', $local->id)->orWhereNull('id_local');
+            })
+            ->where('estado', 'abierta')
+            ->latest('id')
+            ->first();
+
+        if (!$caja) {
+            return response()->json([
+                'estado'        => 'cerrada',
+                'caja'          => null,
+                'ultimo_cierre' => CierreCaja::where(function($q) use ($local) {
+                        $q->where('id_local', $local->id)->orWhereNull('id_local');
+                    })
+                    ->where(function($q) {
+                        $q->whereIn('estado', ['cerrada', 'cerrado'])
+                          ->orWhereNotNull('fecha_cierre');
+                    })
+                    ->latest('id')
+                    ->first(),
+            ]);
+        }
+
+        $fechaCierre = $request->input('fecha_cierre');
+        if ($fechaCierre) {
+            $cierreDate = \Carbon\Carbon::parse($fechaCierre);
+            $startTime  = $cierreDate->copy()->startOfDay();
+            $endTime    = $cierreDate->copy()->endOfDay();
+        } else {
+            $startTime = $this->getTurnoStartTime($caja, $local->id);
+            $endTime   = null;
+        }
+
+        $ventasQuery   = Venta::where('id_local', $local->id)->where('created_at', '>=', $startTime);
+        $ingresosQuery = Ingreso::where('id_local', $local->id)->where('created_at', '>=', $startTime)->where('tipo_pago', '!=', 'cuenta_corriente');
+        $salidasQuery  = Salida::where('id_local', $local->id)->where('created_at', '>=', $startTime);
+
+        if ($endTime) {
+            $ventasQuery->where('created_at', '<=', $endTime);
+            $ingresosQuery->where('created_at', '<=', $endTime);
+            $salidasQuery->where('created_at', '<=', $endTime);
+        }
+
+        $ventas   = $ventasQuery->get();
+        $ingresos = $ingresosQuery->get();
+        $salidas  = $salidasQuery->get();
+
+        $efectivoVentas = (float) $ventas->sum(fn($v) =>
+            $v->forma_de_pago === 'mixto' ? (float)($v->monto_efectivo ?? 0) :
+            ($v->forma_de_pago === 'efectivo' ? (float)$v->pago : 0)
+        );
+        $efectivoIngresos     = (float) $ingresos->where('tipo_pago', 'efectivo')->sum('monto');
+        $transferenciaVentas  = (float) $ventas->sum(fn($v) =>
+            $v->forma_de_pago === 'mixto' ? (float)($v->monto_transferencia ?? 0) :
+            ($v->forma_de_pago === 'transferencia' ? (float)$v->pago : 0)
+        );
+        $transferenciaIngresos = (float) $ingresos->where('tipo_pago', 'transferencia')->sum('monto');
+        $totalEgresos          = (float) $salidas->sum('monto');
+        $efectivoTotal         = $efectivoVentas + $efectivoIngresos;
+        $transferenciaTotal    = $transferenciaVentas + $transferenciaIngresos;
+
+        $totalVentasProductos   = (float) $ventas->sum('pago');
+        $totalServiciosIngresos = (float) $ingresos->sum('monto');
+        $totalVentasCuenta      = (float) $ventas->where('forma_de_pago', 'cuenta_corriente')->sum('saldo');
+
+        return response()->json([
+            'estado' => 'abierta',
+            'caja'   => [
+                'id'                           => $caja->id,
+                'fecha_apertura'               => $caja->fecha_apertura,
+                'monto_apertura'               => (float) $caja->monto_apertura,
+                'monto_apertura_transferencia' => (float) $caja->monto_apertura_transferencia,
+                'total_ventas_productos'       => $totalVentasProductos,
+                'ventas_efectivo'              => $efectivoVentas,
+                'ventas_transferencia'         => $transferenciaVentas,
+                'ventas_cuenta'                => $totalVentasCuenta,
+                'total_servicios_ingresos'     => $totalServiciosIngresos,
+                'servicios_efectivo'           => $efectivoIngresos,
+                'servicios_transferencia'      => $transferenciaIngresos,
+                'efectivo'                     => $efectivoTotal,
+                'transferencia'                => $transferenciaTotal,
+                'egresos'                      => $totalEgresos,
+                'efectivo_en_caja'             => round((float)$caja->monto_apertura + $efectivoTotal - $totalEgresos, 2),
+                'transferencia_en_caja'        => round((float)$caja->monto_apertura_transferencia + $transferenciaTotal, 2),
+            ],
+        ]);
+    }
+
+    /**
+     * POST /api/caja/abrir
+     * Abre un nuevo turno de caja
+     */
+    public function abrir(Request $request)
+    {
+        $local = $this->getLocal();
+        if (!$local) {
+            return response()->json(['message' => 'No tenés un local asignado.'], 403);
+        }
+
+        $request->validate([
+            'monto_apertura'               => 'required|numeric|min:0',
+            'monto_apertura_transferencia' => 'nullable|numeric|min:0',
+        ]);
+
+        // Verificar ÚNICAMENTE si ya hay una caja abierta en curso (permite múltiples aperturas y cierres en el mismo día)
+        $cajaAbierta = CierreCaja::where(function($q) use ($local) {
+                $q->where('id_local', $local->id)->orWhereNull('id_local');
+            })
+            ->where('estado', 'abierta')
+            ->first();
+
+        if ($cajaAbierta) {
+            return response()->json(['message' => 'Ya tenés una caja abierta en curso. Debés cerrarla antes de iniciar un nuevo turno.'], 422);
+        }
+
+        $fechaApertura = $request->input('fecha_apertura', today()->toDateString());
+        $createdAt = ($fechaApertura === today()->toDateString()) ? now() : \Carbon\Carbon::parse($fechaApertura)->startOfDay();
+
+        $caja = CierreCaja::create([
+            'id_local'                     => $local->id,
+            'fecha_apertura'               => $fechaApertura,
+            'monto_apertura'               => $request->monto_apertura,
+            'monto_apertura_transferencia' => $request->monto_apertura_transferencia ?? 0,
+            'estado'                       => 'abierta',
+            'created_at'                   => $createdAt,
+            'updated_at'                   => $createdAt,
+        ]);
+
+        return response()->json(['message' => 'Caja abierta correctamente', 'caja' => $caja], 201);
+    }
+
+    /**
+     * POST /api/caja/cerrar
+     * Cierra el turno de caja actual guardando el arqueo real
+     */
+    public function cerrar(Request $request)
+    {
+        $local = $this->getLocal();
+        if (!$local) {
+            return response()->json(['message' => 'No tenés un local asignado.'], 403);
+        }
+
+        $request->validate([
+            'monto_efectivo_real'      => 'required|numeric|min:0',
+            'monto_transferencia_real' => 'nullable|numeric|min:0',
+            'monto_cuenta_real'        => 'nullable|numeric|min:0',
+        ]);
+
+        // Buscar la caja abierta activa más reciente
+        $caja = CierreCaja::where(function($q) use ($local) {
+                $q->where('id_local', $local->id)->orWhereNull('id_local');
+            })
+            ->where('estado', 'abierta')
+            ->latest('id')
+            ->first();
+
+        if (!$caja) {
+            return response()->json(['message' => 'No hay una caja abierta actualmente para cerrar.'], 422);
+        }
+
+        $fechaCierre = $request->input('fecha_cierre', today()->toDateString());
+        if ($fechaCierre !== today()->toDateString() && $caja->fecha_apertura !== $fechaCierre) {
+            $cierreDate = \Carbon\Carbon::parse($fechaCierre);
+            $startTime  = $cierreDate->copy()->startOfDay();
+            $endTime    = $cierreDate->copy()->endOfDay();
+        } else {
+            $startTime = $this->getTurnoStartTime($caja, $local->id);
+            $endTime   = \Carbon\Carbon::parse($fechaCierre)->endOfDay();
+        }
+
+        $ventas   = Venta::where('id_local', $local->id)->where('created_at', '>=', $startTime)->where('created_at', '<=', $endTime)->get();
+        $ingresos = Ingreso::where('id_local', $local->id)->where('created_at', '>=', $startTime)->where('created_at', '<=', $endTime)->get();
+        $salidas  = Salida::where('id_local', $local->id)->where('created_at', '>=', $startTime)->where('created_at', '<=', $endTime)->get();
+
+        $ventasEfectivo = (float) $ventas->sum(fn($v) =>
+            $v->forma_de_pago === 'mixto' ? (float)($v->monto_efectivo ?? 0) :
+            ($v->forma_de_pago === 'efectivo' ? (float)$v->pago : 0)
+        );
+        $ventasTransferencia = (float) $ventas->sum(fn($v) =>
+            $v->forma_de_pago === 'mixto' ? (float)($v->monto_transferencia ?? 0) :
+            ($v->forma_de_pago === 'transferencia' ? (float)$v->pago : 0)
+        );
+        $ventasCuenta  = (float) $ventas->where('forma_de_pago', 'cuenta_corriente')->sum('saldo');
+        $totalVentas   = (float) $ventas->sum('pago');
+        $totalIngresos = (float) $ingresos->where('tipo_pago', '!=', 'cuenta_corriente')->sum('monto');
+        
+        $ingresosTransferencia = (float) $ingresos->where('tipo_pago', 'transferencia')->sum('monto');
+        $totalSalidas  = (float) $salidas->sum('monto');
+
+        // Sistema espera esto en físico y en banco para este turno
+        $efectivoSistema = round((float)$caja->monto_apertura + $ventasEfectivo + $totalIngresos - $ingresosTransferencia - $totalSalidas, 2);
+        $transferenciaSistema = round((float)$caja->monto_apertura_transferencia + $ventasTransferencia + $ingresosTransferencia, 2);
+
+        // Montos reales ingresados manualmente por el operador
+        $montoEfectivoReal      = (float) $request->monto_efectivo_real;
+        $montoTransferenciaReal = (float) ($request->monto_transferencia_real ?? $transferenciaSistema);
+        $montoCuentaReal        = (float) ($request->monto_cuenta_real ?? $ventasCuenta);
+        $montoTotalReal         = round($montoEfectivoReal + $montoTransferenciaReal + $montoCuentaReal, 2);
+
+        $fechaCierre = $request->input('fecha_cierre', today()->toDateString());
+        $caja->update([
+            'fecha_cierre'                    => $fechaCierre,
+            'monto_total_ventas'              => $totalVentas,
+            'ventas_efectivo'                 => $ventasEfectivo,
+            'ventas_transferencia'            => $ventasTransferencia,
+            'ventas_cuenta'                   => $ventasCuenta,
+            'ingresos'                        => $totalIngresos,
+            'salidas'                         => $totalSalidas,
+            'monto_cierre'                    => $efectivoSistema,
+            'monto_cierre_real'               => $montoEfectivoReal,
+            'monto_cierre_transferencia_real' => $montoTransferenciaReal,
+            'monto_cierre_cuenta_real'        => $montoCuentaReal,
+            'estado'                          => 'cerrada',
+        ]);
+
+        return response()->json([
+            'message'                   => 'Caja cerrada correctamente',
+            'diferencia_efectivo'       => round($montoEfectivoReal - $efectivoSistema, 2),
+            'efectivo_sistema'          => $efectivoSistema,
+            'monto_efectivo_real'       => $montoEfectivoReal,
+            'monto_transferencia_real'  => $montoTransferenciaReal,
+            'monto_cuenta_real'         => $montoCuentaReal,
+            'total_real'                => $montoTotalReal,
+            'caja'                      => $caja->fresh(),
+        ]);
+    }
+
+    /**
+     * GET /api/caja/cierres
+     * Devuelve el historial de cierres de caja (cajas cerradas) del local.
+     */
+    public function cierres()
+    {
+        $local = $this->getLocal();
+        if (!$local) {
+            return response()->json(['message' => 'No tenés un local asignado.'], 403);
+        }
+
+        // Devolver todos los cierres históricos disponibles del local
+        $cierres = CierreCaja::where(function($q) use ($local) {
+                $q->where('id_local', $local->id)->orWhereNull('id_local');
+            })
+            ->where(function($q) {
+                $q->whereIn('estado', ['cerrada', 'cerrado'])
+                  ->orWhereNotNull('fecha_cierre');
+            })
+            ->orderBy('id', 'desc')
+            ->limit(100)
+            ->get();
+
+        return response()->json(['cierres' => $cierres]);
     }
 }

@@ -280,6 +280,60 @@ class VentaController extends Controller
         ]);
     }
 
+    /**
+     * DELETE /api/ventas/{id}
+     * Elimina una venta y restituye el stock
+     */
+    public function destroy($id)
+    {
+        $local = $this->getLocal();
+        if (!$local) {
+            return response()->json(['message' => 'No tenés un local asignado.'], 403);
+        }
+
+        $venta = Venta::with('detalles')->where('id_local', $local->id)->findOrFail($id);
+
+        DB::beginTransaction();
+        try {
+            foreach ($venta->detalles as $detalle) {
+                $cantidad = (float) ($detalle->cantidad_decimal ?? $detalle->cantidad ?? 0);
+                if ($cantidad <= 0) continue;
+
+                if ($detalle->id_variante) {
+                    $variante = \App\Models\ArticuloVariante::find($detalle->id_variante);
+                    if ($variante) {
+                        $articulo = \App\Models\Articulo::find($detalle->idarticulo);
+                        if ($articulo && in_array($articulo->tipo_venta, ['peso', 'volumen'])) {
+                            $variante->stock_decimal = round((float)$variante->stock_decimal + $cantidad, 3);
+                        } else {
+                            $variante->stock = (int)$variante->stock + (int)$cantidad;
+                        }
+                        $variante->save();
+                    }
+                } elseif ($detalle->idarticulo) {
+                    $articulo = \App\Models\Articulo::find($detalle->idarticulo);
+                    if ($articulo) {
+                        if (in_array($articulo->tipo_venta, ['peso', 'volumen'])) {
+                            $articulo->stock_decimal = round((float)$articulo->stock_decimal + $cantidad, 3);
+                        } else {
+                            $articulo->stock = (int)$articulo->stock + (int)$cantidad;
+                        }
+                        $articulo->save();
+                    }
+                }
+            }
+
+            $venta->detalles()->delete();
+            $venta->delete();
+
+            DB::commit();
+            return response()->json(['success' => true, 'message' => 'Venta eliminada y stock restituido correctamente']);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['message' => 'Error al eliminar la venta: ' . $e->getMessage()], 500);
+        }
+    }
+
     private function formatVenta(Venta $v): array
     {
         // Cargamos relaciones faltantes de forma eficiente

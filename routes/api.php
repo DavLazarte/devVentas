@@ -158,6 +158,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/ventas/dashboard', [VentaController::class, 'dashboard']);
         Route::get('/ventas', [VentaController::class, 'index']);
         Route::post('/ventas', [VentaController::class, 'store']);
+        Route::delete('/ventas/{id}', [VentaController::class, 'destroy']);
     });
 
     // Pedidos — accesible para todos los planes (recibir pedidos es free)
@@ -198,6 +199,10 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Caja (requiere plan con caja)
     Route::middleware('plan.feature:caja')->group(function () {
+        Route::get('/caja/cierres', [CajaController::class, 'cierres']);
+        Route::get('/caja/estado', [CajaController::class, 'estado']);
+        Route::post('/caja/abrir', [CajaController::class, 'abrir']);
+        Route::post('/caja/cerrar', [CajaController::class, 'cerrar']);
         Route::get('/caja', [CajaController::class, 'index']);
         Route::post('/caja', [CajaController::class, 'store']);
         Route::put('/caja/movimientos/{id}', [CajaController::class, 'updateMovimiento']);

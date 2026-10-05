@@ -124,8 +124,8 @@ class ClienteController extends Controller
             'estado'                      => 'Activo',
             'id_local'                    => $local->id,
             'esquema_liquidacion'         => $request->esquema_liquidacion ?? 'comision_pura',
-            'base_fija_dia'               => $request->base_fija_dia ?? null,
-            'porcentaje_comision_default' => $request->porcentaje_comision_default ?? 50,
+            'base_fija_dia'               => $request->base_fija_dia ?? 0,
+            'porcentaje_comision_default' => $request->porcentaje_comision_default ?? 0,
         ]);
 
         return response()->json([
@@ -161,10 +161,10 @@ class ClienteController extends Controller
             $data['esquema_liquidacion'] = $request->esquema_liquidacion;
         }
         if ($request->has('base_fija_dia')) {
-            $data['base_fija_dia'] = $request->base_fija_dia;
+            $data['base_fija_dia'] = $request->base_fija_dia ?? 0;
         }
         if ($request->has('porcentaje_comision_default')) {
-            $data['porcentaje_comision_default'] = $request->porcentaje_comision_default;
+            $data['porcentaje_comision_default'] = $request->porcentaje_comision_default ?? 0;
         }
 
         $cliente->update($data);
