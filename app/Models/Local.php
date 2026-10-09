@@ -25,6 +25,8 @@ class Local extends Model
     'banco',
     'titular_cuenta',
     'estado',
+    'saldo_caja_0_efectivo',
+    'saldo_caja_0_transferencia',
     'mostrar_feed',
     'tipo',
     'plan',

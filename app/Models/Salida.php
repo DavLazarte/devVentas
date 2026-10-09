@@ -15,7 +15,9 @@ class Salida extends Model
     protected $fillable = [
         'idpersona',
         'tipo_salida',
+        'origen',
         'monto',
+        'tipo_pago',
         'descripcion',
         'saldo',
         'estado',

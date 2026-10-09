@@ -548,6 +548,7 @@ class ClienteController extends Controller
                 'idpersona'   => $empleado->idpersona,
                 'tipo_salida' => 'comision',
                 'monto'       => $monto,
+                'tipo_pago'   => $request->tipo_pago ?? 'efectivo',
                 'descripcion' => $descripcion,
                 'saldo'       => 0,
                 'estado'      => 'activo',

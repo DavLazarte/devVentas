@@ -23,31 +23,20 @@ class CajaController extends Controller
 
     private function getTurnoStartTime($cajaActiva, $localId)
     {
-        $inicioDia = today();
-        if ($cajaActiva && $cajaActiva->fecha_apertura && $cajaActiva->fecha_apertura < today()->toDateString()) {
+        if (!$cajaActiva) {
+            return today();
+        }
+
+        // El turno de caja comienza estrictamente en la fecha y hora en que fue abierto
+        if ($cajaActiva->created_at) {
+            return \Carbon\Carbon::parse($cajaActiva->created_at);
+        }
+
+        if ($cajaActiva->fecha_apertura) {
             return \Carbon\Carbon::parse($cajaActiva->fecha_apertura)->startOfDay();
         }
-        if ($cajaActiva && $cajaActiva->created_at < $inicioDia) {
-            return $cajaActiva->created_at;
-        }
 
-        // Buscar el último cierre cerrado previo a esta caja
-        $ultimoCierre = CierreCaja::where(function($q) use ($localId) {
-                $q->where('id_local', $localId)->orWhereNull('id_local');
-            })
-            ->where(function($q) {
-                $q->whereIn('estado', ['cerrada', 'cerrado'])
-                  ->orWhereNotNull('fecha_cierre');
-            })
-            ->when($cajaActiva, fn($q) => $q->where('id', '<', $cajaActiva->id))
-            ->latest('id')
-            ->first();
-
-        if ($ultimoCierre && $ultimoCierre->created_at >= $inicioDia) {
-            return $ultimoCierre->updated_at ?? $ultimoCierre->created_at;
-        }
-
-        return $inicioDia;
+        return today();
     }
 
     /**
@@ -74,11 +63,14 @@ class CajaController extends Controller
             ->first();
 
         $isHoy = $date === today()->toDateString();
+        $scope = $request->input('scope');
 
-        $startTime = ($isHoy && $cajaActiva) ? $this->getTurnoStartTime($cajaActiva, $local->id) : null;
-        $applyDateFilter = function($query) use ($date, $request, $startTime) {
-            if ($request->input('scope') === 'all') return $query;
-            if ($startTime) return $query->where('created_at', '>=', $startTime);
+        $startTime = ($cajaActiva) ? $this->getTurnoStartTime($cajaActiva, $local->id) : null;
+        $applyDateFilter = function($query) use ($date, $request, $startTime, $isHoy, $scope) {
+            if ($scope === 'all') return $query;
+            if ($scope === 'day') return $query->whereDate('created_at', $date);
+            if ($scope === 'turno' && $startTime) return $query->where('created_at', '>=', $startTime);
+            if ($startTime && $isHoy) return $query->where('created_at', '>=', $startTime);
             return $query->whereDate('created_at', $date);
         };
 
@@ -240,18 +232,27 @@ class CajaController extends Controller
             ];
         });
 
-        // Egresos del día
+        // Egresos del día / turno
         $salidasQuery = Salida::where('id_local', $local->id);
         $salidasQuery = $applyDateFilter($salidasQuery);
-        $salidas = $salidasQuery->get()->map(function($s) {
+        $salidasData = $salidasQuery->get();
+
+        // Para el arqueo de mostrador (cajón diario), SOLO sumamos egresos del mostrador (no Caja 0)
+        $salidasMostrador = $salidasData->filter(fn($s) => $s->origen !== 'caja_0');
+        $egresosEfectivo = (float) $salidasMostrador->where('tipo_pago', '!=', 'transferencia')->sum('monto');
+        $egresosTransferencia = (float) $salidasMostrador->where('tipo_pago', 'transferencia')->sum('monto');
+
+        $salidas = $salidasData->map(function($s) {
             $isComision = $s->tipo_salida === 'comision' || str_contains(strtolower($s->descripcion ?? ''), 'comisi');
+            $isCaja0 = $s->origen === 'caja_0';
             return [
                 'id'            => 'SAL-' . $s->idsalida,
                 'type'          => 'egreso',
-                'category'      => $isComision ? 'comision' : 'egreso',
+                'category'      => $isCaja0 ? 'caja_0' : ($isComision ? 'comision' : 'egreso'),
                 'amount'        => (float) $s->monto,
                 'description'   => $s->descripcion ?? 'Egreso',
-                'paymentMethod' => null,
+                'paymentMethod' => $s->tipo_pago ?? 'efectivo',
+                'origen'        => $s->origen ?? 'mostrador',
                 'createdAt'     => $s->created_at?->toISOString(),
                 'saleId'        => null,
                 'items'         => [],
@@ -300,15 +301,20 @@ class CajaController extends Controller
         })->sum('saldo');
 
         $resumen = [
-            'efectivo'             => $efectivoVentas + $efectivoIngresos,
-            'transferencia'        => $transferenciaVentas + $transferenciaIngresos,
-            'cobros_deuda'         => $cobrosDeuda,
-            'ventas_cuenta'        => $ventasCuenta + $serviciosCuenta,
-            'total_productos'      => $totalProductos,
-            'total_servicios'      => $totalServicios,
-            'total_otros_ingresos' => $totalOtrosIngresos,
-            'total_ingresos'       => $totalServicios + $cobrosDeuda + $totalOtrosIngresos,
-            'egresos'              => (float) $salidas->sum('amount'),
+            'efectivo'              => $efectivoVentas + $efectivoIngresos,
+            'transferencia'         => $transferenciaVentas + $transferenciaIngresos,
+            'cobros_deuda'          => $cobrosDeuda,
+            'ventas_cuenta'         => $ventasCuenta + $serviciosCuenta,
+            'total_productos'       => $totalProductos,
+            'total_servicios'       => $totalServicios,
+            'total_otros_ingresos'  => $totalOtrosIngresos,
+            'total_ingresos'        => $totalServicios + $cobrosDeuda + $totalOtrosIngresos,
+            'egresos'               => (float) ($egresosEfectivo + $egresosTransferencia),
+            'egresos_efectivo'      => $egresosEfectivo,
+            'egresos_transferencia' => $egresosTransferencia,
+            'egresos_caja_0'        => (float) $salidasData->where('origen', 'caja_0')->sum('monto'),
+            'turno_activo'          => $cajaActiva ? true : false,
+            'turno_inicio'          => ($startTime instanceof \Carbon\Carbon ? $startTime : ($startTime ? \Carbon\Carbon::parse($startTime) : null))?->toISOString(),
         ];
 
         $all = $ventasEntries->concat($ingresos)->concat($salidas)
@@ -349,27 +355,41 @@ class CajaController extends Controller
             ]);
             $id = 'ING-' . $entry->id_ingreso;
         } else {
+            $tipoPago = $request->input('tipo_pago') ?? $request->input('paymentMethod') ?? 'efectivo';
+            $origen   = $request->input('origen', 'mostrador');
             $entry = Salida::create([
                 'idpersona'   => $request->idpersona,
                 'tipo_salida' => $request->input('tipo_salida', 'gasto'),
+                'origen'      => $origen,
                 'monto'       => $request->amount,
+                'tipo_pago'   => $tipoPago,
                 'descripcion' => $request->description,
                 'saldo'       => $request->amount,
                 'estado'      => 'activo',
                 'id_local'    => $local->id,
             ]);
             $id = 'SAL-' . $entry->idsalida;
+
+            // Si el egreso sale de Caja 0 (Tesorería), restar del acumulador del local
+            if ($origen === 'caja_0') {
+                if ($tipoPago === 'transferencia') {
+                    $local->decrement('saldo_caja_0_transferencia', (float) $request->amount);
+                } else {
+                    $local->decrement('saldo_caja_0_efectivo', (float) $request->amount);
+                }
+            }
         }
 
         return response()->json([
             'message'  => 'Movimiento registrado',
             'cashflow' => [
-                'id'          => $id,
-                'type'        => $request->type,
-                'amount'      => (float) $request->amount,
-                'description' => $request->description,
-                'createdAt'   => $entry->created_at->toISOString(),
-                'saleId'      => null,
+                'id'            => $id,
+                'type'          => $request->type,
+                'amount'        => (float) $request->amount,
+                'description'   => $request->description,
+                'paymentMethod' => $request->type === 'ingreso' ? ($entry->tipo_pago ?? 'efectivo') : ($entry->tipo_pago ?? 'efectivo'),
+                'createdAt'     => $entry->created_at->toISOString(),
+                'saleId'        => null,
             ],
         ], 201);
     }
@@ -433,9 +453,21 @@ class CajaController extends Controller
             $salidaId = (int) substr($id, 4);
             $salida = Salida::where('id_local', $local->id)->findOrFail($salidaId);
 
+            if ($salida->origen === 'caja_0') {
+                $diferencia = (float)$monto - (float)$salida->monto;
+                if ($salida->tipo_pago === 'transferencia') {
+                    $local->decrement('saldo_caja_0_transferencia', $diferencia);
+                } else {
+                    $local->decrement('saldo_caja_0_efectivo', $diferencia);
+                }
+            }
+
             $salida->monto = $monto;
             if ($desc !== null) {
                 $salida->descripcion = $desc;
+            }
+            if ($request->has('paymentMethod') || $request->has('tipo_pago')) {
+                $salida->tipo_pago = $request->input('tipo_pago') ?? $request->input('paymentMethod') ?? 'efectivo';
             }
             $salida->save();
 
@@ -520,6 +552,16 @@ class CajaController extends Controller
         } elseif (str_starts_with($id, 'SAL-')) {
             $salidaId = (int) substr($id, 4);
             $salida = Salida::where('id_local', $local->id)->findOrFail($salidaId);
+            
+            // Si la salida fue de Caja 0, restituir el saldo al local
+            if ($salida->origen === 'caja_0') {
+                if ($salida->tipo_pago === 'transferencia') {
+                    $local->increment('saldo_caja_0_transferencia', (float) $salida->monto);
+                } else {
+                    $local->increment('saldo_caja_0_efectivo', (float) $salida->monto);
+                }
+            }
+
             $salida->delete();
             return response()->json(['success' => true, 'message' => 'Egreso eliminado correctamente']);
         }
@@ -548,8 +590,10 @@ class CajaController extends Controller
 
         if (!$caja) {
             return response()->json([
-                'estado'        => 'cerrada',
-                'caja'          => null,
+                'estado'                     => 'cerrada',
+                'caja'                       => null,
+                'saldo_caja_0_efectivo'      => (float) ($local->saldo_caja_0_efectivo ?? 0),
+                'saldo_caja_0_transferencia' => (float) ($local->saldo_caja_0_transferencia ?? 0),
                 'ultimo_cierre' => CierreCaja::where(function($q) use ($local) {
                         $q->where('id_local', $local->id)->orWhereNull('id_local');
                     })
@@ -562,19 +606,17 @@ class CajaController extends Controller
             ]);
         }
 
+        $startTime = $this->getTurnoStartTime($caja, $local->id);
         $fechaCierre = $request->input('fecha_cierre');
-        if ($fechaCierre) {
-            $cierreDate = \Carbon\Carbon::parse($fechaCierre);
-            $startTime  = $cierreDate->copy()->startOfDay();
-            $endTime    = $cierreDate->copy()->endOfDay();
-        } else {
-            $startTime = $this->getTurnoStartTime($caja, $local->id);
-            $endTime   = null;
-        }
+        $endTime = $fechaCierre ? \Carbon\Carbon::parse($fechaCierre)->endOfDay() : null;
 
         $ventasQuery   = Venta::where('id_local', $local->id)->where('created_at', '>=', $startTime);
         $ingresosQuery = Ingreso::where('id_local', $local->id)->where('created_at', '>=', $startTime)->where('tipo_pago', '!=', 'cuenta_corriente');
-        $salidasQuery  = Salida::where('id_local', $local->id)->where('created_at', '>=', $startTime);
+        $salidasQuery  = Salida::where('id_local', $local->id)
+            ->where('created_at', '>=', $startTime)
+            ->where(function($q) {
+                $q->whereNull('origen')->orWhere('origen', '!=', 'caja_0');
+            });
 
         if ($endTime) {
             $ventasQuery->where('created_at', '<=', $endTime);
@@ -596,6 +638,8 @@ class CajaController extends Controller
             ($v->forma_de_pago === 'transferencia' ? (float)$v->pago : 0)
         );
         $transferenciaIngresos = (float) $ingresos->where('tipo_pago', 'transferencia')->sum('monto');
+        $salidasEfectivo       = (float) $salidas->where('tipo_pago', '!=', 'transferencia')->sum('monto');
+        $salidasTransferencia  = (float) $salidas->where('tipo_pago', 'transferencia')->sum('monto');
         $totalEgresos          = (float) $salidas->sum('monto');
         $efectivoTotal         = $efectivoVentas + $efectivoIngresos;
         $transferenciaTotal    = $transferenciaVentas + $transferenciaIngresos;
@@ -604,11 +648,34 @@ class CajaController extends Controller
         $totalServiciosIngresos = (float) $ingresos->sum('monto');
         $totalVentasCuenta      = (float) $ventas->where('forma_de_pago', 'cuenta_corriente')->sum('saldo');
 
+        $now = now();
+        $createdAt = $caja->created_at ?? \Carbon\Carbon::parse($caja->fecha_apertura)->startOfDay();
+        $diffHours = (int) $createdAt->diffInHours($now);
+        $diffDays  = (int) $createdAt->diffInDays($now);
+        
+        $duracionTexto = '';
+        if ($diffDays > 0) {
+            $remainingHours = $diffHours % 24;
+            $duracionTexto = "{$diffDays} " . ($diffDays === 1 ? 'día' : 'días') . ($remainingHours > 0 ? " y {$remainingHours} hs" : "");
+        } elseif ($diffHours > 0) {
+            $duracionTexto = "{$diffHours} " . ($diffHours === 1 ? 'hora' : 'horas');
+        } else {
+            $diffMins = (int) $createdAt->diffInMinutes($now);
+            $duracionTexto = "{$diffMins} min";
+        }
+
         return response()->json([
-            'estado' => 'abierta',
+            'estado'                     => 'abierta',
+            'saldo_caja_0_efectivo'      => (float) ($local->saldo_caja_0_efectivo ?? 0),
+            'saldo_caja_0_transferencia' => (float) ($local->saldo_caja_0_transferencia ?? 0),
             'caja'   => [
                 'id'                           => $caja->id,
                 'fecha_apertura'               => $caja->fecha_apertura,
+                'created_at'                   => $caja->created_at?->toISOString(),
+                'turno_inicio'                 => ($startTime instanceof \Carbon\Carbon ? $startTime : \Carbon\Carbon::parse($startTime))->toISOString(),
+                'dias_abierta'                 => $diffDays,
+                'horas_abierta'                => $diffHours,
+                'duracion_texto'               => $duracionTexto,
                 'monto_apertura'               => (float) $caja->monto_apertura,
                 'monto_apertura_transferencia' => (float) $caja->monto_apertura_transferencia,
                 'total_ventas_productos'       => $totalVentasProductos,
@@ -621,8 +688,10 @@ class CajaController extends Controller
                 'efectivo'                     => $efectivoTotal,
                 'transferencia'                => $transferenciaTotal,
                 'egresos'                      => $totalEgresos,
-                'efectivo_en_caja'             => round((float)$caja->monto_apertura + $efectivoTotal - $totalEgresos, 2),
-                'transferencia_en_caja'        => round((float)$caja->monto_apertura_transferencia + $transferenciaTotal, 2),
+                'egresos_efectivo'             => $salidasEfectivo,
+                'egresos_transferencia'        => $salidasTransferencia,
+                'efectivo_en_caja'             => round((float)$caja->monto_apertura + $efectivoTotal - $salidasEfectivo, 2),
+                'transferencia_en_caja'        => round((float)$caja->monto_apertura_transferencia + $transferenciaTotal - $salidasTransferencia, 2),
             ],
         ]);
     }
@@ -700,18 +769,18 @@ class CajaController extends Controller
         }
 
         $fechaCierre = $request->input('fecha_cierre', today()->toDateString());
-        if ($fechaCierre !== today()->toDateString() && $caja->fecha_apertura !== $fechaCierre) {
-            $cierreDate = \Carbon\Carbon::parse($fechaCierre);
-            $startTime  = $cierreDate->copy()->startOfDay();
-            $endTime    = $cierreDate->copy()->endOfDay();
-        } else {
-            $startTime = $this->getTurnoStartTime($caja, $local->id);
-            $endTime   = \Carbon\Carbon::parse($fechaCierre)->endOfDay();
-        }
+        $startTime = $this->getTurnoStartTime($caja, $local->id);
+        $endTime   = \Carbon\Carbon::parse($fechaCierre)->endOfDay();
 
         $ventas   = Venta::where('id_local', $local->id)->where('created_at', '>=', $startTime)->where('created_at', '<=', $endTime)->get();
         $ingresos = Ingreso::where('id_local', $local->id)->where('created_at', '>=', $startTime)->where('created_at', '<=', $endTime)->get();
-        $salidas  = Salida::where('id_local', $local->id)->where('created_at', '>=', $startTime)->where('created_at', '<=', $endTime)->get();
+        $salidas  = Salida::where('id_local', $local->id)
+            ->where('created_at', '>=', $startTime)
+            ->where('created_at', '<=', $endTime)
+            ->where(function($q) {
+                $q->whereNull('origen')->orWhere('origen', '!=', 'caja_0');
+            })
+            ->get();
 
         $ventasEfectivo = (float) $ventas->sum(fn($v) =>
             $v->forma_de_pago === 'mixto' ? (float)($v->monto_efectivo ?? 0) :
@@ -726,11 +795,13 @@ class CajaController extends Controller
         $totalIngresos = (float) $ingresos->where('tipo_pago', '!=', 'cuenta_corriente')->sum('monto');
         
         $ingresosTransferencia = (float) $ingresos->where('tipo_pago', 'transferencia')->sum('monto');
-        $totalSalidas  = (float) $salidas->sum('monto');
+        $salidasEfectivo       = (float) $salidas->where('tipo_pago', '!=', 'transferencia')->sum('monto');
+        $salidasTransferencia  = (float) $salidas->where('tipo_pago', 'transferencia')->sum('monto');
+        $totalSalidas          = (float) $salidas->sum('monto');
 
         // Sistema espera esto en físico y en banco para este turno
-        $efectivoSistema = round((float)$caja->monto_apertura + $ventasEfectivo + $totalIngresos - $ingresosTransferencia - $totalSalidas, 2);
-        $transferenciaSistema = round((float)$caja->monto_apertura_transferencia + $ventasTransferencia + $ingresosTransferencia, 2);
+        $efectivoSistema      = round((float)$caja->monto_apertura + $ventasEfectivo + ($totalIngresos - $ingresosTransferencia) - $salidasEfectivo, 2);
+        $transferenciaSistema = round((float)$caja->monto_apertura_transferencia + $ventasTransferencia + $ingresosTransferencia - $salidasTransferencia, 2);
 
         // Montos reales ingresados manualmente por el operador
         $montoEfectivoReal      = (float) $request->monto_efectivo_real;
@@ -738,31 +809,66 @@ class CajaController extends Controller
         $montoCuentaReal        = (float) ($request->monto_cuenta_real ?? $ventasCuenta);
         $montoTotalReal         = round($montoEfectivoReal + $montoTransferenciaReal + $montoCuentaReal, 2);
 
+        // Fondo que queda en el cajón para el próximo turno y retiro a Caja 0
+        $fondoSiguienteTurno = $request->has('fondo_siguiente_turno') 
+            ? (float) $request->fondo_siguiente_turno 
+            : $montoEfectivoReal;
+
+        $retiroCaja0Efectivo = $request->has('retiro_caja_0_efectivo')
+            ? (float) $request->retiro_caja_0_efectivo
+            : max(0, round($montoEfectivoReal - $fondoSiguienteTurno, 2));
+
+        $fondoSiguienteTurnoTransferencia = $request->has('fondo_siguiente_turno_transferencia')
+            ? (float) $request->fondo_siguiente_turno_transferencia
+            : $montoTransferenciaReal;
+
+        $retiroCaja0Transferencia = $request->has('retiro_caja_0_transferencia')
+            ? (float) $request->retiro_caja_0_transferencia
+            : max(0, round($montoTransferenciaReal - $fondoSiguienteTurnoTransferencia, 2));
+
         $fechaCierre = $request->input('fecha_cierre', today()->toDateString());
         $caja->update([
-            'fecha_cierre'                    => $fechaCierre,
-            'monto_total_ventas'              => $totalVentas,
-            'ventas_efectivo'                 => $ventasEfectivo,
-            'ventas_transferencia'            => $ventasTransferencia,
-            'ventas_cuenta'                   => $ventasCuenta,
-            'ingresos'                        => $totalIngresos,
-            'salidas'                         => $totalSalidas,
-            'monto_cierre'                    => $efectivoSistema,
-            'monto_cierre_real'               => $montoEfectivoReal,
-            'monto_cierre_transferencia_real' => $montoTransferenciaReal,
-            'monto_cierre_cuenta_real'        => $montoCuentaReal,
-            'estado'                          => 'cerrada',
+            'fecha_cierre'                        => $fechaCierre,
+            'monto_total_ventas'                  => $totalVentas,
+            'ventas_efectivo'                     => $ventasEfectivo,
+            'ventas_transferencia'                => $ventasTransferencia,
+            'ventas_cuenta'                       => $ventasCuenta,
+            'ingresos'                            => $totalIngresos,
+            'salidas'                             => $totalSalidas,
+            'monto_cierre'                        => $efectivoSistema,
+            'monto_cierre_real'                   => $montoEfectivoReal,
+            'monto_cierre_transferencia_real'     => $montoTransferenciaReal,
+            'monto_cierre_cuenta_real'            => $montoCuentaReal,
+            'retiro_caja_0_efectivo'              => $retiroCaja0Efectivo,
+            'fondo_siguiente_turno'               => $fondoSiguienteTurno,
+            'retiro_caja_0_transferencia'         => $retiroCaja0Transferencia,
+            'fondo_siguiente_turno_transferencia' => $fondoSiguienteTurnoTransferencia,
+            'estado'                              => 'cerrada',
         ]);
 
+        // Impactar retiros en el acumulador de Caja 0 del local
+        if ($retiroCaja0Efectivo > 0) {
+            $local->increment('saldo_caja_0_efectivo', $retiroCaja0Efectivo);
+        }
+        if ($retiroCaja0Transferencia > 0) {
+            $local->increment('saldo_caja_0_transferencia', $retiroCaja0Transferencia);
+        }
+
         return response()->json([
-            'message'                   => 'Caja cerrada correctamente',
-            'diferencia_efectivo'       => round($montoEfectivoReal - $efectivoSistema, 2),
-            'efectivo_sistema'          => $efectivoSistema,
-            'monto_efectivo_real'       => $montoEfectivoReal,
-            'monto_transferencia_real'  => $montoTransferenciaReal,
-            'monto_cuenta_real'         => $montoCuentaReal,
-            'total_real'                => $montoTotalReal,
-            'caja'                      => $caja->fresh(),
+            'message'                             => 'Caja cerrada correctamente',
+            'diferencia_efectivo'                 => round($montoEfectivoReal - $efectivoSistema, 2),
+            'efectivo_sistema'                    => $efectivoSistema,
+            'monto_efectivo_real'                 => $montoEfectivoReal,
+            'monto_transferencia_real'            => $montoTransferenciaReal,
+            'monto_cuenta_real'                   => $montoCuentaReal,
+            'total_real'                          => $montoTotalReal,
+            'retiro_caja_0_efectivo'              => $retiroCaja0Efectivo,
+            'fondo_siguiente_turno'               => $fondoSiguienteTurno,
+            'retiro_caja_0_transferencia'         => $retiroCaja0Transferencia,
+            'fondo_siguiente_turno_transferencia' => $fondoSiguienteTurnoTransferencia,
+            'saldo_caja_0_efectivo'               => (float) $local->fresh()->saldo_caja_0_efectivo,
+            'saldo_caja_0_transferencia'          => (float) $local->fresh()->saldo_caja_0_transferencia,
+            'caja'                                => $caja->fresh(),
         ]);
     }
 
@@ -790,5 +896,37 @@ class CajaController extends Controller
             ->get();
 
         return response()->json(['cierres' => $cierres]);
+    }
+
+    /**
+     * POST /api/caja/caja-0/ajuste
+     * Permite cargar saldo inicial o ajustar el balance de Caja 0 (Efectivo y Transferencia)
+     */
+    public function ajusteCaja0(Request $request)
+    {
+        $local = $this->getLocal();
+        if (!$local) {
+            return response()->json(['message' => 'No tenés un local asignado.'], 403);
+        }
+
+        $request->validate([
+            'saldo_efectivo'      => 'required|numeric|min:0',
+            'saldo_transferencia' => 'nullable|numeric|min:0',
+            'motivo'              => 'nullable|string|max:255',
+        ]);
+
+        $saldoEf = (float) $request->saldo_efectivo;
+        $saldoTr = (float) ($request->saldo_transferencia ?? 0);
+
+        $local->saldo_caja_0_efectivo = $saldoEf;
+        $local->saldo_caja_0_transferencia = $saldoTr;
+        $local->save();
+
+        return response()->json([
+            'success'                    => true,
+            'message'                    => 'Saldo de Caja 0 actualizado correctamente',
+            'saldo_caja_0_efectivo'      => $saldoEf,
+            'saldo_caja_0_transferencia' => $saldoTr,
+        ]);
     }
 }
