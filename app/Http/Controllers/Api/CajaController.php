@@ -28,7 +28,7 @@ class CajaController extends Controller
         }
 
         // El turno de caja comienza estrictamente en la fecha y hora en que fue abierto
-        if ($cajaActiva->created_at) {
+        if ($cajaActiva->fecha_apertura && (!$cajaActiva->created_at || \Carbon\Carbon::parse($cajaActiva->fecha_apertura)->startOfDay()->lt(\Carbon\Carbon::parse($cajaActiva->created_at)->startOfDay()))) { return \Carbon\Carbon::parse($cajaActiva->fecha_apertura)->startOfDay(); } if ($cajaActiva->created_at) {
             return \Carbon\Carbon::parse($cajaActiva->created_at);
         }
 
@@ -239,8 +239,14 @@ class CajaController extends Controller
 
         // Para el arqueo de mostrador (cajón diario), SOLO sumamos egresos del mostrador (no Caja 0)
         $salidasMostrador = $salidasData->filter(fn($s) => $s->origen !== 'caja_0');
-        $egresosEfectivo = (float) $salidasMostrador->where('tipo_pago', '!=', 'transferencia')->sum('monto');
-        $egresosTransferencia = (float) $salidasMostrador->where('tipo_pago', 'transferencia')->sum('monto');
+        $gastosMostrador      = $salidasMostrador->filter(fn($s) => $s->tipo_salida !== 'alivio');
+        $egresosEfectivo      = (float) $gastosMostrador->where('tipo_pago', '!=', 'transferencia')->sum('monto');
+        $egresosTransferencia = (float) $gastosMostrador->where('tipo_pago', 'transferencia')->sum('monto');
+
+        $aliviosData          = $salidasMostrador->filter(fn($s) => $s->tipo_salida === 'alivio');
+        $aliviosEfectivo      = (float) $aliviosData->where('tipo_pago', '!=', 'transferencia')->sum('monto');
+        $aliviosTransferencia = (float) $aliviosData->where('tipo_pago', 'transferencia')->sum('monto');
+        $totalAlivios         = $aliviosEfectivo + $aliviosTransferencia;
 
         $salidas = $salidasData->map(function($s) {
             $isComision = $s->tipo_salida === 'comision' || str_contains(strtolower($s->descripcion ?? ''), 'comisi');
@@ -248,7 +254,7 @@ class CajaController extends Controller
             return [
                 'id'            => 'SAL-' . $s->idsalida,
                 'type'          => 'egreso',
-                'category'      => $isCaja0 ? 'caja_0' : ($isComision ? 'comision' : 'egreso'),
+                'category'      => $isCaja0 ? 'caja_0' : ($s->tipo_salida === 'alivio' ? 'alivio' : ($isComision ? 'comision' : 'egreso')),
                 'amount'        => (float) $s->monto,
                 'description'   => $s->descripcion ?? 'Egreso',
                 'paymentMethod' => $s->tipo_pago ?? 'efectivo',
@@ -312,6 +318,9 @@ class CajaController extends Controller
             'egresos'               => (float) ($egresosEfectivo + $egresosTransferencia),
             'egresos_efectivo'      => $egresosEfectivo,
             'egresos_transferencia' => $egresosTransferencia,
+            'total_alivios'         => $totalAlivios,
+            'alivios_efectivo'      => $aliviosEfectivo,
+            'alivios_transferencia' => $aliviosTransferencia,
             'egresos_caja_0'        => (float) $salidasData->where('origen', 'caja_0')->sum('monto'),
             'turno_activo'          => $cajaActiva ? true : false,
             'turno_inicio'          => ($startTime instanceof \Carbon\Carbon ? $startTime : ($startTime ? \Carbon\Carbon::parse($startTime) : null))?->toISOString(),
@@ -640,7 +649,13 @@ class CajaController extends Controller
         $transferenciaIngresos = (float) $ingresos->where('tipo_pago', 'transferencia')->sum('monto');
         $salidasEfectivo       = (float) $salidas->where('tipo_pago', '!=', 'transferencia')->sum('monto');
         $salidasTransferencia  = (float) $salidas->where('tipo_pago', 'transferencia')->sum('monto');
-        $totalEgresos          = (float) $salidas->sum('monto');
+        $gastosSalidas         = $salidas->where('tipo_salida', '!=', 'alivio');
+        $gastosEfectivo        = (float) $gastosSalidas->where('tipo_pago', '!=', 'transferencia')->sum('monto');
+        $gastosTransferencia   = (float) $gastosSalidas->where('tipo_pago', 'transferencia')->sum('monto');
+        $totalGastos           = $gastosEfectivo + $gastosTransferencia;
+        $aliviosEfectivo       = (float) $salidas->where('tipo_salida', 'alivio')->where('tipo_pago', '!=', 'transferencia')->sum('monto');
+        $aliviosTransferencia  = (float) $salidas->where('tipo_salida', 'alivio')->where('tipo_pago', 'transferencia')->sum('monto');
+        $totalAlivios          = (float) $salidas->where('tipo_salida', 'alivio')->sum('monto');
         $efectivoTotal         = $efectivoVentas + $efectivoIngresos;
         $transferenciaTotal    = $transferenciaVentas + $transferenciaIngresos;
 
@@ -649,7 +664,7 @@ class CajaController extends Controller
         $totalVentasCuenta      = (float) $ventas->where('forma_de_pago', 'cuenta_corriente')->sum('saldo');
 
         $now = now();
-        $createdAt = $caja->created_at ?? \Carbon\Carbon::parse($caja->fecha_apertura)->startOfDay();
+        $createdAt = ($startTime instanceof \Carbon\Carbon) ? $startTime : \Carbon\Carbon::parse($startTime);
         $diffHours = (int) $createdAt->diffInHours($now);
         $diffDays  = (int) $createdAt->diffInDays($now);
         
@@ -671,7 +686,7 @@ class CajaController extends Controller
             'caja'   => [
                 'id'                           => $caja->id,
                 'fecha_apertura'               => $caja->fecha_apertura,
-                'created_at'                   => $caja->created_at?->toISOString(),
+                'created_at'                   => ($startTime instanceof \Carbon\Carbon ? $startTime : \Carbon\Carbon::parse($startTime))->toISOString(),
                 'turno_inicio'                 => ($startTime instanceof \Carbon\Carbon ? $startTime : \Carbon\Carbon::parse($startTime))->toISOString(),
                 'dias_abierta'                 => $diffDays,
                 'horas_abierta'                => $diffHours,
@@ -687,11 +702,14 @@ class CajaController extends Controller
                 'servicios_transferencia'      => $transferenciaIngresos,
                 'efectivo'                     => $efectivoTotal,
                 'transferencia'                => $transferenciaTotal,
-                'egresos'                      => $totalEgresos,
-                'egresos_efectivo'             => $salidasEfectivo,
-                'egresos_transferencia'        => $salidasTransferencia,
+                'egresos'                      => $totalGastos,
+                'egresos_efectivo'             => $gastosEfectivo,
+                'egresos_transferencia'        => $gastosTransferencia,
                 'efectivo_en_caja'             => round((float)$caja->monto_apertura + $efectivoTotal - $salidasEfectivo, 2),
                 'transferencia_en_caja'        => round((float)$caja->monto_apertura_transferencia + $transferenciaTotal - $salidasTransferencia, 2),
+                'total_alivios'                => $totalAlivios,
+                'alivios_efectivo'             => $aliviosEfectivo,
+                'alivios_transferencia'        => $aliviosTransferencia,
             ],
         ]);
     }
@@ -797,7 +815,7 @@ class CajaController extends Controller
         $ingresosTransferencia = (float) $ingresos->where('tipo_pago', 'transferencia')->sum('monto');
         $salidasEfectivo       = (float) $salidas->where('tipo_pago', '!=', 'transferencia')->sum('monto');
         $salidasTransferencia  = (float) $salidas->where('tipo_pago', 'transferencia')->sum('monto');
-        $totalSalidas          = (float) $salidas->sum('monto');
+        $totalSalidas          = (float) $salidas->where('tipo_salida', '!=', 'alivio')->sum('monto');
 
         // Sistema espera esto en físico y en banco para este turno
         $efectivoSistema      = round((float)$caja->monto_apertura + $ventasEfectivo + ($totalIngresos - $ingresosTransferencia) - $salidasEfectivo, 2);
@@ -902,6 +920,79 @@ class CajaController extends Controller
      * POST /api/caja/caja-0/ajuste
      * Permite cargar saldo inicial o ajustar el balance de Caja 0 (Efectivo y Transferencia)
      */
+    public function alivio(Request $request)
+    {
+        $local = $this->getLocal();
+        if (!$local) return response()->json(['message' => 'No tenés un local asignado.'], 403);
+
+        $montoEfectivo      = (float) $request->input('monto_efectivo', 0);
+        $montoTransferencia = (float) $request->input('monto_transferencia', 0);
+
+        // Fallback legacy (monto + tipo_pago)
+        if ($montoEfectivo <= 0 && $montoTransferencia <= 0 && $request->has('monto')) {
+            $m = (float) $request->input('monto', 0);
+            if ($request->input('tipo_pago') === 'transferencia') {
+                $montoTransferencia = $m;
+            } else {
+                $montoEfectivo = $m;
+            }
+        }
+
+        if ($montoEfectivo <= 0 && $montoTransferencia <= 0) {
+            return response()->json(['message' => 'Ingresá un monto válido para transferir a Tesorería.'], 422);
+        }
+
+        $desc = $request->input('descripcion') ?: 'Alivio de caja a Tesorería';
+
+        DB::beginTransaction();
+        try {
+            $salidas = [];
+
+            if ($montoEfectivo > 0) {
+                $salidaEf = Salida::create([
+                    'tipo_salida' => 'alivio',
+                    'origen'      => 'mostrador',
+                    'monto'       => $montoEfectivo,
+                    'tipo_pago'   => 'efectivo',
+                    'descripcion' => $desc . ($montoTransferencia > 0 ? ' (Efectivo)' : ''),
+                    'saldo'       => $montoEfectivo,
+                    'estado'      => 'activo',
+                    'id_local'    => $local->id,
+                ]);
+                $local->increment('saldo_caja_0_efectivo', $montoEfectivo);
+                $salidas[] = $salidaEf;
+            }
+
+            if ($montoTransferencia > 0) {
+                $salidaTr = Salida::create([
+                    'tipo_salida' => 'alivio',
+                    'origen'      => 'mostrador',
+                    'monto'       => $montoTransferencia,
+                    'tipo_pago'   => 'transferencia',
+                    'descripcion' => $desc . ($montoEfectivo > 0 ? ' (Banco/MP)' : ''),
+                    'saldo'       => $montoTransferencia,
+                    'estado'      => 'activo',
+                    'id_local'    => $local->id,
+                ]);
+                $local->increment('saldo_caja_0_transferencia', $montoTransferencia);
+                $salidas[] = $salidaTr;
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'success'                    => true,
+                'message'                    => 'Alivio a Tesorería registrado correctamente',
+                'saldo_caja_0_efectivo'      => (float) $local->fresh()->saldo_caja_0_efectivo,
+                'saldo_caja_0_transferencia' => (float) $local->fresh()->saldo_caja_0_transferencia,
+                'salidas'                    => $salidas,
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['message' => 'Error al registrar alivio: ' . $e->getMessage()], 500);
+        }
+    }
+
     public function ajusteCaja0(Request $request)
     {
         $local = $this->getLocal();

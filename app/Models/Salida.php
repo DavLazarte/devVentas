@@ -21,7 +21,9 @@ class Salida extends Model
         'descripcion',
         'saldo',
         'estado',
-        'id_local'
+        'id_local',
+        'created_at',
+        'updated_at'
     ];
 
     // Relación con la tabla personas

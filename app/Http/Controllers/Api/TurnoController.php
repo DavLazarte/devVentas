@@ -649,7 +649,7 @@ class TurnoController extends Controller
 
             // Obtener empleado asignado al servicio si existe
             $infoRelAdminDetalle = $this->resolverServiciosYEmpleadosRelacionados($servicio);
-            $empleadoId = !empty($infoRelAdminDetalle['empleados_ids']) ? $infoRelAdminDetalle['empleados_ids'][0] : null;
+            $empleadoId = ($request->input('empleado_id') ?? $request->input('recurso_id')) ?: (!empty($infoRelAdminDetalle['empleados_ids']) ? $infoRelAdminDetalle['empleados_ids'][0] : null);
 
             DetallePedido::create([
                 'pedido_id'       => $pedido->id,
@@ -867,6 +867,13 @@ class TurnoController extends Controller
 
         $prefijo = "Cobro de turno: {$servicioNombre}" . ($persona ? " - {$persona->nombre}" : '') . $empleadoNombre . $notaSaldo;
 
+        // Fecha de imputación: si el turno es de otra fecha (ej: ayer), imputar el cobro a esa fecha
+        $fechaImputacion = now();
+        if (!empty($turnoActual->fecha_servicio) && $turnoActual->fecha_servicio !== today()->toDateString()) {
+            $horaActual = now()->toTimeString();
+            $fechaImputacion = \Carbon\Carbon::parse($turnoActual->fecha_servicio . ' ' . $horaActual);
+        }
+
         if ($montoEfectivo > 0) {
             \App\Models\Ingreso::create([
                 'idpersona'    => $persona?->idpersona,
@@ -874,6 +881,8 @@ class TurnoController extends Controller
                 'tipo_pago'    => 'efectivo',
                 'tipo_ingreso' => 'servicio',
                 'descripcion'  => $prefijo,
+                'created_at'   => $fechaImputacion,
+                'updated_at'   => $fechaImputacion,
                 'saldo'        => 0,
                 'estado'       => 'activo',
                 'id_local'     => $localId,
@@ -886,6 +895,8 @@ class TurnoController extends Controller
                 'tipo_pago'    => 'transferencia',
                 'tipo_ingreso' => 'servicio',
                 'descripcion'  => $prefijo,
+                'created_at'   => $fechaImputacion,
+                'updated_at'   => $fechaImputacion,
                 'saldo'        => 0,
                 'estado'       => 'activo',
                 'id_local'     => $localId,
@@ -898,6 +909,8 @@ class TurnoController extends Controller
                 'tipo_pago'    => 'cuenta_corriente',
                 'tipo_ingreso' => 'servicio',
                 'descripcion'  => "Servicio a cuenta: {$servicioNombre}" . ($persona ? " - {$persona->nombre}" : '') . $empleadoNombre,
+                'created_at'   => $fechaImputacion,
+                'updated_at'   => $fechaImputacion,
                 'saldo'        => $montoCuentaCte,
                 'estado'       => 'activo',
                 'id_local'     => $localId,

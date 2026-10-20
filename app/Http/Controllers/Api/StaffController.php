@@ -308,6 +308,13 @@ class StaffController extends Controller
 
         $prefijo = "Cobro de turno: {$servicioNombre}" . ($clientePersona ? " - {$clientePersona->nombre}" : '') . " (por {$empleado->nombre})" . $notaSaldo;
 
+        // Fecha de imputación: si el turno es de otra fecha (ej: ayer), imputar el cobro a esa fecha
+        $fechaImputacion = now();
+        if (!empty($turno->fecha_servicio) && $turno->fecha_servicio !== today()->toDateString()) {
+            $horaActual = now()->toTimeString();
+            $fechaImputacion = \Carbon\Carbon::parse($turno->fecha_servicio . ' ' . $horaActual);
+        }
+
         if ($montoEfectivo > 0) {
             Ingreso::create([
                 'idpersona'    => $clientePersona?->idpersona,
@@ -315,6 +322,8 @@ class StaffController extends Controller
                 'tipo_pago'    => 'efectivo',
                 'tipo_ingreso' => 'servicio',
                 'descripcion'  => $prefijo,
+                'created_at'   => $fechaImputacion,
+                'updated_at'   => $fechaImputacion,
                 'saldo'        => 0,
                 'estado'       => 'activo',
                 'id_local'     => $localId,
@@ -327,6 +336,8 @@ class StaffController extends Controller
                 'tipo_pago'    => 'transferencia',
                 'tipo_ingreso' => 'servicio',
                 'descripcion'  => $prefijo,
+                'created_at'   => $fechaImputacion,
+                'updated_at'   => $fechaImputacion,
                 'saldo'        => 0,
                 'estado'       => 'activo',
                 'id_local'     => $localId,
@@ -339,6 +350,8 @@ class StaffController extends Controller
                 'tipo_pago'    => 'cuenta_corriente',
                 'tipo_ingreso' => 'servicio',
                 'descripcion'  => "Servicio a cuenta: {$servicioNombre}" . ($clientePersona ? " - {$clientePersona->nombre}" : '') . " (por {$empleado->nombre})",
+                'created_at'   => $fechaImputacion,
+                'updated_at'   => $fechaImputacion,
                 'saldo'        => $montoCuentaCte,
                 'estado'       => 'activo',
                 'id_local'     => $localId,

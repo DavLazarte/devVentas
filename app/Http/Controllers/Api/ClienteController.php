@@ -580,14 +580,16 @@ class ClienteController extends Controller
                 ->get(['servicios.idservicio', 'servicios.nombre', 'servicios.precio', 'servicios.duracion']);
             $serviciosIds = $serviciosAsignados->pluck('idservicio')->toArray();
 
-            $hoy = \Carbon\Carbon::today('America/Argentina/Buenos_Aires')->toDateString();
+            $hoy = request('fecha') ?: \Carbon\Carbon::today('America/Argentina/Buenos_Aires')->toDateString();
 
             // Buscar todos los detalles de turnos de hoy que correspondan a este empleado
             $detallesHoy = \App\Models\DetallePedido::with(['pedido', 'servicio'])
                 ->whereHas('pedido', function ($q) use ($hoy) {
                     $q->where(function ($sub) use ($hoy) {
                         $sub->whereDate('fecha_servicio', $hoy)
-                            ->orWhereDate('created_at', $hoy);
+                            ->orWhere(function ($s) use ($hoy) {
+                                $s->whereNull('fecha_servicio')->whereDate('created_at', $hoy);
+                            });
                     })->whereIn('estado_atencion', ['completado']);
                 })
                 ->where(function ($q) use ($c, $serviciosIds) {

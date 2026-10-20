@@ -207,7 +207,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/caja', [CajaController::class, 'store']);
         Route::put('/caja/movimientos/{id}', [CajaController::class, 'updateMovimiento']);
         Route::delete('/caja/movimientos/{id}', [CajaController::class, 'destroyMovimiento']);
-        Route::post('/caja/caja-0/ajuste', [CajaController::class, 'ajusteCaja0']);
+        Route::post('/caja/caja-0/ajuste', [CajaController::class, 'ajusteCaja0']); Route::post('/caja/alivio', [CajaController::class, 'alivio']);
     });
 
     // ──────────────────────────────────────────────
