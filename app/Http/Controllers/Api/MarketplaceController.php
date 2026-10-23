@@ -13,6 +13,119 @@ class MarketplaceController extends Controller
     /**
      * Obtener todas las categorías globales del marketplace con sus subcategorías
      */
+    /**
+     * Feed consolidado para la página principal del marketplace
+     * Agrupa categorias, nuevos, destacados, tendencias, recomendados y anuncios en una sola petición.
+     */
+    public function feed()
+    {
+        $feed = \Illuminate\Support\Facades\Cache::remember('marketplace_feed_home', 120, function () {
+            $categorias = Category::with('subcategories')
+                ->whereIn('state', ['active', 'activo'])
+                ->orderBy('orden')
+                ->get();
+
+            $nuevos = Local::where('estado', 'activo')
+                ->where('mostrar_feed', true)
+                ->where(function($q) {
+                    $q->where('plan', '!=', 'free')
+                      ->orWhereHas('planInfo', function($pq) {
+                          $pq->where('precio_mensual', '>', 0);
+                      });
+                })
+                ->orderBy('created_at', 'desc')
+                ->take(5)
+                ->get();
+
+            $destacados = Local::where('estado', 'activo')
+                ->where('mostrar_feed', true)
+                ->where('destacado', true)
+                ->orderBy('rating_promedio', 'desc')
+                ->take(10)
+                ->get();
+
+            $recomendados = Local::where('estado', 'activo')
+                ->where('mostrar_feed', true)
+                ->inRandomOrder()
+                ->take(5)
+                ->get();
+
+            $destacadosPago = Articulo::with(['local', 'categoria'])
+                ->whereHas('local', function($q) {
+                    $q->where('estado', 'activo')
+                      ->where('mostrar_feed', true)
+                      ->where(function($pq) {
+                          $pq->where('plan', '!=', 'free')
+                             ->orWhereHas('planInfo', function($ppq) {
+                                 $ppq->where('precio_mensual', '>', 0);
+                             });
+                      });
+                })
+                ->where('estado', 'activo')
+                ->where('mostrar_feed', true)
+                ->where('destacado', true)
+                ->inRandomOrder()
+                ->take(10)
+                ->get();
+
+            if ($destacadosPago->count() < 10) {
+                $idsUsados = $destacadosPago->pluck('idarticulo');
+                $extra = Articulo::with(['local', 'categoria'])
+                    ->whereHas('local', function($q) {
+                        $q->where('estado', 'activo')->where('mostrar_feed', true);
+                    })
+                    ->where('estado', 'activo')
+                    ->where('mostrar_feed', true)
+                    ->where('destacado', true)
+                    ->whereNotIn('idarticulo', $idsUsados)
+                    ->inRandomOrder()
+                    ->take(10 - $destacadosPago->count())
+                    ->get();
+                $destacadosPago = $destacadosPago->merge($extra);
+            }
+
+            $anuncios = \App\Models\Anuncio::with('local:id,nombre,foto_logo,tipo,slug')
+                ->where('estado', 'activo')
+                ->orderBy('created_at', 'desc')
+                ->take(10)
+                ->get();
+
+            $farmaciasTurno = Local::where('estado', 'activo')
+                ->where('tipo', 'farmacia')
+                ->where('de_turno', true)
+                ->select('id', 'nombre', 'foto_logo', 'tipo', 'slug', 'direccion')
+                ->get()
+                ->map(function ($farmacia) {
+                    return [
+                        'id' => 'auto-farmacia-' . $farmacia->id,
+                        'local_id' => $farmacia->id,
+                        'titulo' => 'Hoy de turno',
+                        'descripcion' => $farmacia->direccion ? "Dirección: " . $farmacia->direccion : 'Farmacia de turno habilitada en el día de hoy.',
+                        'tipo' => 'farmacia_turno',
+                        'estado' => 'activo',
+                        'local' => $farmacia,
+                        'created_at' => now(),
+                    ];
+                });
+
+            $combinadosAnuncios = collect($anuncios)->concat($farmaciasTurno)
+                ->sortByDesc('created_at')
+                ->take(15)
+                ->values();
+
+            return [
+                'categorias'   => $categorias,
+                'nuevos'       => $nuevos,
+                'destacados'   => $destacados,
+                'recomendados' => $recomendados,
+                'tendencias'   => $destacadosPago->values(),
+                'anuncios'     => $combinadosAnuncios,
+            ];
+        });
+
+        return response()->json($feed);
+    }
+
     public function categorias()
     {
         $categorias = Category::with('subcategories')

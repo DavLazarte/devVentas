@@ -90,6 +90,7 @@ class CajaController extends Controller
                 'amount'        => (float) $i->monto,
                 'description'   => $i->descripcion ?? 'Ingreso',
                 'paymentMethod' => $i->tipo_pago ?? 'efectivo',
+                'origen'        => $i->origen ?? 'mostrador',
                 'createdAt'     => $i->created_at?->toISOString(),
                 'saleId'        => null,
                 'items'         => [],
@@ -101,6 +102,7 @@ class CajaController extends Controller
                 'amount'        => (float) $s->monto,
                 'description'   => $s->descripcion ?? 'Egreso',
                 'paymentMethod' => null,
+                'origen'        => $s->origen ?? 'mostrador',
                 'createdAt'     => $s->created_at?->toISOString(),
                 'saleId'        => null,
                 'items'         => [],
@@ -154,6 +156,7 @@ class CajaController extends Controller
                 'montoTransferencia' => $montoTr,
                 'description'        => $desc,
                 'paymentMethod'      => $v->forma_de_pago,
+                'origen'             => 'mostrador',
                 'createdAt'          => $v->created_at->toISOString(),
                 'saleId'             => (string) $v->id,
                 'items'              => $v->detalles->map(function($d) {
@@ -196,7 +199,7 @@ class CajaController extends Controller
             return $i->tipo_pago ?? 'efectivo';
         };
 
-        // Ingresos del día (cobros de deuda, cobros de turnos inmediatos, y servicios a cuenta)
+        // Ingresos del día (cobros de deuda, cobros de turnos inmediatos, servicios a cuenta e ingresos de Tesorería)
         $ingresosQuery = Ingreso::with('cliente')->where('id_local', $local->id);
         $ingresosQuery = $applyDateFilter($ingresosQuery);
         $ingresosData = $ingresosQuery->get();
@@ -205,6 +208,7 @@ class CajaController extends Controller
             $isCuentaCorriente = $i->tipo_pago === 'cuenta_corriente';
             $category = $clasificarIngreso($i);
             $metodo = $resolverMetodoPago($i);
+            $isCaja0 = ($i->origen ?? 'mostrador') === 'caja_0';
 
             $desc = $i->descripcion;
             if ($category === 'deuda') {
@@ -220,12 +224,13 @@ class CajaController extends Controller
             return [
                 'id'            => 'ING-' . $i->id_ingreso,
                 'type'          => 'ingreso',
-                'category'      => $category,
+                'category'      => $isCaja0 ? 'caja_0' : $category,
                 'amount'        => $isCuentaCorriente ? 0 : (float) $i->monto,
                 'totalVenta'    => (float) $i->monto,
                 'saldo'         => (float) $i->saldo,
                 'description'   => $desc ?? ($isCuentaCorriente ? 'Servicio a cuenta' : 'Ingreso manual'),
                 'paymentMethod' => $metodo,
+                'origen'        => $i->origen ?? 'mostrador',
                 'createdAt'     => $i->created_at?->toISOString(),
                 'saleId'        => null,
                 'items'         => [],
@@ -265,8 +270,10 @@ class CajaController extends Controller
             ];
         });
 
-        // Resumen por forma de pago (sumando ventas + ingresos directos)
-        $ingresosCobrados = $ingresosData->where('tipo_pago', '!=', 'cuenta_corriente');
+        // Resumen por forma de pago (sumando ventas + ingresos directos del Mostrador)
+        $ingresosMostrador = $ingresosData->filter(fn($i) => ($i->origen ?? 'mostrador') !== 'caja_0');
+        $ingresosCaja0     = $ingresosData->filter(fn($i) => ($i->origen ?? 'mostrador') === 'caja_0');
+        $ingresosCobrados  = $ingresosMostrador->where('tipo_pago', '!=', 'cuenta_corriente');
         
         $efectivoVentas = (float) $ventas->sum(function($v) {
             if ($v->forma_de_pago === 'mixto') {
@@ -302,28 +309,31 @@ class CajaController extends Controller
         })->sum('monto');
 
         $ventasCuenta = (float) $ventas->where('forma_de_pago', 'cuenta_corriente')->sum('saldo');
-        $serviciosCuenta = (float) $ingresosData->where('tipo_pago', 'cuenta_corriente')->filter(function($i) use ($clasificarIngreso) {
+        $serviciosCuenta = (float) $ingresosMostrador->where('tipo_pago', 'cuenta_corriente')->filter(function($i) use ($clasificarIngreso) {
             return $clasificarIngreso($i) === 'servicio';
         })->sum('saldo');
 
         $resumen = [
-            'efectivo'              => $efectivoVentas + $efectivoIngresos,
-            'transferencia'         => $transferenciaVentas + $transferenciaIngresos,
-            'cobros_deuda'          => $cobrosDeuda,
-            'ventas_cuenta'         => $ventasCuenta + $serviciosCuenta,
-            'total_productos'       => $totalProductos,
-            'total_servicios'       => $totalServicios,
-            'total_otros_ingresos'  => $totalOtrosIngresos,
-            'total_ingresos'        => $totalServicios + $cobrosDeuda + $totalOtrosIngresos,
-            'egresos'               => (float) ($egresosEfectivo + $egresosTransferencia),
-            'egresos_efectivo'      => $egresosEfectivo,
-            'egresos_transferencia' => $egresosTransferencia,
-            'total_alivios'         => $totalAlivios,
-            'alivios_efectivo'      => $aliviosEfectivo,
-            'alivios_transferencia' => $aliviosTransferencia,
-            'egresos_caja_0'        => (float) $salidasData->where('origen', 'caja_0')->sum('monto'),
-            'turno_activo'          => $cajaActiva ? true : false,
-            'turno_inicio'          => ($startTime instanceof \Carbon\Carbon ? $startTime : ($startTime ? \Carbon\Carbon::parse($startTime) : null))?->toISOString(),
+            'efectivo'                      => $efectivoVentas + $efectivoIngresos,
+            'transferencia'                 => $transferenciaVentas + $transferenciaIngresos,
+            'cobros_deuda'                  => $cobrosDeuda,
+            'ventas_cuenta'                 => $ventasCuenta + $serviciosCuenta,
+            'total_productos'               => $totalProductos,
+            'total_servicios'               => $totalServicios,
+            'total_otros_ingresos'          => $totalOtrosIngresos,
+            'total_ingresos'                => $totalServicios + $cobrosDeuda + $totalOtrosIngresos,
+            'egresos'                       => (float) ($egresosEfectivo + $egresosTransferencia),
+            'egresos_efectivo'              => $egresosEfectivo,
+            'egresos_transferencia'         => $egresosTransferencia,
+            'total_alivios'                 => $totalAlivios,
+            'alivios_efectivo'              => $aliviosEfectivo,
+            'alivios_transferencia'         => $aliviosTransferencia,
+            'egresos_caja_0'                => (float) $salidasData->where('origen', 'caja_0')->sum('monto'),
+            'ingresos_caja_0'               => (float) $ingresosCaja0->sum('monto'),
+            'ingresos_caja_0_efectivo'      => (float) $ingresosCaja0->where('tipo_pago', '!=', 'transferencia')->sum('monto'),
+            'ingresos_caja_0_transferencia' => (float) $ingresosCaja0->where('tipo_pago', 'transferencia')->sum('monto'),
+            'turno_activo'                  => $cajaActiva ? true : false,
+            'turno_inicio'                  => ($startTime instanceof \Carbon\Carbon ? $startTime : ($startTime ? \Carbon\Carbon::parse($startTime) : null))?->toISOString(),
         ];
 
         $all = $ventasEntries->concat($ingresos)->concat($salidas)
@@ -348,24 +358,39 @@ class CajaController extends Controller
             'type'        => 'required|in:ingreso,egreso',
             'amount'      => 'required|numeric|min:0.01',
             'description' => 'required|string|max:255',
+            'origen'      => 'nullable|string|in:mostrador,caja_0',
         ]);
+
+        $origen = $request->input('origen', 'mostrador');
 
         if ($request->type === 'ingreso') {
             $isCuentaCorriente = ($request->tipo_pago === 'cuenta_corriente');
+            $tipoPago = $request->input('tipo_pago') ?? $request->input('paymentMethod') ?? 'efectivo';
+            $tipoIngreso = $request->input('tipo_ingreso') ?: ($origen === 'caja_0' ? 'aporte_tesoreria' : 'manual');
+
             $entry = Ingreso::create([
                 'idpersona'    => $request->idpersona,
                 'monto'        => $request->amount,
-                'tipo_pago'    => $request->tipo_pago ?? 'efectivo',
-                'tipo_ingreso' => $request->input('tipo_ingreso', 'manual'),
+                'tipo_pago'    => $tipoPago,
+                'tipo_ingreso' => $tipoIngreso,
+                'origen'       => $origen,
                 'descripcion'  => $request->description,
                 'saldo'        => $isCuentaCorriente ? $request->amount : 0,
                 'estado'       => 'activo',
                 'id_local'     => $local->id,
             ]);
             $id = 'ING-' . $entry->id_ingreso;
+
+            // Si el ingreso entra a Caja 0 (Tesorería), sumar al acumulador del local
+            if ($origen === 'caja_0') {
+                if ($tipoPago === 'transferencia') {
+                    $local->increment('saldo_caja_0_transferencia', (float) $request->amount);
+                } else {
+                    $local->increment('saldo_caja_0_efectivo', (float) $request->amount);
+                }
+            }
         } else {
             $tipoPago = $request->input('tipo_pago') ?? $request->input('paymentMethod') ?? 'efectivo';
-            $origen   = $request->input('origen', 'mostrador');
             $entry = Salida::create([
                 'idpersona'   => $request->idpersona,
                 'tipo_salida' => $request->input('tipo_salida', 'gasto'),
@@ -394,9 +419,11 @@ class CajaController extends Controller
             'cashflow' => [
                 'id'            => $id,
                 'type'          => $request->type,
+                'category'      => $origen === 'caja_0' ? 'caja_0' : ($request->type === 'ingreso' ? 'ingreso' : 'egreso'),
                 'amount'        => (float) $request->amount,
                 'description'   => $request->description,
-                'paymentMethod' => $request->type === 'ingreso' ? ($entry->tipo_pago ?? 'efectivo') : ($entry->tipo_pago ?? 'efectivo'),
+                'paymentMethod' => $entry->tipo_pago ?? 'efectivo',
+                'origen'        => $origen,
                 'createdAt'     => $entry->created_at->toISOString(),
                 'saleId'        => null,
             ],
@@ -427,6 +454,15 @@ class CajaController extends Controller
         if (str_starts_with($id, 'ING-')) {
             $ingresoId = (int) substr($id, 4);
             $ingreso = Ingreso::where('id_local', $local->id)->findOrFail($ingresoId);
+
+            if ($ingreso->origen === 'caja_0') {
+                $diferencia = (float)$monto - (float)$ingreso->monto;
+                if ($ingreso->tipo_pago === 'transferencia') {
+                    $local->increment('saldo_caja_0_transferencia', $diferencia);
+                } else {
+                    $local->increment('saldo_caja_0_efectivo', $diferencia);
+                }
+            }
 
             $ingreso->monto = $monto;
             if ($desc !== null) {
@@ -500,6 +536,15 @@ class CajaController extends Controller
         if (str_starts_with($id, 'ING-')) {
             $ingresoId = (int) substr($id, 4);
             $ingreso = Ingreso::where('id_local', $local->id)->findOrFail($ingresoId);
+
+            // Si el ingreso fue a Caja 0, restar del saldo al local
+            if ($ingreso->origen === 'caja_0') {
+                if ($ingreso->tipo_pago === 'transferencia') {
+                    $local->decrement('saldo_caja_0_transferencia', (float) $ingreso->monto);
+                } else {
+                    $local->decrement('saldo_caja_0_efectivo', (float) $ingreso->monto);
+                }
+            }
             
             if ($ingreso->idpersona) {
                 $persona = $ingreso->cliente ?? \App\Models\Persona::find($ingreso->idpersona);
@@ -620,7 +665,12 @@ class CajaController extends Controller
         $endTime = $fechaCierre ? \Carbon\Carbon::parse($fechaCierre)->endOfDay() : null;
 
         $ventasQuery   = Venta::where('id_local', $local->id)->where('created_at', '>=', $startTime);
-        $ingresosQuery = Ingreso::where('id_local', $local->id)->where('created_at', '>=', $startTime)->where('tipo_pago', '!=', 'cuenta_corriente');
+        $ingresosQuery = Ingreso::where('id_local', $local->id)
+            ->where('created_at', '>=', $startTime)
+            ->where('tipo_pago', '!=', 'cuenta_corriente')
+            ->where(function($q) {
+                $q->whereNull('origen')->orWhere('origen', '!=', 'caja_0');
+            });
         $salidasQuery  = Salida::where('id_local', $local->id)
             ->where('created_at', '>=', $startTime)
             ->where(function($q) {
@@ -791,7 +841,13 @@ class CajaController extends Controller
         $endTime   = \Carbon\Carbon::parse($fechaCierre)->endOfDay();
 
         $ventas   = Venta::where('id_local', $local->id)->where('created_at', '>=', $startTime)->where('created_at', '<=', $endTime)->get();
-        $ingresos = Ingreso::where('id_local', $local->id)->where('created_at', '>=', $startTime)->where('created_at', '<=', $endTime)->get();
+        $ingresos = Ingreso::where('id_local', $local->id)
+            ->where('created_at', '>=', $startTime)
+            ->where('created_at', '<=', $endTime)
+            ->where(function($q) {
+                $q->whereNull('origen')->orWhere('origen', '!=', 'caja_0');
+            })
+            ->get();
         $salidas  = Salida::where('id_local', $local->id)
             ->where('created_at', '>=', $startTime)
             ->where('created_at', '<=', $endTime)
@@ -1008,16 +1064,85 @@ class CajaController extends Controller
 
         $saldoEf = (float) $request->saldo_efectivo;
         $saldoTr = (float) ($request->saldo_transferencia ?? 0);
+        $motivo  = trim($request->motivo ?: 'Ajuste de Tesorería');
 
-        $local->saldo_caja_0_efectivo = $saldoEf;
-        $local->saldo_caja_0_transferencia = $saldoTr;
-        $local->save();
+        $actualEf = (float) ($local->saldo_caja_0_efectivo ?? 0);
+        $actualTr = (float) ($local->saldo_caja_0_transferencia ?? 0);
 
-        return response()->json([
-            'success'                    => true,
-            'message'                    => 'Saldo de Caja 0 actualizado correctamente',
-            'saldo_caja_0_efectivo'      => $saldoEf,
-            'saldo_caja_0_transferencia' => $saldoTr,
-        ]);
+        $diffEf = round($saldoEf - $actualEf, 2);
+        $diffTr = round($saldoTr - $actualTr, 2);
+
+        DB::beginTransaction();
+        try {
+            // Ajuste Efectivo
+            if ($diffEf > 0) {
+                Ingreso::create([
+                    'idpersona'    => null,
+                    'monto'        => $diffEf,
+                    'tipo_pago'    => 'efectivo',
+                    'tipo_ingreso' => 'ajuste_caja_0',
+                    'origen'       => 'caja_0',
+                    'descripcion'  => "Ajuste positivo Tesorería: {$motivo}",
+                    'saldo'        => 0,
+                    'estado'       => 'activo',
+                    'id_local'     => $local->id,
+                ]);
+            } elseif ($diffEf < 0) {
+                Salida::create([
+                    'idpersona'   => null,
+                    'tipo_salida' => 'ajuste_caja_0',
+                    'origen'      => 'caja_0',
+                    'monto'       => abs($diffEf),
+                    'tipo_pago'   => 'efectivo',
+                    'descripcion' => "Ajuste negativo Tesorería: {$motivo}",
+                    'saldo'       => abs($diffEf),
+                    'estado'      => 'activo',
+                    'id_local'    => $local->id,
+                ]);
+            }
+
+            // Ajuste Transferencia
+            if ($diffTr > 0) {
+                Ingreso::create([
+                    'idpersona'    => null,
+                    'monto'        => $diffTr,
+                    'tipo_pago'    => 'transferencia',
+                    'tipo_ingreso' => 'ajuste_caja_0',
+                    'origen'       => 'caja_0',
+                    'descripcion'  => "Ajuste positivo Tesorería (Banco): {$motivo}",
+                    'saldo'        => 0,
+                    'estado'       => 'activo',
+                    'id_local'     => $local->id,
+                ]);
+            } elseif ($diffTr < 0) {
+                Salida::create([
+                    'idpersona'   => null,
+                    'tipo_salida' => 'ajuste_caja_0',
+                    'origen'      => 'caja_0',
+                    'monto'       => abs($diffTr),
+                    'tipo_pago'   => 'transferencia',
+                    'descripcion' => "Ajuste negativo Tesorería (Banco): {$motivo}",
+                    'saldo'       => abs($diffTr),
+                    'estado'      => 'activo',
+                    'id_local'    => $local->id,
+                ]);
+            }
+
+            $local->saldo_caja_0_efectivo = $saldoEf;
+            $local->saldo_caja_0_transferencia = $saldoTr;
+            $local->save();
+
+            DB::commit();
+
+            return response()->json([
+                'success'                    => true,
+                'message'                    => 'Saldo de Caja 0 actualizado y movimiento registrado correctamente',
+                'saldo_caja_0_efectivo'      => $saldoEf,
+                'saldo_caja_0_transferencia' => $saldoTr,
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['message' => 'Error al ajustar Caja 0: ' . $e->getMessage()], 500);
+        }
     }
 }

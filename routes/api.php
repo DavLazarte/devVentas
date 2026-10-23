@@ -42,6 +42,7 @@ Route::prefix('staff')->group(function () {
 // Marketplace Público (Tienda Dux)
 // ──────────────────────────────────────────────
 Route::prefix('tienda')->group(function () {
+    Route::get('/feed', [\App\Http\Controllers\Api\MarketplaceController::class, 'feed']);
     Route::get('/categorias', [\App\Http\Controllers\Api\MarketplaceController::class, 'categorias']);
     Route::get('/anuncios', [\App\Http\Controllers\Api\MarketplaceController::class, 'anuncios']);
     Route::get('/locales', [\App\Http\Controllers\Api\MarketplaceController::class, 'locales']);
