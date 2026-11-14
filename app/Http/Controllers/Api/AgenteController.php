@@ -22,24 +22,21 @@ class AgenteController extends Controller
 
     /**
      * GET /api/agente/farmacias-turno
-     * Devuelve farmacias marcadas como de_turno = true
+     * Devuelve farmacias de turno hoy según ciclo COFATUC (08:00 a 08:00) + overrides manuales
      */
     public function farmaciasTurno(Request $request)
     {
         $this->checkAgente($request);
 
-        $farmacias = Local::where('estado', 'activo')
-            ->where('tipo', 'farmacia')
-            ->where('de_turno', true)
-            ->select('id', 'nombre', 'direccion', 'telefono')
-            ->get()
-            ->map(function ($f) {
-                return [
-                    'nombre' => $f->nombre,
-                    'direccion' => $f->direccion ?? 'Sin dirección cargada',
-                    'telefono' => $f->telefono ?? 'Sin teléfono',
-                ];
-            });
+        $farmacias = Local::obtenerFarmaciasDeTurno()->map(function ($f) {
+            return [
+                'nombre'        => $f['nombre'],
+                'direccion'     => $f['direccion'] ?? 'Sin dirección cargada',
+                'telefono'      => $f['telefono'] ?? 'Sin teléfono',
+                'horario_turno' => $f['horario_turno'] ?? 'Hoy de 08:00 a 08:00 hs',
+                'slug'          => $f['slug'] ?? null,
+            ];
+        });
 
         if ($farmacias->isEmpty()) {
             return response()->json([
@@ -49,7 +46,7 @@ class AgenteController extends Controller
         }
 
         return response()->json([
-            'mensaje' => 'Farmacias de turno hoy',
+            'mensaje' => 'Farmacias de turno hoy (de 08:00 a 08:00 hs)',
             'cantidad' => $farmacias->count(),
             'farmacias' => $farmacias
         ]);

@@ -25,30 +25,53 @@ class MarketplaceController extends Controller
                 ->orderBy('orden')
                 ->get();
 
-            $nuevos = Local::where('estado', 'activo')
+            $withRelations = ['categories:id,name,slug,icon', 'subcategories:id,name,slug,category_id'];
+
+            // Nuevos en Qhatu: prioriza planes pagos y completa con las últimas altas callejeras (excluyendo farmacias masivas)
+            $nuevos = Local::with($withRelations)
+                ->where('estado', 'activo')
                 ->where('mostrar_feed', true)
-                ->where(function($q) {
-                    $q->where('plan', '!=', 'free')
-                      ->orWhereHas('planInfo', function($pq) {
-                          $pq->where('precio_mensual', '>', 0);
-                      });
-                })
+                ->where('tipo', '!=', 'farmacia')
+                ->orderByRaw("CASE WHEN plan != 'free' THEN 0 ELSE 1 END ASC")
                 ->orderBy('created_at', 'desc')
-                ->take(5)
+                ->take(8)
                 ->get();
 
-            $destacados = Local::where('estado', 'activo')
+            $destacados = Local::with($withRelations)
+                ->where('estado', 'activo')
                 ->where('mostrar_feed', true)
                 ->where('destacado', true)
                 ->orderBy('rating_promedio', 'desc')
                 ->take(10)
                 ->get();
 
-            $recomendados = Local::where('estado', 'activo')
+            // Todos los locales activos para el listado principal inteligente de Monteros
+            $seedFecha = date('Y-m-d');
+            $todosLocales = Local::with($withRelations)
+                ->where('estado', 'activo')
                 ->where('mostrar_feed', true)
-                ->inRandomOrder()
-                ->take(5)
-                ->get();
+                ->get()
+                ->sortByDesc(function (Local $local) use ($seedFecha) {
+                    $abiertoScore = $local->abierto_ahora ? 100000 : 0;
+                    $destacadoScore = $local->destacado ? 20000 : 0;
+
+                    // Completitud de ficha (logo, horario/24hs, teléfono, categorías, portada)
+                    $completitud = 0;
+                    if (!empty($local->foto_logo)) $completitud += 3000;
+                    if ($local->siempre_abierto || !empty($local->horario)) $completitud += 2500;
+                    if (!empty($local->telefono)) $completitud += 2000;
+                    if ($local->categories->isNotEmpty()) $completitud += 1500;
+                    if (!empty($local->foto_portada)) $completitud += 1000;
+
+                    // Penalizar farmacias que NO están de turno en el listado general para que no tapen comercios
+                    $farmaciaPenalty = ($local->tipo === 'farmacia' && !$local->abierto_ahora) ? -5000 : 0;
+
+                    // Rotación diaria justa dentro del mismo nivel
+                    $dailyRotation = abs(crc32($local->id . '-' . $seedFecha)) % 900;
+
+                    return $abiertoScore + $destacadoScore + $completitud + $farmaciaPenalty + $dailyRotation;
+                })
+                ->values();
 
             $destacadosPago = Articulo::with(['local', 'categoria'])
                 ->whereHas('local', function($q) {
@@ -84,42 +107,25 @@ class MarketplaceController extends Controller
                 $destacadosPago = $destacadosPago->merge($extra);
             }
 
-            $anuncios = \App\Models\Anuncio::with('local:id,nombre,foto_logo,tipo,slug')
+            // Anuncios reales (globales de la ciudad + menús/ofertas de locales)
+            $anuncios = \App\Models\Anuncio::with('local:id,nombre,foto_logo,tipo,slug,telefono,direccion')
                 ->where('estado', 'activo')
                 ->orderBy('created_at', 'desc')
-                ->take(10)
+                ->take(12)
                 ->get();
 
-            $farmaciasTurno = Local::where('estado', 'activo')
-                ->where('tipo', 'farmacia')
-                ->where('de_turno', true)
-                ->select('id', 'nombre', 'foto_logo', 'tipo', 'slug', 'direccion')
-                ->get()
-                ->map(function ($farmacia) {
-                    return [
-                        'id' => 'auto-farmacia-' . $farmacia->id,
-                        'local_id' => $farmacia->id,
-                        'titulo' => 'Hoy de turno',
-                        'descripcion' => $farmacia->direccion ? "Dirección: " . $farmacia->direccion : 'Farmacia de turno habilitada en el día de hoy.',
-                        'tipo' => 'farmacia_turno',
-                        'estado' => 'activo',
-                        'local' => $farmacia,
-                        'created_at' => now(),
-                    ];
-                });
-
-            $combinadosAnuncios = collect($anuncios)->concat($farmaciasTurno)
-                ->sortByDesc('created_at')
-                ->take(15)
-                ->values();
+            // Farmacias de turno hoy (cacheadas por 24hs hasta las 08:00 AM del día siguiente)
+            $farmaciasTurno = Local::obtenerFarmaciasDeTurno();
 
             return [
-                'categorias'   => $categorias,
-                'nuevos'       => $nuevos,
-                'destacados'   => $destacados,
-                'recomendados' => $recomendados,
-                'tendencias'   => $destacadosPago->values(),
-                'anuncios'     => $combinadosAnuncios,
+                'categorias'      => $categorias,
+                'nuevos'          => $nuevos,
+                'destacados'      => $destacados,
+                'recomendados'    => $todosLocales->take(12)->values(),
+                'abiertos_count'  => $todosLocales->filter(fn($l) => $l->abierto_ahora || $l->siempre_abierto)->count(),
+                'tendencias'      => $destacadosPago->values(),
+                'anuncios'        => $anuncios->values(),
+                'farmacias_turno' => $farmaciasTurno,
             ];
         });
 
@@ -141,32 +147,32 @@ class MarketplaceController extends Controller
      */
     public function anuncios()
     {
-        $anuncios = \App\Models\Anuncio::with('local:id,nombre,foto_logo,tipo,slug')
+        $anuncios = \App\Models\Anuncio::with('local:id,nombre,foto_logo,tipo,slug,telefono,direccion')
             ->where('estado', 'activo')
             ->orderBy('created_at', 'desc')
-            ->take(10)
+            ->take(12)
             ->get();
             
-        // Auto-generar anuncios para Farmacias de turno
-        $farmaciasTurno = Local::where('estado', 'activo')
-            ->where('tipo', 'farmacia')
-            ->where('de_turno', true)
-            ->select('id', 'nombre', 'foto_logo', 'tipo', 'slug', 'direccion')
-            ->get()
-            ->map(function ($farmacia) {
-                return [
-                    'id' => 'auto-farmacia-' . $farmacia->id,
-                    'local_id' => $farmacia->id,
-                    'titulo' => 'Hoy de turno',
-                    'descripcion' => $farmacia->direccion ? "Dirección: " . $farmacia->direccion : 'Farmacia de turno habilitada en el día de hoy.',
-                    'tipo' => 'farmacia_turno', // Changed to identify it easily in frontend
-                    'estado' => 'activo',
-                    'local' => $farmacia,
-                    'created_at' => now(),
-                ];
-            });
+        $farmaciasTurno = Local::obtenerFarmaciasDeTurno()->map(function ($f, $idx) {
+            return [
+                'id' => 'auto-farmacia-' . ($f['id'] ?? $idx),
+                'local_id' => $f['id'],
+                'titulo' => 'Hoy de turno (08:00 a 08:00 hs)',
+                'descripcion' => $f['direccion'] ? "Dirección: " . $f['direccion'] : 'Farmacia de turno habilitada en el día de hoy.',
+                'tipo' => 'farmacia_turno',
+                'estado' => 'activo',
+                'local' => [
+                    'id' => $f['id'],
+                    'nombre' => $f['nombre'],
+                    'slug' => $f['slug'],
+                    'foto_logo_url' => $f['foto_logo_url'],
+                    'direccion' => $f['direccion'],
+                    'telefono' => $f['telefono'],
+                ],
+                'created_at' => now(),
+            ];
+        });
 
-        // Combinar y ordenar
         $combinados = collect($anuncios)->concat($farmaciasTurno)
             ->sortByDesc('created_at')
             ->take(15)
@@ -180,14 +186,16 @@ class MarketplaceController extends Controller
      */
     public function locales(Request $request)
     {
-        $query = Local::where('estado', 'activo')
+        $query = Local::with(['categories:id,name,slug,icon', 'subcategories:id,name,slug,category_id'])
+            ->where('estado', 'activo')
             ->where('mostrar_feed', true);
 
         if ($request->has('search')) {
             $search = $request->search;
             $query->where(function($q) use ($search) {
                 $q->where('nombre', 'like', "%{$search}%")
-                  ->orWhere('descripcion', 'like', "%{$search}%");
+                  ->orWhere('descripcion', 'like', "%{$search}%")
+                  ->orWhere('direccion', 'like', "%{$search}%");
             });
         }
         
@@ -220,14 +228,15 @@ class MarketplaceController extends Controller
     }
 
     /**
-     * Obtener locales recomendados (5 aleatorios)
+     * Obtener locales recomendados
      */
     public function recomendados()
     {
-        $locales = Local::where('estado', 'activo')
+        $locales = Local::with(['categories:id,name,slug,icon', 'subcategories:id,name,slug,category_id'])
+            ->where('estado', 'activo')
             ->where('mostrar_feed', true)
             ->inRandomOrder()
-            ->take(5)
+            ->take(10)
             ->get();
 
         return response()->json($locales);
@@ -238,7 +247,8 @@ class MarketplaceController extends Controller
      */
     public function destacados()
     {
-        $locales = Local::where('estado', 'activo')
+        $locales = Local::with(['categories:id,name,slug,icon', 'subcategories:id,name,slug,category_id'])
+            ->where('estado', 'activo')
             ->where('mostrar_feed', true)
             ->where('destacado', true)
             ->orderBy('rating_promedio', 'desc')
@@ -249,21 +259,17 @@ class MarketplaceController extends Controller
     }
 
     /**
-     * Obtener 5 locales nuevos (solo planes pago, para el feed home)
+     * Obtener locales nuevos
      */
     public function nuevos()
     {
-        $locales = Local::where('estado', 'activo')
+        $locales = Local::with(['categories:id,name,slug,icon', 'subcategories:id,name,slug,category_id'])
+            ->where('estado', 'activo')
             ->where('mostrar_feed', true)
-            ->where(function($q) {
-                // Solo planes pago: plan != 'free' o tiene plan_id con plan de pago
-                $q->where('plan', '!=', 'free')
-                  ->orWhereHas('planInfo', function($pq) {
-                      $pq->where('precio_mensual', '>', 0);
-                  });
-            })
+            ->where('tipo', '!=', 'farmacia')
+            ->orderByRaw("CASE WHEN plan != 'free' THEN 0 ELSE 1 END ASC")
             ->orderBy('created_at', 'desc')
-            ->take(5)
+            ->take(8)
             ->get();
 
         return response()->json($locales);
@@ -275,32 +281,13 @@ class MarketplaceController extends Controller
      */
     public function nuevosTodos()
     {
-        // Traemos los de planes pago primero, luego el resto
-        $pagos = Local::where('estado', 'activo')
+        $todos = Local::with(['categories:id,name,slug,icon', 'subcategories:id,name,slug,category_id'])
+            ->where('estado', 'activo')
             ->where('mostrar_feed', true)
-            ->where(function($q) {
-                $q->where('plan', '!=', 'free')
-                  ->orWhereHas('planInfo', function($pq) {
-                      $pq->where('precio_mensual', '>', 0);
-                  });
-            })
+            ->orderByRaw("CASE WHEN plan != 'free' THEN 0 ELSE 1 END ASC")
             ->orderBy('created_at', 'desc')
             ->take(20)
             ->get();
-
-        $gratis = Local::where('estado', 'activo')
-            ->where('mostrar_feed', true)
-            ->where(function($q) {
-                $q->where('plan', 'free')
-                  ->whereDoesntHave('planInfo', function($pq) {
-                      $pq->where('precio_mensual', '>', 0);
-                  });
-            })
-            ->orderBy('created_at', 'desc')
-            ->take(20)
-            ->get();
-
-        $todos = $pagos->merge($gratis)->take(20)->values();
 
         return response()->json($todos);
     }
@@ -316,7 +303,8 @@ class MarketplaceController extends Controller
 
         $localidad = $request->localidad;
 
-        $locales = Local::where('estado', 'activo')
+        $locales = Local::with(['categories:id,name,slug,icon', 'subcategories:id,name,slug,category_id'])
+            ->where('estado', 'activo')
             ->where('mostrar_feed', true)
             ->whereRaw('LOWER(localidad) = ?', [mb_strtolower($localidad)])
             ->orderBy('rating_promedio', 'desc')
@@ -331,7 +319,9 @@ class MarketplaceController extends Controller
      */
     public function showLocal($identifier)
     {
-        $local = Local::with(['categories'])
+        $local = Local::with(['categories', 'subcategories', 'anuncios' => function ($q) {
+                $q->where('estado', 'activo')->orderBy('created_at', 'desc');
+            }])
             ->where('estado', 'activo')
             ->where('mostrar_feed', true)
             ->where(function($q) use ($identifier) {

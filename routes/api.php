@@ -102,10 +102,12 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/anuncios', [SuperadminController::class, 'getAnuncios']);
         Route::post('/anuncios', [SuperadminController::class, 'storeGlobalAnuncio']);
         Route::put('/anuncios/{id}', [SuperadminController::class, 'updateAnuncio']);
+        Route::post('/anuncios/{id}', [SuperadminController::class, 'updateAnuncio']);
         Route::delete('/anuncios/{id}', [SuperadminController::class, 'deleteAnuncio']);
         
         Route::get('/dashboard', [SuperadminController::class, 'dashboard']);
         Route::put('/locales/{id}', [SuperadminController::class, 'updateLocal']);
+        Route::post('/locales/{id}', [SuperadminController::class, 'updateLocal']);
         Route::get('/usuarios', [SuperadminController::class, 'getUsuarios']);
         Route::put('/usuarios/{id}', [SuperadminController::class, 'updateUsuario']);
         Route::get('/categorias', [SuperadminController::class, 'getCategorias']);

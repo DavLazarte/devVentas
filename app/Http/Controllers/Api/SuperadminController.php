@@ -25,13 +25,19 @@ class SuperadminController extends Controller
     {
         $this->checkAdmin($request);
 
-        $query = Local::with(['user:id,name,email,role_id']);
+        $query = Local::with([
+            'user:id,name,email,role_id',
+            'categories:id,name,slug,icon',
+            'subcategories:id,name,slug,category_id',
+        ]);
 
         if ($request->has('search') && !empty($request->search)) {
             $search = $request->search;
             $query->where(function ($q) use ($search) {
                 $q->where('nombre', 'like', "%{$search}%")
                   ->orWhere('slug', 'like', "%{$search}%")
+                  ->orWhere('direccion', 'like', "%{$search}%")
+                  ->orWhere('telefono', 'like', "%{$search}%")
                   ->orWhereHas('user', function ($qu) use ($search) {
                       $qu->where('name', 'like', "%{$search}%")
                          ->orWhere('email', 'like', "%{$search}%");
@@ -39,15 +45,34 @@ class SuperadminController extends Controller
             });
         }
 
-        $paginator = $query->orderBy('created_at', 'desc')->paginate(15);
+        if ($request->has('tipo') && !empty($request->tipo) && $request->tipo !== 'todos') {
+            $query->where('tipo', $request->tipo);
+        }
+
+        if ($request->has('categoria_id') && !empty($request->categoria_id)) {
+            $catId = $request->categoria_id;
+            $query->whereHas('categories', function ($q) use ($catId) {
+                $q->where('categories.id', $catId);
+            });
+        }
+
+        $perPage = min((int) $request->input('per_page', 15), 200);
+        $paginator = $query->orderBy('created_at', 'desc')->paginate($perPage);
 
         $formateado = $paginator->getCollection()->map(function ($l) {
+            $redes = is_string($l->redes_sociales) ? json_decode($l->redes_sociales, true) : $l->redes_sociales;
             return [
                 'id' => $l->id,
                 'nombre' => $l->nombre,
                 'slug' => $l->slug,
                 'email' => $l->email,
                 'telefono' => $l->telefono,
+                'direccion' => $l->direccion,
+                'localidad' => $l->localidad,
+                'descripcion' => $l->descripcion,
+                'horario' => $l->horario,
+                'redes_sociales' => $redes ?: null,
+                'instagram' => is_array($redes) ? ($redes['instagram'] ?? '') : '',
                 'estado' => $l->estado,
                 'plan' => $l->plan,
                 'tipo' => $l->tipo,
@@ -56,6 +81,19 @@ class SuperadminController extends Controller
                 'siempre_abierto' => (bool) $l->siempre_abierto,
                 'de_turno' => (bool) $l->de_turno,
                 'foto_logo_url' => $l->foto_logo_url,
+                'foto_portada_url' => $l->foto_portada_url,
+                'categories' => $l->categories->map(fn($c) => [
+                    'id' => $c->id,
+                    'name' => $c->name,
+                    'slug' => $c->slug,
+                    'icon' => $c->icon,
+                ])->values(),
+                'subcategories' => $l->subcategories->map(fn($s) => [
+                    'id' => $s->id,
+                    'name' => $s->name,
+                    'slug' => $s->slug,
+                    'category_id' => $s->category_id,
+                ])->values(),
                 'owner' => $l->user ? [
                     'id' => $l->user->id,
                     'name' => $l->user->name,
@@ -157,16 +195,38 @@ class SuperadminController extends Controller
         }
     }
 
+    private function parseIdArray($input): array
+    {
+        if (is_array($input)) {
+            return array_values(array_filter(array_map('intval', $input)));
+        }
+        if (is_string($input) && !empty($input)) {
+            $decoded = json_decode($input, true);
+            if (is_array($decoded)) {
+                return array_values(array_filter(array_map('intval', $decoded)));
+            }
+            return array_values(array_filter(array_map('intval', explode(',', $input))));
+        }
+        return [];
+    }
+
     public function storePublicLocal(Request $request)
     {
         $this->checkAdmin($request);
 
         $request->validate([
             'nombre' => 'required|string|max:255',
-            'tipo' => 'required|string',
-            'telefono' => 'nullable|string',
-            'direccion' => 'nullable|string',
-            'descripcion' => 'nullable|string'
+            'tipo' => 'required|string|max:50',
+            'telefono' => 'nullable|string|max:100',
+            'direccion' => 'nullable|string|max:255',
+            'localidad' => 'nullable|string|max:100',
+            'descripcion' => 'nullable|string',
+            'horario' => 'nullable|string',
+            'siempre_abierto' => 'nullable',
+            'destacado' => 'nullable',
+            'de_turno' => 'nullable',
+            'logo' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:4096',
+            'portada' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:4096',
         ]);
 
         $slug = Str::slug($request->nombre);
@@ -177,22 +237,60 @@ class SuperadminController extends Controller
             $count++;
         }
 
-        $local = Local::create([
+        $planFreeId = \App\Models\Plan::where('slug', 'free')->value('id');
+
+        $local = new Local([
             'id_user' => $request->user()->id, // Propiedad temporal del admin
             'nombre' => $request->nombre,
             'slug' => $slug,
             'estado' => 'activo',
             'plan' => 'free',
+            'plan_id' => $planFreeId,
             'tipo' => $request->tipo,
             'mostrar_feed' => true,
             'telefono' => $request->telefono,
             'direccion' => $request->direccion,
-            'descripcion' => $request->descripcion
+            'localidad' => $request->input('localidad', 'Monteros'),
+            'provincia' => $request->input('provincia', 'Tucumán'),
+            'descripcion' => $request->descripcion,
+            'horario' => $request->horario,
+            'redes_sociales' => $request->has('instagram')
+                ? json_encode(['instagram' => trim((string) $request->input('instagram'))])
+                : ($request->has('redes_sociales') ? (is_array($request->redes_sociales) ? json_encode($request->redes_sociales) : $request->redes_sociales) : null),
+            'siempre_abierto' => filter_var($request->input('siempre_abierto', false), FILTER_VALIDATE_BOOLEAN),
+            'destacado' => filter_var($request->input('destacado', false), FILTER_VALIDATE_BOOLEAN),
+            'de_turno' => filter_var($request->input('de_turno', false), FILTER_VALIDATE_BOOLEAN),
         ]);
+
+        if ($request->hasFile('logo')) {
+            $file = $request->file('logo');
+            $filename = time() . '_' . Str::random(10) . '.' . $file->getClientOriginalExtension();
+            $file->storeAs('locales/logos', $filename, 'public');
+            $local->foto_logo = 'locales/logos/' . $filename;
+        }
+
+        if ($request->hasFile('portada')) {
+            $file = $request->file('portada');
+            $filename = time() . '_' . Str::random(10) . '.' . $file->getClientOriginalExtension();
+            $file->storeAs('locales/portadas', $filename, 'public');
+            $local->foto_portada = 'locales/portadas/' . $filename;
+        }
+
+        $local->save();
+
+        if ($request->has('categories')) {
+            $local->categories()->sync($this->parseIdArray($request->input('categories')));
+        }
+        if ($request->has('subcategories')) {
+            $local->subcategories()->sync($this->parseIdArray($request->input('subcategories')));
+        }
+
+        \Illuminate\Support\Facades\Cache::forget('marketplace_feed_home');
+        Local::limpiarCacheFarmaciasTurno();
 
         return response()->json([
             'message' => 'Local público creado con éxito',
-            'local' => $local
+            'local' => $local->load(['categories', 'subcategories'])
         ], 201);
     }
 
@@ -228,21 +326,35 @@ class SuperadminController extends Controller
             'titulo' => 'required|string|max:255',
             'descripcion' => 'nullable|string',
             'tipo' => 'required|string',
+            'en_slider' => 'nullable',
+            'imagen' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:4096',
         ]);
 
         $local = Local::findOrFail($id);
+
+        $imagenPath = null;
+        if ($request->hasFile('imagen')) {
+            $file = $request->file('imagen');
+            $filename = time() . '_' . Str::random(10) . '.' . $file->getClientOriginalExtension();
+            $file->storeAs('anuncios', $filename, 'public');
+            $imagenPath = 'anuncios/' . $filename;
+        }
 
         $anuncio = \App\Models\Anuncio::create([
             'local_id' => $local->id,
             'titulo' => $request->titulo,
             'descripcion' => $request->descripcion,
+            'imagen' => $imagenPath,
             'tipo' => $request->tipo,
-            'estado' => 'activo'
+            'estado' => 'activo',
+            'en_slider' => filter_var($request->input('en_slider', false), FILTER_VALIDATE_BOOLEAN),
         ]);
+
+        \Illuminate\Support\Facades\Cache::forget('marketplace_feed_home');
 
         return response()->json([
             'message' => 'Anuncio creado correctamente',
-            'anuncio' => $anuncio
+            'anuncio' => $anuncio->load('local:id,nombre,slug,foto_logo')
         ], 201);
     }
 
@@ -251,22 +363,38 @@ class SuperadminController extends Controller
         $this->checkAdmin($request);
 
         $request->validate([
+            'local_id' => 'nullable|exists:locales,id',
             'titulo' => 'required|string|max:255',
             'descripcion' => 'nullable|string',
             'tipo' => 'required|string',
+            'estado' => 'nullable|string|in:activo,inactivo',
+            'en_slider' => 'nullable',
+            'imagen' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:4096',
         ]);
+
+        $imagenPath = null;
+        if ($request->hasFile('imagen')) {
+            $file = $request->file('imagen');
+            $filename = time() . '_' . Str::random(10) . '.' . $file->getClientOriginalExtension();
+            $file->storeAs('anuncios', $filename, 'public');
+            $imagenPath = 'anuncios/' . $filename;
+        }
 
         $anuncio = \App\Models\Anuncio::create([
-            'local_id' => null, // Global!
+            'local_id' => $request->input('local_id') ?: null,
             'titulo' => $request->titulo,
             'descripcion' => $request->descripcion,
+            'imagen' => $imagenPath,
             'tipo' => $request->tipo,
-            'estado' => 'activo'
+            'estado' => $request->input('estado', 'activo'),
+            'en_slider' => filter_var($request->input('en_slider', false), FILTER_VALIDATE_BOOLEAN),
         ]);
 
+        \Illuminate\Support\Facades\Cache::forget('marketplace_feed_home');
+
         return response()->json([
-            'message' => 'Anuncio global creado correctamente',
-            'anuncio' => $anuncio
+            'message' => 'Anuncio creado correctamente',
+            'anuncio' => $anuncio->load('local:id,nombre,slug,foto_logo')
         ], 201);
     }
 
@@ -274,9 +402,20 @@ class SuperadminController extends Controller
     {
         $this->checkAdmin($request);
         
-        $anuncios = \App\Models\Anuncio::with('local:id,nombre')
-            ->orderBy('created_at', 'desc')
-            ->paginate(15);
+        $query = \App\Models\Anuncio::with('local:id,nombre,slug,foto_logo');
+
+        if ($request->has('search') && !empty($request->search)) {
+            $s = $request->search;
+            $query->where(function ($q) use ($s) {
+                $q->where('titulo', 'like', "%{$s}%")
+                  ->orWhere('descripcion', 'like', "%{$s}%")
+                  ->orWhereHas('local', function ($lq) use ($s) {
+                      $lq->where('nombre', 'like', "%{$s}%");
+                  });
+            });
+        }
+
+        $anuncios = $query->orderBy('created_at', 'desc')->paginate(15);
             
         return response()->json($anuncios);
     }
@@ -288,17 +427,39 @@ class SuperadminController extends Controller
         $anuncio = \App\Models\Anuncio::findOrFail($id);
         
         $request->validate([
+            'local_id' => 'nullable|exists:locales,id',
             'titulo' => 'sometimes|string|max:255',
             'descripcion' => 'nullable|string',
             'tipo' => 'sometimes|string',
-            'estado' => 'sometimes|string'
+            'estado' => 'sometimes|string',
+            'en_slider' => 'nullable',
+            'imagen' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:4096',
         ]);
 
-        $anuncio->update($request->only(['titulo', 'descripcion', 'tipo', 'estado']));
+        $data = $request->only(['titulo', 'descripcion', 'tipo', 'estado']);
+        if ($request->exists('local_id')) {
+            $data['local_id'] = $request->input('local_id') ?: null;
+        }
+        if ($request->has('en_slider')) {
+            $data['en_slider'] = filter_var($request->input('en_slider'), FILTER_VALIDATE_BOOLEAN);
+        }
+        if ($request->boolean('quitar_imagen')) {
+            $data['imagen'] = null;
+        }
+        if ($request->hasFile('imagen')) {
+            $file = $request->file('imagen');
+            $filename = time() . '_' . Str::random(10) . '.' . $file->getClientOriginalExtension();
+            $file->storeAs('anuncios', $filename, 'public');
+            $data['imagen'] = 'anuncios/' . $filename;
+        }
+
+        $anuncio->update($data);
+
+        \Illuminate\Support\Facades\Cache::forget('marketplace_feed_home');
 
         return response()->json([
             'message' => 'Anuncio actualizado correctamente',
-            'anuncio' => $anuncio
+            'anuncio' => $anuncio->load('local:id,nombre,slug,foto_logo')
         ]);
     }
 
@@ -308,6 +469,8 @@ class SuperadminController extends Controller
 
         $anuncio = \App\Models\Anuncio::findOrFail($id);
         $anuncio->delete();
+
+        \Illuminate\Support\Facades\Cache::forget('marketplace_feed_home');
 
         return response()->json([
             'message' => 'Anuncio eliminado correctamente'
@@ -361,18 +524,42 @@ class SuperadminController extends Controller
         $local = Local::findOrFail($id);
 
         $request->validate([
+            'nombre' => 'sometimes|string|max:255',
+            'telefono' => 'nullable|string|max:100',
+            'direccion' => 'nullable|string|max:255',
+            'localidad' => 'nullable|string|max:100',
+            'descripcion' => 'nullable|string',
+            'horario' => 'nullable|string',
             'estado' => 'sometimes|string|in:activo,inactivo,pendiente',
-            'destacado' => 'sometimes|boolean',
+            'destacado' => 'sometimes',
             'plan' => 'sometimes|string',
             'plan_id' => 'sometimes|integer|exists:planes,id',
-            'mostrar_feed' => 'sometimes|boolean',
+            'mostrar_feed' => 'sometimes',
             'tipo' => 'sometimes|string|in:venta,servicio,mixto,gym,financiera,farmacia,remiseria,info',
-            'siempre_abierto' => 'sometimes|boolean',
-            'de_turno' => 'sometimes|boolean',
+            'siempre_abierto' => 'sometimes',
+            'de_turno' => 'sometimes',
+            'logo' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:4096',
+            'portada' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:4096',
         ]);
 
+        if ($request->has('nombre') && !empty($request->nombre)) {
+            $local->nombre = $request->nombre;
+        }
+        if ($request->has('telefono')) $local->telefono = $request->telefono;
+        if ($request->has('direccion')) $local->direccion = $request->direccion;
+        if ($request->has('localidad')) $local->localidad = $request->localidad;
+        if ($request->has('descripcion')) $local->descripcion = $request->descripcion;
+        if ($request->has('horario')) $local->horario = $request->horario;
+        if ($request->has('instagram')) {
+            $redesActuales = is_string($local->redes_sociales) ? (json_decode($local->redes_sociales, true) ?: []) : (is_array($local->redes_sociales) ? $local->redes_sociales : []);
+            $redesActuales['instagram'] = trim((string) $request->input('instagram'));
+            $local->redes_sociales = json_encode($redesActuales);
+        } elseif ($request->has('redes_sociales')) {
+            $local->redes_sociales = is_array($request->redes_sociales) ? json_encode($request->redes_sociales) : $request->redes_sociales;
+        }
+
         if ($request->has('estado')) $local->estado = $request->estado;
-        if ($request->has('destacado')) $local->destacado = $request->destacado;
+        if ($request->has('destacado')) $local->destacado = filter_var($request->destacado, FILTER_VALIDATE_BOOLEAN);
         if ($request->has('plan')) {
             $local->plan = $request->plan;
             $planModel = \App\Models\Plan::where('slug', $request->plan)->orWhere('nombre', $request->plan)->first();
@@ -381,16 +568,40 @@ class SuperadminController extends Controller
             }
         }
         if ($request->has('plan_id')) $local->plan_id = $request->plan_id;
-        if ($request->has('mostrar_feed')) $local->mostrar_feed = $request->mostrar_feed;
+        if ($request->has('mostrar_feed')) $local->mostrar_feed = filter_var($request->mostrar_feed, FILTER_VALIDATE_BOOLEAN);
         if ($request->has('tipo')) $local->tipo = $request->tipo;
-        if ($request->has('siempre_abierto')) $local->siempre_abierto = $request->siempre_abierto;
-        if ($request->has('de_turno')) $local->de_turno = $request->de_turno;
+        if ($request->has('siempre_abierto')) $local->siempre_abierto = filter_var($request->siempre_abierto, FILTER_VALIDATE_BOOLEAN);
+        if ($request->has('de_turno')) $local->de_turno = filter_var($request->de_turno, FILTER_VALIDATE_BOOLEAN);
+
+        if ($request->hasFile('logo')) {
+            $file = $request->file('logo');
+            $filename = time() . '_' . Str::random(10) . '.' . $file->getClientOriginalExtension();
+            $file->storeAs('locales/logos', $filename, 'public');
+            $local->foto_logo = 'locales/logos/' . $filename;
+        }
+
+        if ($request->hasFile('portada')) {
+            $file = $request->file('portada');
+            $filename = time() . '_' . Str::random(10) . '.' . $file->getClientOriginalExtension();
+            $file->storeAs('locales/portadas', $filename, 'public');
+            $local->foto_portada = 'locales/portadas/' . $filename;
+        }
 
         $local->save();
 
+        if ($request->has('categories')) {
+            $local->categories()->sync($this->parseIdArray($request->input('categories')));
+        }
+        if ($request->has('subcategories')) {
+            $local->subcategories()->sync($this->parseIdArray($request->input('subcategories')));
+        }
+
+        \Illuminate\Support\Facades\Cache::forget('marketplace_feed_home');
+        Local::limpiarCacheFarmaciasTurno();
+
         return response()->json([
             'message' => 'Local actualizado correctamente',
-            'local' => $local
+            'local' => $local->load(['categories', 'subcategories'])
         ]);
     }
 
@@ -408,7 +619,8 @@ class SuperadminController extends Controller
             });
         }
 
-        $paginator = $query->orderBy('created_at', 'desc')->paginate(15);
+        $perPage = min((int) $request->input('per_page', 15), 200);
+        $paginator = $query->orderBy('created_at', 'desc')->paginate($perPage);
 
         $formatted = $paginator->getCollection()->map(function ($u) {
             $local = Local::where('id_user', $u->id)->first();
@@ -469,7 +681,8 @@ class SuperadminController extends Controller
             $query->where('name', 'like', '%' . $request->search . '%');
         }
 
-        $paginator = $query->orderBy('orden')->paginate(15);
+        $perPage = (int) $request->input('per_page', 50);
+        $paginator = $query->orderBy('orden')->paginate($perPage);
 
         return response()->json([
             'categorias' => $paginator->items(),
@@ -503,9 +716,11 @@ class SuperadminController extends Controller
         $categoria->orden = $request->orden ?? 0;
         $categoria->save();
 
+        \Illuminate\Support\Facades\Cache::forget('marketplace_feed_home');
+
         return response()->json([
             'message'   => 'Categoría creada correctamente',
-            'categoria' => $categoria
+            'categoria' => $categoria->load('subcategories')
         ], 201);
     }
 
@@ -536,6 +751,8 @@ class SuperadminController extends Controller
 
         $categoria->save();
 
+        \Illuminate\Support\Facades\Cache::forget('marketplace_feed_home');
+
         return response()->json([
             'message'   => 'Categoría actualizada correctamente',
             'categoria' => $categoria
@@ -550,6 +767,8 @@ class SuperadminController extends Controller
         // Soft delete or mark as inactive
         $categoria->state = 'inactive';
         $categoria->save();
+
+        \Illuminate\Support\Facades\Cache::forget('marketplace_feed_home');
 
         return response()->json([
             'message' => 'Categoría desactivada correctamente'
@@ -573,6 +792,8 @@ class SuperadminController extends Controller
             'slug' => $slug
         ]);
 
+        \Illuminate\Support\Facades\Cache::forget('marketplace_feed_home');
+
         return response()->json([
             'message' => 'Subcategoría creada correctamente',
             'subcategoria' => $sub
@@ -585,6 +806,8 @@ class SuperadminController extends Controller
 
         $sub = \App\Models\Subcategory::findOrFail($id);
         $sub->delete();
+
+        \Illuminate\Support\Facades\Cache::forget('marketplace_feed_home');
 
         return response()->json([
             'message' => 'Subcategoría eliminada correctamente'
@@ -602,7 +825,8 @@ class SuperadminController extends Controller
             $query->where('nombre', 'like', '%' . $request->search . '%');
         }
 
-        $paginator = $query->orderBy('orden')->paginate(15);
+        $perPage = (int) $request->input('per_page', 50);
+        $paginator = $query->orderBy('orden')->paginate($perPage);
         
         return response()->json([
             'planes' => $paginator->items(),
