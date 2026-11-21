@@ -51,6 +51,7 @@ Route::prefix('tienda')->group(function () {
     Route::get('/locales/nuevos', [\App\Http\Controllers\Api\MarketplaceController::class, 'nuevos']);
     Route::get('/locales/nuevos-todos', [\App\Http\Controllers\Api\MarketplaceController::class, 'nuevosTodos']);
     Route::get('/locales/{slug}', [\App\Http\Controllers\Api\MarketplaceController::class, 'showLocal']);
+    Route::post('/locales/{id}/track-click', [\App\Http\Controllers\Api\MarketplaceController::class, 'trackClick']);
     Route::get('/locales/{slug}/productos', [\App\Http\Controllers\Api\MarketplaceController::class, 'productosLocal']);
     Route::get('/locales/{slug}/servicios', [\App\Http\Controllers\Api\MarketplaceController::class, 'serviciosLocal']);
     Route::get('/productos/tendencias', [\App\Http\Controllers\Api\MarketplaceController::class, 'tendencias']);
@@ -74,6 +75,7 @@ Route::get('/planes', function () {
 // Rutas protegidas (requieren token Sanctum)
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/user', [AuthController::class, 'user']);
+    Route::put('/user/password', [AuthController::class, 'changePassword']);
     Route::post('/logout', [AuthController::class, 'logout']);
 
     // ──────────────────────────────────────────────
@@ -131,6 +133,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/perfil', [LocalConfigController::class, 'updatePerfil']);
         Route::post('/perfil/logo', [LocalConfigController::class, 'uploadLogo']);
         Route::post('/perfil/portada', [LocalConfigController::class, 'uploadPortada']);
+        Route::post('/anuncios', [LocalConfigController::class, 'guardarAnuncio']);
+        Route::delete('/anuncios/{id}', [LocalConfigController::class, 'eliminarAnuncio']);
     });
 
     // ──────────────────────────────────────────────

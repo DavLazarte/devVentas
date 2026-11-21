@@ -79,6 +79,40 @@ class AuthController extends Controller
         ]);
     }
 
+    public function changePassword(Request $request)
+    {
+        $request->validate([
+            'current_password' => 'required|string',
+            'password' => 'required|string|min:6|confirmed',
+        ], [
+            'password.min' => 'La nueva contraseña debe tener al menos 6 caracteres.',
+            'password.confirmed' => 'La confirmación de la contraseña no coincide.',
+        ]);
+
+        $user = $request->user();
+
+        if (!Hash::check($request->current_password, $user->password)) {
+            throw ValidationException::withMessages([
+                'current_password' => ['La contraseña actual es incorrecta.'],
+            ]);
+        }
+
+        $user->password = Hash::make($request->password);
+        $user->save();
+
+        // Revocar TODOS los tokens activos del usuario en todos los dispositivos
+        $revokedCount = \Laravel\Sanctum\PersonalAccessToken::where('tokenable_id', $user->id)->delete();
+
+        // Emitir un único token nuevo para el dispositivo actual
+        $newToken = $user->createToken('api-token')->plainTextToken;
+
+        return response()->json([
+            'message' => 'Contraseña actualizada. Se cerraron todas las demás sesiones activas.',
+            'token' => $newToken,
+            'revoked_sessions' => $revokedCount,
+        ]);
+    }
+
     public function register(Request $request)
     {
         $request->validate([

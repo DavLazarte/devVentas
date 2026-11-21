@@ -59,8 +59,20 @@ class SuperadminController extends Controller
         $perPage = min((int) $request->input('per_page', 15), 200);
         $paginator = $query->orderBy('created_at', 'desc')->paginate($perPage);
 
-        $formateado = $paginator->getCollection()->map(function ($l) {
+        // Farmacias efectivamente de turno hoy (ciclo COFATUC 08:00 a 08:00 + overrides manuales del día)
+        $farmaciasTurnoHoy = Local::obtenerFarmaciasDeTurno()->whereNotNull('id')->keyBy('id');
+        $fechaTurnoActual = Local::fechaTurnoActual();
+
+        $formateado = $paginator->getCollection()->map(function ($l) use ($farmaciasTurnoHoy, $fechaTurnoActual) {
             $redes = is_string($l->redes_sociales) ? json_decode($l->redes_sociales, true) : $l->redes_sociales;
+            $esFarmacia = $l->tipo === 'farmacia';
+            $enTurnoHoy = $esFarmacia && $farmaciasTurnoHoy->has($l->id);
+            $fechaOverride = $l->turno_fecha ? substr((string) $l->turno_fecha, 0, 10) : null;
+            $bajadaHoy = $esFarmacia && !$enTurnoHoy && $fechaOverride === $fechaTurnoActual && !$l->de_turno;
+            $turnoOrigen = $enTurnoHoy
+                ? ($farmaciasTurnoHoy->get($l->id)['origen'] ?? 'cofatuc')
+                : ($bajadaHoy ? 'bajada_hoy' : null);
+
             return [
                 'id' => $l->id,
                 'nombre' => $l->nombre,
@@ -79,7 +91,10 @@ class SuperadminController extends Controller
                 'destacado' => (bool) $l->destacado,
                 'mostrar_feed' => (bool) $l->mostrar_feed,
                 'siempre_abierto' => (bool) $l->siempre_abierto,
-                'de_turno' => (bool) $l->de_turno,
+                'de_turno' => $enTurnoHoy,
+                'turno_origen' => $turnoOrigen,
+                'vistas_perfil' => (int) ($l->vistas_perfil ?? 0),
+                'clicks_whatsapp' => (int) ($l->clicks_whatsapp ?? 0),
                 'foto_logo_url' => $l->foto_logo_url,
                 'foto_portada_url' => $l->foto_portada_url,
                 'categories' => $l->categories->map(fn($c) => [
@@ -260,6 +275,9 @@ class SuperadminController extends Controller
             'siempre_abierto' => filter_var($request->input('siempre_abierto', false), FILTER_VALIDATE_BOOLEAN),
             'destacado' => filter_var($request->input('destacado', false), FILTER_VALIDATE_BOOLEAN),
             'de_turno' => filter_var($request->input('de_turno', false), FILTER_VALIDATE_BOOLEAN),
+            'turno_fecha' => filter_var($request->input('de_turno', false), FILTER_VALIDATE_BOOLEAN)
+                ? Local::fechaTurnoActual()
+                : null,
         ]);
 
         if ($request->hasFile('logo')) {
@@ -508,12 +526,41 @@ class SuperadminController extends Controller
         $totalPedidos = DB::table('pedidos')->count();
         $pedidosPendientes = DB::table('pedidos')->where('estado', 'pendiente')->count();
 
+        $totalVistas = 0;
+        $totalClicks = 0;
+        try {
+            if (\Illuminate\Support\Facades\Schema::hasColumn('locales', 'vistas_perfil')) {
+                $totalVistas = (int) DB::table('locales')->sum('vistas_perfil');
+                $totalClicks = (int) DB::table('locales')->sum('clicks_whatsapp');
+            }
+        } catch (\Throwable $e) {}
+
+        $topBusquedas = [];
+        $busquedasSinResultados = [];
+        try {
+            if (\Illuminate\Support\Facades\Schema::hasTable('busquedas_log')) {
+                $topBusquedas = DB::table('busquedas_log')
+                    ->orderBy('cantidad', 'desc')
+                    ->take(10)
+                    ->get();
+                $busquedasSinResultados = DB::table('busquedas_log')
+                    ->where('ultimo_resultado_count', 0)
+                    ->orderBy('cantidad', 'desc')
+                    ->take(10)
+                    ->get();
+            }
+        } catch (\Throwable $e) {}
+
         return response()->json([
             'total_locales' => $totalLocales,
             'locales_activos' => $localesActivos,
             'total_usuarios' => $totalUsers,
             'total_pedidos' => $totalPedidos,
             'pedidos_pendientes' => $pedidosPendientes,
+            'total_vistas_perfil' => $totalVistas,
+            'total_clicks_whatsapp' => $totalClicks,
+            'top_busquedas' => $topBusquedas,
+            'busquedas_sin_resultados' => $busquedasSinResultados,
         ]);
     }
 
@@ -571,7 +618,13 @@ class SuperadminController extends Controller
         if ($request->has('mostrar_feed')) $local->mostrar_feed = filter_var($request->mostrar_feed, FILTER_VALIDATE_BOOLEAN);
         if ($request->has('tipo')) $local->tipo = $request->tipo;
         if ($request->has('siempre_abierto')) $local->siempre_abierto = filter_var($request->siempre_abierto, FILTER_VALIDATE_BOOLEAN);
-        if ($request->has('de_turno')) $local->de_turno = filter_var($request->de_turno, FILTER_VALIDATE_BOOLEAN);
+        if ($request->has('de_turno')) {
+            $nuevoDeTurno = filter_var($request->de_turno, FILTER_VALIDATE_BOOLEAN);
+            $local->de_turno = $nuevoDeTurno;
+            if (\Illuminate\Support\Facades\Schema::hasColumn('locales', 'turno_fecha')) {
+                $local->turno_fecha = Local::fechaTurnoActual();
+            }
+        }
 
         if ($request->hasFile('logo')) {
             $file = $request->file('logo');
@@ -624,6 +677,7 @@ class SuperadminController extends Controller
 
         $formatted = $paginator->getCollection()->map(function ($u) {
             $local = Local::where('id_user', $u->id)->first();
+            $activeSessions = \Laravel\Sanctum\PersonalAccessToken::where('tokenable_id', $u->id)->count();
             return [
                 'id' => $u->id,
                 'name' => $u->name,
@@ -631,6 +685,7 @@ class SuperadminController extends Controller
                 'role_id' => $u->role_id,
                 'role_name' => $u->role ? $u->role->name : 'user',
                 'local_nombre' => $local ? $local->nombre : null,
+                'active_sessions' => $activeSessions,
                 'created_at' => $u->created_at,
             ];
         });
@@ -656,17 +711,32 @@ class SuperadminController extends Controller
             'role_id' => 'sometimes|integer|exists:roles,id',
             'name' => 'sometimes|string|max:255',
             'email' => 'sometimes|email|unique:users,email,' . $id,
+            'password' => 'sometimes|nullable|string|min:6',
+            'revoke_sessions' => 'sometimes|boolean',
         ]);
 
         if ($request->has('role_id')) $user->role_id = $request->role_id;
         if ($request->has('name')) $user->name = $request->name;
         if ($request->has('email')) $user->email = $request->email;
 
+        $revokedCount = 0;
+        if ($request->filled('password')) {
+            $user->password = Hash::make($request->password);
+            $revokedCount = \Laravel\Sanctum\PersonalAccessToken::where('tokenable_id', $user->id)->delete();
+        } elseif ($request->boolean('revoke_sessions')) {
+            $revokedCount = \Laravel\Sanctum\PersonalAccessToken::where('tokenable_id', $user->id)->delete();
+        }
+
         $user->save();
         $user->load('role');
 
         return response()->json([
-            'message' => 'Usuario actualizado correctamente',
+            'message' => $request->filled('password')
+                ? "Contraseña actualizada y {$revokedCount} sesiones cerradas"
+                : ($request->boolean('revoke_sessions')
+                    ? "Se cerraron {$revokedCount} sesiones activas del usuario"
+                    : 'Usuario actualizado correctamente'),
+            'revoked_sessions' => $revokedCount,
             'user' => $user
         ]);
     }

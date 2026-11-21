@@ -224,6 +224,37 @@ class MarketplaceController extends Controller
 
         $locales = $query->orderBy('created_at', 'desc')->get();
 
+        // Registrar término buscado (>= 3 caracteres) para analítica de demanda local
+        if ($request->filled('search')) {
+            $termino = mb_strtolower(trim((string) $request->search), 'UTF-8');
+            $termino = preg_replace('/\s+/u', ' ', $termino);
+            if (mb_strlen($termino, 'UTF-8') >= 3 && mb_strlen($termino, 'UTF-8') <= 100) {
+                try {
+                    if (\Illuminate\Support\Facades\Schema::hasTable('busquedas_log')) {
+                        $countRes = $locales->count();
+                        $existe = \Illuminate\Support\Facades\DB::table('busquedas_log')->where('termino', $termino)->first();
+                        if ($existe) {
+                            \Illuminate\Support\Facades\DB::table('busquedas_log')
+                                ->where('id', $existe->id)
+                                ->update([
+                                    'cantidad' => $existe->cantidad + 1,
+                                    'ultimo_resultado_count' => $countRes,
+                                    'updated_at' => now(),
+                                ]);
+                        } else {
+                            \Illuminate\Support\Facades\DB::table('busquedas_log')->insert([
+                                'termino' => $termino,
+                                'cantidad' => 1,
+                                'ultimo_resultado_count' => $countRes,
+                                'created_at' => now(),
+                                'updated_at' => now(),
+                            ]);
+                        }
+                    }
+                } catch (\Throwable $e) {}
+            }
+        }
+
         return response()->json($locales);
     }
 
@@ -317,7 +348,7 @@ class MarketplaceController extends Controller
     /**
      * Obtener perfil público de un local específico
      */
-    public function showLocal($identifier)
+    public function showLocal(Request $request, $identifier)
     {
         $local = Local::with(['categories', 'subcategories', 'anuncios' => function ($q) {
                 $q->where('estado', 'activo')->orderBy('created_at', 'desc');
@@ -329,8 +360,32 @@ class MarketplaceController extends Controller
                   ->orWhere('id', $identifier);
             })
             ->firstOrFail();
+
+        // Incrementar contador de visitas reales (omitir si es prefetch de metadata/SEO con ?no_track=1)
+        if (!$request->boolean('no_track')) {
+            try {
+                if (\Illuminate\Support\Facades\Schema::hasColumn('locales', 'vistas_perfil')) {
+                    Local::where('id', $local->id)->increment('vistas_perfil');
+                    $local->vistas_perfil = ($local->vistas_perfil ?? 0) + 1;
+                }
+            } catch (\Throwable $e) {}
+        }
             
         return response()->json($local);
+    }
+
+    /**
+     * Registrar clic a WhatsApp / Teléfono de un local
+     */
+    public function trackClick($identifier)
+    {
+        try {
+            if (\Illuminate\Support\Facades\Schema::hasColumn('locales', 'clicks_whatsapp')) {
+                Local::where('id', $identifier)->orWhere('slug', $identifier)->increment('clicks_whatsapp');
+            }
+        } catch (\Throwable $e) {}
+
+        return response()->json(['ok' => true]);
     }
 
     /**

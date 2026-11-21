@@ -43,6 +43,9 @@ class Local extends Model
     'redes_sociales',
     'siempre_abierto',
     'de_turno',
+    'turno_fecha',
+    'vistas_perfil',
+    'clicks_whatsapp',
 ];
 
     protected $appends = ['foto_portada_url', 'foto_logo_url', 'abierto_ahora', 'estado_horario'];
@@ -72,7 +75,7 @@ class Local extends Model
             ];
         }
 
-        if ($this->tipo === 'farmacia' && $this->de_turno) {
+        if ($this->tipo === 'farmacia' && $this->estaDeTurnoHoy()) {
             return $this->cachedScheduleEval = [
                 'abierto' => true,
                 'estado'  => 'De turno hoy (08 a 08 hs)',
@@ -201,6 +204,31 @@ class Local extends Model
     }
 
     /**
+     * Devuelve la fecha efectiva del turno actual (YYYY-MM-DD) considerando el corte de 08:00 AM a 08:00 AM en Tucumán
+     */
+    public static function fechaTurnoActual(?\Carbon\Carbon $momento = null): string
+    {
+        $now = $momento ? $momento->copy()->setTimezone('America/Argentina/Tucuman') : \Carbon\Carbon::now('America/Argentina/Tucuman');
+        $fechaTurno = $now->hour < 8
+            ? $now->copy()->subDay()->startOfDay()
+            : $now->copy()->startOfDay();
+
+        return $fechaTurno->toDateString();
+    }
+
+    /**
+     * Determina si esta instancia de farmacia está efectivamente de turno en el ciclo actual (08:00 a 08:00)
+     */
+    public function estaDeTurnoHoy(): bool
+    {
+        if ($this->tipo !== 'farmacia') {
+            return false;
+        }
+        $idsHoy = self::obtenerFarmaciasDeTurno()->pluck('id')->filter()->toArray();
+        return in_array($this->id, $idsHoy, true);
+    }
+
+    /**
      * Limpia el caché del turno de farmacias (útil cuando el admin cambia manualmente `de_turno`)
      */
     public static function limpiarCacheFarmaciasTurno(): void
@@ -214,8 +242,10 @@ class Local extends Model
 
     /**
      * Ciclo automático COFATUC de 15 días (corte 08:00 AM a 08:00 AM en Monteros, Tucumán)
-     * más cualquier farmacia marcada manualmente con de_turno = true.
-     * Se calcula 1 sola vez por turno y queda cacheado hasta las 08:00 AM del día siguiente.
+     * con soporte de overrides manuales por el día del turno (`turno_fecha`):
+     * - Si `turno_fecha == $fechaTurnoStr` y `de_turno == false`: el admin bajó esa farmacia del turno de hoy.
+     * - Si `turno_fecha == $fechaTurnoStr` y `de_turno == true`: el admin subió esa farmacia al turno de hoy (vence sola a las 08:00 AM).
+     * - Si `turno_fecha != $fechaTurnoStr` y `de_turno == true`: es un turno manual viejo vencido -> se ignora y se limpia.
      */
     public static function obtenerFarmaciasDeTurno(?\Carbon\Carbon $momento = null): \Illuminate\Support\Collection
     {
@@ -226,11 +256,12 @@ class Local extends Model
             ? $now->copy()->subDay()->startOfDay()
             : $now->copy()->startOfDay();
 
+        $fechaTurnoStr = $fechaTurno->toDateString();
         $inicioTurno = $fechaTurno->copy()->setTime(8, 0, 0);
         $finTurno = $fechaTurno->copy()->addDay()->setTime(8, 0, 0);
-        $cacheKey = 'farmacias_turno_cofatuc_' . $fechaTurno->toDateString();
+        $cacheKey = 'farmacias_turno_cofatuc_' . $fechaTurnoStr;
 
-        $items = \Illuminate\Support\Facades\Cache::remember($cacheKey, $finTurno, function () use ($fechaTurno, $inicioTurno, $finTurno) {
+        $items = \Illuminate\Support\Facades\Cache::remember($cacheKey, $finTurno, function () use ($fechaTurno, $fechaTurnoStr, $inicioTurno, $finTurno) {
             $anchor = \Carbon\Carbon::create(2026, 8, 10, 0, 0, 0, 'America/Argentina/Tucuman');
             $diffDays = (int) round($anchor->diffInDays($fechaTurno, false));
             $offset = (($diffDays % 15) + 15) % 15;
@@ -288,6 +319,19 @@ class Local extends Model
                 ],
             ];
 
+            $tieneColumnaFecha = \Illuminate\Support\Facades\Schema::hasColumn('locales', 'turno_fecha');
+
+            // Auto-limpiar overrides manuales de días anteriores para que no queden pegados
+            if ($tieneColumnaFecha) {
+                self::where('tipo', 'farmacia')
+                    ->where('de_turno', true)
+                    ->where(function ($q) use ($fechaTurnoStr) {
+                        $q->whereNull('turno_fecha')
+                          ->orWhere('turno_fecha', '!=', $fechaTurnoStr);
+                    })
+                    ->update(['de_turno' => false, 'turno_fecha' => null]);
+            }
+
             $farmaciasDb = self::where('estado', 'activo')
                 ->where('tipo', 'farmacia')
                 ->get();
@@ -322,6 +366,13 @@ class Local extends Model
 
                 if ($matched) {
                     $usedIds[] = $matched->id;
+
+                    // Verificar si el admin la dio de baja explícitamente por el turno de hoy
+                    $fechaOverride = $matched->turno_fecha ? substr((string) $matched->turno_fecha, 0, 10) : null;
+                    if ($tieneColumnaFecha && $fechaOverride === $fechaTurnoStr && !$matched->de_turno) {
+                        continue;
+                    }
+
                     $nombreDisplay = $matched->nombre;
                     if (!preg_match('/^farmacia/i', $nombreDisplay)) {
                         $nombreDisplay = 'Farmacia ' . $nombreDisplay;
@@ -334,7 +385,7 @@ class Local extends Model
                         'telefono'         => $matched->telefono ?: $item['telefono'],
                         'foto_logo_url'    => $matched->foto_logo_url,
                         'foto_portada_url' => $matched->foto_portada_url,
-                        'fecha_turno'      => $fechaTurno->toDateString(),
+                        'fecha_turno'      => $fechaTurnoStr,
                         'horario_turno'    => 'Hoy de 08:00 a 08:00 hs',
                         'inicio_turno'     => $inicioTurno->toIso8601String(),
                         'fin_turno'        => $finTurno->toIso8601String(),
@@ -349,7 +400,7 @@ class Local extends Model
                         'telefono'         => $item['telefono'],
                         'foto_logo_url'    => null,
                         'foto_portada_url' => null,
-                        'fecha_turno'      => $fechaTurno->toDateString(),
+                        'fecha_turno'      => $fechaTurnoStr,
                         'horario_turno'    => 'Hoy de 08:00 a 08:00 hs',
                         'inicio_turno'     => $inicioTurno->toIso8601String(),
                         'fin_turno'        => $finTurno->toIso8601String(),
@@ -358,9 +409,14 @@ class Local extends Model
                 }
             }
 
-            // Agregar cualquier otra farmacia que el admin haya puesto manualmente con de_turno = true
+            // Agregar cualquier otra farmacia que el admin haya puesto manualmente para el turno de HOY
             foreach ($farmaciasDb as $f) {
-                if ($f->de_turno && !in_array($f->id, $usedIds, true)) {
+                $fechaOverride = $f->turno_fecha ? substr((string) $f->turno_fecha, 0, 10) : null;
+                $esManualDeHoy = $tieneColumnaFecha
+                    ? ($f->de_turno && $fechaOverride === $fechaTurnoStr)
+                    : (bool) $f->de_turno;
+
+                if ($esManualDeHoy && !in_array($f->id, $usedIds, true)) {
                     $nombreDisplay = $f->nombre;
                     if (!preg_match('/^farmacia/i', $nombreDisplay)) {
                         $nombreDisplay = 'Farmacia ' . $nombreDisplay;
@@ -373,8 +429,8 @@ class Local extends Model
                         'telefono'         => $f->telefono,
                         'foto_logo_url'    => $f->foto_logo_url,
                         'foto_portada_url' => $f->foto_portada_url,
-                        'fecha_turno'      => $fechaTurno->toDateString(),
-                        'horario_turno'    => 'Guardia activa hoy',
+                        'fecha_turno'      => $fechaTurnoStr,
+                        'horario_turno'    => 'Guardia asignada hoy (08 a 08 hs)',
                         'inicio_turno'     => $inicioTurno->toIso8601String(),
                         'fin_turno'        => $finTurno->toIso8601String(),
                         'origen'           => 'manual',

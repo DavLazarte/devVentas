@@ -62,7 +62,15 @@ class LocalConfigController extends Controller
 
     public function getPerfil(Request $request)
     {
-        $local = Local::with(['planInfo', 'categories', 'subcategories'])->where('id_user', $request->user()->id)->firstOrFail();
+        $local = Local::with([
+            'planInfo',
+            'categories',
+            'subcategories',
+            'anuncios' => function ($q) {
+                $q->orderBy('created_at', 'desc');
+            },
+        ])->where('id_user', $request->user()->id)->firstOrFail();
+
         return response()->json($local);
     }
 
@@ -132,6 +140,8 @@ class LocalConfigController extends Controller
             $local->subcategories()->sync($request->subcategories);
         }
 
+        \Illuminate\Support\Facades\Cache::forget('marketplace_feed_home');
+
         return response()->json([
             'message' => 'Perfil actualizado correctamente',
             'local' => $local->load(['categories', 'subcategories'])
@@ -143,7 +153,7 @@ class LocalConfigController extends Controller
         $local = Local::where('id_user', $request->user()->id)->firstOrFail();
 
         $request->validate([
-            'logo' => 'required|image|mimes:jpg,jpeg,png,webp|max:2048',
+            'logo' => 'required|image|mimes:jpg,jpeg,png,webp|max:4096',
         ]);
 
         if ($request->hasFile('logo')) {
@@ -153,6 +163,8 @@ class LocalConfigController extends Controller
 
             $local->foto_logo = 'locales/logos/' . $filename;
             $local->save();
+
+            \Illuminate\Support\Facades\Cache::forget('marketplace_feed_home');
 
             return response()->json([
                 'message' => 'Logo subido correctamente',
@@ -169,7 +181,7 @@ class LocalConfigController extends Controller
         $local = Local::where('id_user', $request->user()->id)->firstOrFail();
 
         $request->validate([
-            'portada' => 'required|image|mimes:jpg,jpeg,png,webp|max:2048',
+            'portada' => 'required|image|mimes:jpg,jpeg,png,webp|max:4096',
         ]);
 
         if ($request->hasFile('portada')) {
@@ -180,6 +192,8 @@ class LocalConfigController extends Controller
             $local->foto_portada = 'locales/portadas/' . $filename;
             $local->save();
 
+            \Illuminate\Support\Facades\Cache::forget('marketplace_feed_home');
+
             return response()->json([
                 'message' => 'Portada subida correctamente',
                 'url' => asset('storage/locales/portadas/' . $filename),
@@ -188,5 +202,64 @@ class LocalConfigController extends Controller
         }
 
         return response()->json(['message' => 'No se subió ningún archivo'], 400);
+    }
+
+    /**
+     * Permite al dueño del local publicar o actualizar su propio Menú del Día / Oferta / Aviso desde /perfil
+     */
+    public function guardarAnuncio(Request $request)
+    {
+        $local = Local::where('id_user', $request->user()->id)->firstOrFail();
+
+        $request->validate([
+            'id' => 'nullable|integer',
+            'titulo' => 'required|string|max:255',
+            'descripcion' => 'nullable|string',
+            'tipo' => 'required|string|in:menu,oferta,info,alerta',
+            'estado' => 'nullable|string|in:activo,inactivo',
+            'imagen' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:4096',
+        ]);
+
+        if ($request->filled('id')) {
+            $anuncio = \App\Models\Anuncio::where('local_id', $local->id)->findOrFail($request->id);
+        } else {
+            $anuncio = new \App\Models\Anuncio();
+            $anuncio->local_id = $local->id;
+        }
+
+        $anuncio->titulo = $request->titulo;
+        $anuncio->descripcion = $request->descripcion;
+        $anuncio->tipo = $request->tipo;
+        $anuncio->estado = $request->input('estado', 'activo');
+
+        if ($request->boolean('quitar_imagen')) {
+            $anuncio->imagen = null;
+        }
+        if ($request->hasFile('imagen')) {
+            $file = $request->file('imagen');
+            $filename = time() . '_' . Str::random(10) . '.' . $file->getClientOriginalExtension();
+            $file->storeAs('anuncios', $filename, 'public');
+            $anuncio->imagen = 'anuncios/' . $filename;
+        }
+
+        $anuncio->save();
+
+        \Illuminate\Support\Facades\Cache::forget('marketplace_feed_home');
+
+        return response()->json([
+            'message' => 'Publicación guardada correctamente',
+            'anuncio' => $anuncio,
+        ]);
+    }
+
+    public function eliminarAnuncio(Request $request, $id)
+    {
+        $local = Local::where('id_user', $request->user()->id)->firstOrFail();
+        $anuncio = \App\Models\Anuncio::where('local_id', $local->id)->findOrFail($id);
+        $anuncio->delete();
+
+        \Illuminate\Support\Facades\Cache::forget('marketplace_feed_home');
+
+        return response()->json(['message' => 'Publicación eliminada']);
     }
 }
