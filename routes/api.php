@@ -264,6 +264,12 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Dashboard Gym
     Route::get('/dashboard/stats', [\App\Http\Controllers\Api\DashboardController::class, 'getStats']);
+    Route::get('/dashboard/constancia-mensual', [\App\Http\Controllers\Api\DashboardController::class, 'getConstanciaMensual']);
+
+    // Planificación Diaria Gym (Admin edita, Coach lee)
+    Route::get('/planificaciones', [\App\Http\Controllers\Api\PlanificacionGymController::class, 'index']);
+    Route::post('/planificaciones', [\App\Http\Controllers\Api\PlanificacionGymController::class, 'store']);
+    Route::delete('/planificaciones/{id}', [\App\Http\Controllers\Api\PlanificacionGymController::class, 'destroy']);
 
     // Salidas Gym
     Route::apiResource('salidas-gym', \App\Http\Controllers\Api\SalidaGymController::class);

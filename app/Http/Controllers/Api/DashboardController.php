@@ -231,4 +231,110 @@ class DashboardController extends Controller
             ];
         }));
     }
+
+    /**
+     * GET /api/dashboard/constancia-mensual?mes=YYYY-MM
+     * Listado de socios con sus turnos reservados (no cancelados) en el mes,
+     * sin requerir asistencia marcada por el profesor.
+     */
+    public function getConstanciaMensual(Request $request)
+    {
+        $localId = $this->getLocalId();
+        if (!$localId) {
+            return response()->json(['message' => 'Sin local activo'], 403);
+        }
+
+        $mesParam = $request->query('mes');
+        try {
+            $inicioMes = ($mesParam && preg_match('/^\d{4}-\d{2}$/', $mesParam))
+                ? Carbon::createFromFormat('Y-m', $mesParam)->startOfMonth()
+                : Carbon::now()->startOfMonth();
+        } catch (\Exception $e) {
+            $inicioMes = Carbon::now()->startOfMonth();
+        }
+        $finMes = $inicioMes->copy()->endOfMonth();
+
+        $reservas = ReservaGym::with(['persona:idpersona,nombre,telefono,foto,tipo_persona'])
+            ->where(function ($q) use ($localId) {
+                $q->where('id_local', $localId)
+                  ->orWhereHas('clase', fn($cq) => $cq->where('id_local', $localId));
+            })
+            ->whereBetween('fecha_reserva', [$inicioMes->toDateString(), $finMes->toDateString()])
+            ->where('estado', '!=', 'cancelada')
+            ->get();
+
+        $porSocio = $reservas
+            ->filter(fn($r) => $r->persona && $r->persona->tipo_persona === 'cliente')
+            ->groupBy('id_persona')
+            ->map(function ($items) {
+                $persona = $items->first()->persona;
+
+                $fechasUnicas = $items
+                    ->map(fn($r) => Carbon::parse($r->fecha_reserva)->format('Y-m-d'))
+                    ->unique()
+                    ->sort()
+                    ->values();
+
+                // Calcular mejor racha de días hábiles seguidos dentro del mes (saltando sábados y domingos)
+                $mejorRacha = 0;
+                $rachaActual = 0;
+                $prevDate = null;
+
+                foreach ($fechasUnicas as $fechaStr) {
+                    $cur = Carbon::parse($fechaStr);
+                    if ($prevDate === null) {
+                        $rachaActual = 1;
+                    } else {
+                        // Avanzar desde el día siguiente al anterior saltando fines de semana
+                        $expected = $prevDate->copy()->addDay();
+                        while ($expected->isWeekend() && $expected->lt($cur)) {
+                            $expected->addDay();
+                        }
+                        if ($expected->isSameDay($cur)) {
+                            $rachaActual++;
+                        } else {
+                            $rachaActual = 1;
+                        }
+                    }
+                    if ($rachaActual > $mejorRacha) {
+                        $mejorRacha = $rachaActual;
+                    }
+                    $prevDate = $cur;
+                }
+
+                $foto = $persona->foto
+                    ? (preg_match('/^http/', $persona->foto) ? $persona->foto : url($persona->foto))
+                    : null;
+
+                return [
+                    'id' => $persona->idpersona,
+                    'nombre' => $persona->nombre,
+                    'telefono' => $persona->telefono,
+                    'foto' => $foto,
+                    'total_turnos' => $items->count(),
+                    'dias_unicos' => $fechasUnicas->count(),
+                    'mejor_racha' => $mejorRacha,
+                    'ultima_reserva' => $fechasUnicas->last(),
+                ];
+            })
+            ->sort(function ($a, $b) {
+                if ($b['total_turnos'] !== $a['total_turnos']) {
+                    return $b['total_turnos'] <=> $a['total_turnos'];
+                }
+                if ($b['mejor_racha'] !== $a['mejor_racha']) {
+                    return $b['mejor_racha'] <=> $a['mejor_racha'];
+                }
+                return strcmp($a['nombre'], $b['nombre']);
+            })
+            ->values();
+
+        return response()->json([
+            'mes' => $inicioMes->format('Y-m'),
+            'resumen' => [
+                'total_socios_con_turno' => $porSocio->count(),
+                'total_turnos_mes' => $porSocio->sum('total_turnos'),
+            ],
+            'socios' => $porSocio,
+        ]);
+    }
 }

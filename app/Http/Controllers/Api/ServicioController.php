@@ -248,11 +248,40 @@ class ServicioController extends Controller
         $localId = $this->getLocalId();
         $servicio = Servicio::where('id_local', $localId)->findOrFail($id);
 
-        $servicio->delete();
+        $tieneHistorial = $servicio->membresias()->exists() || $servicio->clases()->exists();
 
-        return response()->json([
-            'message' => 'Servicio eliminado exitosamente'
-        ]);
+        if ($tieneHistorial) {
+            $servicio->estado = false;
+            $servicio->save();
+
+            return response()->json([
+                'message' => 'El plan tiene membresías o clases asociadas, por lo que fue desactivado para conservar el historial.',
+                'action' => 'deactivated',
+                'servicio' => $servicio,
+            ]);
+        }
+
+        try {
+            $servicio->delete();
+
+            return response()->json([
+                'message' => 'Servicio eliminado exitosamente.',
+                'action' => 'deleted',
+            ]);
+        } catch (\Illuminate\Database\QueryException $e) {
+            if ($e->getCode() === '23000') {
+                $servicio->estado = false;
+                $servicio->save();
+
+                return response()->json([
+                    'message' => 'El plan tiene registros asociados, por lo que fue desactivado para conservar el historial.',
+                    'action' => 'deactivated',
+                    'servicio' => $servicio,
+                ]);
+            }
+
+            throw $e;
+        }
     }
 
     /**
